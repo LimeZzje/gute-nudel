@@ -39,7 +39,8 @@ const MONTH = 30 * 864e5;
 function postObj() { // what the partner reads: my handed-over tasks and my answers to theirs
   return {
     me: D.me(), name: S.name, ts: Date.now(),
-    out: S.sent.filter(x => Date.now() - x.ts < MONTH).map(({ id, text, today, ts }) => ({ id, text, today, ts })),
+    out: S.sent.filter(x => x.status !== 'weg' && Date.now() - x.ts < MONTH).map(({ id, text, today, ts }) => ({ id, text, today, ts })),
+    withdrawn: S.sent.filter(x => x.status === 'weg').map(x => x.id),
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
 }
@@ -53,19 +54,22 @@ async function syncPost() {
     if (p.me && p.me === D.me()) return;              // never treat my own mailbox as the partner's
     let changed = false; const back = [], took = [], done = [];
     if (p.name && p.name !== S.partnerName) { S.partnerName = p.name; changed = true; }
-    const inc = (p.out || []).filter(x => !S.answered[x.id]);
+    const gone = new Set(p.withdrawn || []), pulled = S.items.filter(i => i.did && gone.has(i.did));
+    if (pulled.length) { S.items = S.items.filter(i => !pulled.includes(i)); pulled.forEach(i => { S.answered[i.did] = { status: 'weg', ts: Date.now() }; }); changed = true; }
+    const inc = (p.out || []).filter(x => !S.answered[x.id] && !gone.has(x.id));
     if (inc.map(x => x.id).join() !== S.incoming.map(x => x.id).join()) { S.incoming = inc; changed = true; }
     for (const r of p.replies || []) {
       const x = S.sent.find(y => y.id === r.id);
-      if (!x || RANK[r.status] <= RANK[x.status]) continue;
+      if (!x || x.status === 'weg' || !(r.status in RANK) || RANK[r.status] <= RANK[x.status]) continue;
       x.status = r.status; x.reason = r.reason || ''; changed = true;
       if (r.status === 'nein') { S.items.unshift({ id: uid(), text: x.text, where: 'liste', created: Date.now(), back: x.reason }); back.push(x); }
       else if (r.status === 'ok') took.push(x); else done.push(x);
     }
     const before = S.sent.length;
-    S.sent = S.sent.filter(x => x.status === 'wartet' || x.status === 'ok' || Date.now() - x.ts < 14 * 864e5);
+    S.sent = S.sent.filter(x => x.status === 'wartet' || x.status === 'ok' || Date.now() - (x.wts || x.ts) < 14 * 864e5);
     if (S.sent.length !== before) changed = true;
     if (changed) commit();
+    if (pulled.length) toast(pn() + ' hat zurückgenommen: ' + pulled.map(i => i.text).join(', '));
     if (back.length) modal(`<h2>Kommt zurück</h2><p>${esc(pn())} kann das gerade nicht übernehmen:</p><div style="text-align:left">${back.map(x => `<p><b>${esc(x.text)}</b><br><span class="muted">„${esc(x.reason)}“</span></p>`).join('')}</div><p class="muted">${back.length > 1 ? 'Die Aufgaben sind' : 'Die Aufgabe ist'} wieder auf deiner Liste.</p><div class="row"><button class="btn" data-a="close">Okay</button></div>`);
     else if (done.length) toast(pn() + ' hat erledigt: ' + done.map(x => x.text).join(', ') + ' 🎉');
     else if (took.length) toast(pn() + ' übernimmt ' + (took.length === 1 ? '„' + took[0].text + '“' : took.length + ' Aufgaben') + ' 💛');
@@ -239,10 +243,10 @@ function viewListe() {
   h += `<form class="add" data-f="addlist"><input name="t" placeholder="Neue Aufgabe…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
   if (D.canPost() && S.items.length) h += `<button class="btn soft wide" data-a="delegate" style="margin-top:12px">🤝 An ${esc(pn())} abgeben</button>`;
   h += `<p class="hint">Tipp: Mit ☀ kommt eine Aufgabe auf die Seite von heute.</p></section>`;
-  const sent = S.sent.filter(x => x.status !== 'nein');
+  const sent = S.sent.filter(x => x.status !== 'nein' && x.status !== 'weg');
   if (sent.length) {
     const lbl = { wartet: 'wartet auf Antwort', ok: 'übernommen 💛', erledigt: 'erledigt 🎉' };
-    h += `<div class="card"><h3>🤝 Abgegeben an ${esc(pn())}</h3><ul class="list-plain">${sent.slice().reverse().map(x => `<li><span>${esc(x.text)}${x.today ? ' <span class="tag hot">heute</span>' : ''}</span><span class="st st-${x.status}">${lbl[x.status]}</span></li>`).join('')}</ul></div>`;
+    h += `<div class="card"><h3>🤝 Abgegeben an ${esc(pn())}</h3><ul class="list-plain">${sent.slice().reverse().map(x => `<li><span>${esc(x.text)}${x.today ? ' <span class="tag hot">heute</span>' : ''}</span><span class="st st-${x.status}">${lbl[x.status]}</span>${x.status !== 'erledigt' ? `<button class="mini-btn" data-a="withdraw" data-id="${x.id}" aria-label="Zurückholen" title="Zurückholen">↩</button>` : ''}</li>`).join('')}</ul><p class="hint">Mit ↩ holst du eine Aufgabe zurück, solange sie noch nicht erledigt ist.</p></div>`;
   }
   return h;
 }
@@ -510,6 +514,16 @@ const A = {
     S.log.push({ id: uid(), text: picked.length + (picked.length === 1 ? ' Aufgabe' : ' Aufgaben') + ' an ' + pn() + ' abgegeben', kind: 'delegate', day: today(), ts: Date.now(), stars: 1 }); earn(1);
     closeModal(); commit(true);
     modal(`<h2>Abgegeben!</h2><p>Nicht alles allein machen zu müssen, ist auch eine Stärke.</p><p>+1 gute Nudel Stern ⭐</p><p class="muted">${esc(pn())} sieht ${picked.length === 1 ? 'die Aufgabe' : 'die Aufgaben'} beim nächsten Öffnen der App.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
+  },
+  withdraw(el) {
+    const x = S.sent.find(y => y.id === el.dataset.id); if (!x || x.status === 'erledigt') return;
+    modal(`<h2>Zurückholen?</h2><p><b>${esc(x.text)}</b> kommt zurück auf deine Liste${x.status === 'ok' ? ' und verschwindet bei ' + esc(pn()) : ''}.</p><div class="row"><button class="btn" data-a="withdrawyes" data-id="${x.id}">Ja, zurückholen</button><button class="btn soft" data-a="close">Doch nicht</button></div>`);
+  },
+  withdrawyes(el) {
+    const x = S.sent.find(y => y.id === el.dataset.id); if (!x || x.status === 'erledigt') return closeModal();
+    x.status = 'weg'; x.wts = Date.now();
+    S.items.unshift({ id: uid(), text: x.text, where: 'liste', created: Date.now() });
+    closeModal(); commit(true); toast('Zurück auf deiner Liste 📋');
   },
   accept(el) {
     const x = S.incoming.find(y => y.id === el.dataset.id); if (!x) return;

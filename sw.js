@@ -1,6 +1,6 @@
 // Offline support: the app files come from the cache, updates load in the background (next start shows them).
 // GitHub (backup + photos) always goes to the network.
-const V = 'gn-5';
+const V = 'gn-6';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'data.js', 'content.js', 'plant.js', 'manifest.json',
   'fonts/nunito.woff2', 'fonts/caveat.woff2', 'icons/icon-192.png', 'icons/icon-512.png'];
 
