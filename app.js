@@ -3,7 +3,7 @@ import * as K from './cookbook.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.20';
+const VERSION = '2026-10-03.21';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -590,6 +590,7 @@ async function saveCfgAndTest() {
 }
 async function applyRestore(remote) {
   S = Object.assign(D.freshState(), remote, { me: D.me() });
+  D.markSynced(remote.updatedAt);
   await D.saveLocal(S);
   rollover(); closeModal(); render(); toast('Wiederhergestellt ✓');
 }
@@ -1200,11 +1201,12 @@ function bind() {
   $('#cloud').addEventListener('click', settings);
   $('#stars').addEventListener('click', A.stars);
   D.backup.listeners.add(renderTop);
-  addEventListener('online', () => { D.flushBackup(); D.flushPost(); syncPost(); });
+  addEventListener('online', () => { syncDevices().then(() => D.flushBackup()); D.flushPost(); syncPost(); });
+  setInterval(() => { if (document.visibilityState === 'visible') syncDevices(); }, 60000);
   setInterval(() => { if (document.visibilityState === 'visible') syncPost(); }, 90000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') D.flushBackup();
-    else { if (rollover()) commit(); syncPost(); }
+    else { if (rollover()) commit(); syncPost(); syncDevices(); }
   });
   setInterval(() => { if (rollover()) commit(); }, 60000);
 }
@@ -1219,6 +1221,36 @@ function welcome() {
     <div class="row"><button class="btn" data-a="welcomego">Los geht's</button></div>`);
 }
 A.welcomego = () => { const n = $('#w-name').value.trim(); S.name = n; S.welcomed = true; closeModal(); commit(); D.askPersistent(); };
+
+// ---------- several devices of one person: merge two versions of the same save ----------
+function mergeStates(local, remote) {
+  const newer = (remote.updatedAt || 0) >= (local.updatedAt || 0) ? remote : local, older = newer === remote ? local : remote;
+  const m = Object.assign(D.freshState(), newer, { me: D.me() });
+  // the log: everything from both (stars of entries only the older one has are added)
+  const ids = new Set((newer.log || []).map(e => e.id)), extra = (older.log || []).filter(e => !ids.has(e.id));
+  m.log = (newer.log || []).concat(extra).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  m.stars = Math.max(0, (newer.stars || 0) + extra.reduce((a, e) => a + (e.stars || 0), 0));
+  m.earned = (newer.earned || 0) + extra.reduce((a, e) => a + Math.max(0, e.stars || 0), 0);
+  // lists: joined by id, the newer version of an entry wins
+  const join = (a = [], b = []) => { const seen = new Set(a.map(x => x.id)); return a.concat(b.filter(x => x && !seen.has(x.id))); };
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers'].forEach(k => { m[k] = join(newer[k], older[k]); });
+  m.recipes = newer.recipes || older.recipes;
+  m.fixes = [...new Set([].concat(newer.fixes || [], older.fixes || []))];
+  m.favs = [...new Set([].concat(newer.favs || [], older.favs || []))];
+  m.cook = Object.assign({}, older.cook || {}, newer.cook || {});
+  m.answered = Object.assign({}, older.answered || {}, newer.answered || {});
+  m.book = { pages: Math.max((newer.book || {}).pages || 0, (older.book || {}).pages || 0) };
+  m.updatedAt = Math.max(local.updatedAt || 0, remote.updatedAt || 0) + 1;
+  return m;
+}
+function takeRemote(remote, adopt) {
+  S = adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote);
+  D.saveLocal(S);
+  rollover(); scheduleChores(); runTimers(); render();
+  toast(adopt ? '🔄 Auf dem neuesten Stand' : '🔄 Mit dem anderen Gerät zusammengeführt');
+  return S;
+}
+async function syncDevices() { await D.pull(S); }
 
 // One-time corrections, applied on the right phone the next time it opens (each only once, noted in S.fixes).
 const FIXES = [
@@ -1260,6 +1292,7 @@ async function start() {
   rollover();
   scheduleChores();
   if (applyFixes()) { S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); }
+  D.setRemoteHandler(takeRemote);
   bind();
   render();
   await D.saveLocal(S);
@@ -1286,8 +1319,9 @@ async function start() {
   if (!S.welcomed) welcome();
   else D.askPersistent();
   syncPost();
+  syncDevices();
   runTimers();
   S.timers.filter(t => t.end <= Date.now()).forEach(t => { rang.add(t.id); setTimeout(() => timerAlarm(t, true), 600); });
 }
 start();
-window.__gn = { get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
+window.__gn = { mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
