@@ -52,6 +52,22 @@ export const QUESTS = [
     boss: 'Nur noch kurz… nein. Noch länger.' },
 ];
 
+// Double quests: housework first (lands on today's page), the matching reward the same evening.
+export const COMBOS = [
+  { id: 'avalon', icon: '🛁', title: 'Die Wanne von Avalon', diff: 4, work: 'Bad putzen', reward: 'Ein extra schönes Bad – mit Snacks und Serie oder Hörbuch', boss: 'Erst schrubben, dann baden. Das Bad gehört heute Abend dir.' },
+  { id: 'bett', icon: '🛏️', title: 'Das Bett der Könige', diff: 3, work: 'Bettwäsche wechseln', reward: 'Heute früh ins frische Bett – mit Buch und Tee, Handy bleibt draußen', boss: 'Frische Bettwäsche verdient eine Königin, die früh drin liegt.' },
+  { id: 'mordor', icon: '🧺', title: 'Der Wäscheberg von Mordor', diff: 4, work: 'Wäsche zusammenlegen (Serie nebenbei erlaubt!)', reward: 'Füße hoch in frischen Kuschelsocken', boss: 'Ein Socken, sie zu knechten… du schaffst das.' },
+  { id: 'kueche', icon: '🍰', title: 'Die Küche des Friedens', diff: 3, work: 'Küche aufräumen und Spülmaschine', reward: 'Kaffee und etwas Süßes am sauberen Tisch – in Ruhe', boss: 'Die saubere Küche ist heute ein Café. Nur für dich.' },
+  { id: 'drache', icon: '🎬', title: 'Der Staubsauger-Drache', diff: 3, work: 'Wohnzimmer saugen', reward: 'Film-Nest im frisch gesaugten Wohnzimmer', boss: 'Der Drache brüllt. Danach herrscht Stille – und ein Film.' },
+  { id: 'einkauf', icon: '🛒', title: 'Die Einkaufs-Expedition', diff: 3, work: 'Wocheneinkauf', reward: 'Eine Sache nur für dich: Blumen, Lieblingssnack, irgendwas Schönes', boss: 'Ein Teil im Wagen ist heute nicht für den Haushalt.' },
+  { id: 'fenster', icon: '🪟', title: 'Die Fenster der Klarheit', diff: 4, work: 'Fenster putzen', reward: '10 Minuten aus dem sauberen Fenster schauen – mit Getränk', boss: 'Wer putzt, darf auch gucken. Das ist Gesetz.' },
+  { id: 'balkon', icon: '☀️', title: 'Der Balkon der Ruhe', diff: 2, work: 'Balkon fegen und Pflanzen gießen', reward: '20 Minuten Sonne und ein Getränk auf dem Balkon', boss: 'Die Pflanzen haben Wasser. Jetzt bist du dran.' },
+  { id: 'kuehlschrank', icon: '🍝', title: 'Der Kühlschrank der Wahrheit', diff: 4, work: 'Kühlschrank ausmisten', reward: 'Etwas Leckeres kochen – oder bestellen. Beides zählt.', boss: 'Was da hinten wächst, wollen wir nicht wissen. Danach: Festmahl.' },
+  { id: 'papier', icon: '✏️', title: 'Die Papierschlacht', diff: 5, work: '20 Minuten Papierkram', reward: 'Etwas Kreatives: kritzeln, Tagebuch, basteln', boss: 'Zwanzig Minuten. Dann gehört das Papier wieder der Kunst.' },
+  { id: 'schrank', icon: '👗', title: 'Das Kleiderschrank-Orakel', diff: 4, work: 'Kleiderschrank aussortieren', reward: 'Das Lieblingsoutfit anziehen und auf einen Kaffee raus', boss: 'Das Orakel spricht: Du siehst heute gut aus.' },
+];
+export const COMBO_REWARD_STARS = 2; // + the 1 star part 1 gets as a normal task = 3 in total
+
 // Cozy recipes: the app does the thinking. Each setup step earns 1 star, enjoying it at the end +2.
 export const RECIPES = [
   { id: 'leseecke', icon: '📚', title: 'Leseecke-Abend', time: '45 Min.', prep: 'nook',

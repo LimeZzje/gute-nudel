@@ -5,7 +5,7 @@ import { plantSVG } from './plant.js';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
-const tags = i => (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
+const tags = i => (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -86,6 +86,7 @@ function rollover() {
   }
   S.today = { day: d, planned: false, capShown: false, closed: false, celebrated: false };
   S.quest = null;
+  if (S.combo && S.combo.day !== d) S.combo = null;   // the reward belongs to its day
   return true;
 }
 
@@ -138,7 +139,7 @@ function viewHeute() {
   const capped = done.length >= C.CAP;
   let h = '';
 
-  h += incomingCard();
+  h += incomingCard() + comboCard(true);
   const lastMon = addDays(monday(d), -7);
   if (!S.weeksSeen.includes(lastMon) && S.log.some(e => weekDays(lastMon).includes(e.day)))
     h += `<button class="card btn soft wide" data-a="story" data-w="${lastMon}" style="text-align:left">✨ <b>Dein Wochenrückblick ist da.</b><br><span class="muted">Schau dir an, was du letzte Woche alles geschafft hast.</span></button>`;
@@ -181,6 +182,13 @@ function viewHeute() {
   return h;
 }
 
+function comboCard(small) {
+  const c = S.combo && S.combo.day === today() && C.COMBOS.find(x => x.id === S.combo.id);
+  if (!c) return '';
+  if (S.combo.phase === 'work') return small ? '' : `<div class="card quest active"><div class="lvl">⚔ AKTIVE DOPPEL-QUEST</div><h3>${c.icon} ${esc(c.title)}</h3><p><b>Teil 1:</b> ${esc(c.work)} <span class="muted" style="color:#d8cdee">– steht auf deiner Seite für heute</span></p><p style="opacity:.75"><b>Teil 2 (heute):</b> ${esc(c.reward)}</p><button class="btn soft wide" data-a="combocancel">Doch nicht heute</button></div>`;
+  return `<div class="card quest active"><div class="lvl">🎁 HEUTE WARTET AUF DICH</div><h3>${c.icon} ${esc(c.reward)}</h3><p style="color:#d8cdee">Teil 1 (${esc(c.work)}) ist geschafft. Jetzt kommt der schöne Teil – gleich oder heute Abend.</p><button class="btn wide" data-a="combodone">Genossen! +${C.COMBO_REWARD_STARS} ⭐</button></div>`;
+}
+
 function incomingCard() {
   if (!S.incoming.length) return '';
   return `<div class="card incoming"><h3>🤝 ${esc(pn())} bittet dich um Hilfe</h3>` + S.incoming.map(x => `<div class="inc">
@@ -201,7 +209,10 @@ function tick(id, el) {
     S.items = S.items.filter(i => i !== it);
     S.log.push({ id: uid(), text: it.text, kind: 'task', day: today(), ts: Date.now(), stars, ...(it.did ? { did: it.did, from: it.from } : {}) });
     earn(stars);
+    const combo = S.combo && S.combo.iid === it.id && S.combo.phase === 'work' && C.COMBOS.find(c => c.id === S.combo.id);
+    if (combo) S.combo.phase = 'reward';
     afterWork(n + 1, answerDone(it));
+    if (combo) modal(`<h2>Teil 1 geschafft!</h2><p><b>${esc(combo.work)}</b> ist erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">${combo.icon} ${esc(combo.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
   }, 650);
 }
 function afterWork(count, post = false) {
@@ -254,6 +265,18 @@ function viewRuhe() {
   const list = ui.showAllQuests ? C.QUESTS : [0, 1, 2].map(i => C.QUESTS[(start + i * 5) % C.QUESTS.length]);
   h += list.filter(q => q !== active).map(q => questCard(q, false)).join('');
   h += `<button class="btn soft wide" data-a="allquests">${ui.showAllQuests ? 'Weniger anzeigen' : 'Alle ' + C.QUESTS.length + ' Quests anzeigen'}</button>`;
+
+  h += `<div class="sec-title">Doppel-Quests: erst kämpfen, dann genießen</div><p class="muted" style="margin:0 4px 12px">Teil 1 landet auf deiner Seite für heute. Ist er erledigt, wartet am selben Tag die Belohnung – gleich oder am Abend.</p>`;
+  h += comboCard(false);
+  if (!S.combo || S.combo.day !== today()) {
+    const start = (dayIndex() * 3) % C.COMBOS.length;
+    const list = ui.showAllCombos ? C.COMBOS : [0, 1, 2].map(i => C.COMBOS[(start + i * 4) % C.COMBOS.length]);
+    h += list.map(c => `<div class="card quest"><div class="lvl">DOPPEL-QUEST</div><h3>${c.icon} ${esc(c.title)}</h3>
+      <div class="meta"><span class="diff">${'★'.repeat(c.diff)}${'☆'.repeat(5 - c.diff)}</span></div>
+      <p><b>⚔ Teil 1:</b> ${esc(c.work)}</p><p><b>🎁 Teil 2:</b> ${esc(c.reward)}</p><div class="boss">${esc(c.boss)}</div>
+      <button class="btn wide" data-a="combostart" data-id="${c.id}">Quest annehmen</button></div>`).join('');
+    h += `<button class="btn soft wide" data-a="allcombos">${ui.showAllCombos ? 'Weniger anzeigen' : 'Alle ' + C.COMBOS.length + ' Doppel-Quests anzeigen'}</button>`;
+  }
 
   h += `<div class="sec-title">Gemütlichkeits-Rezepte</div><p class="muted" style="margin:0 4px 12px">Du musst dir nichts ausdenken – such dir eins aus. Jeder Schritt zählt schon: +1 ⭐, und am Ende +2 fürs Genießen.</p>`;
   for (const r of C.RECIPES) {
@@ -497,6 +520,21 @@ const A = {
   },
   declinestart(el) { ui.declining = el.dataset.id; render(); const i = document.querySelector('form[data-f="decline"] input'); if (i) i.focus(); },
   declinecancel() { ui.declining = null; render(); },
+  combostart(el) {
+    const c = C.COMBOS.find(x => x.id === el.dataset.id); if (!c) return;
+    const it = { id: uid(), text: c.work, where: 'heute', created: Date.now(), quest: c.icon };
+    S.items.push(it); S.today.planned = true; S.today.closed = false;
+    S.combo = { id: c.id, day: today(), phase: 'work', iid: it.id };
+    commit(); toast('Teil 1 steht auf deiner Seite für heute ' + c.icon);
+  },
+  combocancel() { if (S.combo) { S.items = S.items.filter(i => i.id !== S.combo.iid); S.combo = null; commit(); } },
+  combodone() {
+    const c = S.combo && C.COMBOS.find(x => x.id === S.combo.id); if (!c || S.combo.phase !== 'reward') return;
+    S.log.push({ id: uid(), text: c.title + ': ' + c.reward, kind: 'rest', day: today(), ts: Date.now(), stars: C.COMBO_REWARD_STARS }); earn(C.COMBO_REWARD_STARS);
+    S.combo = null; commit(); confetti(60);
+    modal(`<h2>Doppel-Quest bestanden!</h2><p><b>${esc(c.title)}</b> – Arbeit erledigt <i>und</i> genossen.</p><p>+${C.COMBO_REWARD_STARS} gute Nudel Sterne ⭐</p><p class="muted">Das ist die hohe Kunst.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
+  },
+  allcombos() { ui.showAllCombos = !ui.showAllCombos; render(); },
   queststart(el) { S.quest = el.dataset.id; commit(); scrollTo({ top: 0, behavior: 'smooth' }); },
   questquit() { S.quest = null; commit(); },
   questdone() {
