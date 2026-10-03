@@ -38,7 +38,8 @@ export function freshState() {
     gifts: [],             // chore rewards waiting today
     shop: [],              // her shopping list: {id, text, done, from}
     recipes: null,         // her cookbook: {id, title, ingredients[], steps} (null = the examples not added yet)
-    timers: [],            // running: {id, icon, label, end}: {id, cid, day, icon, name, reward}
+    timers: [],            // running: {id, icon, label, end}
+    cook: {},              // what she cooked: recipe id -> {n, last (day), taste 1–3}: {id, cid, day, icon, name, reward}
     combo: null,           // active double quest: {id, day, phase: 'work'|'reward', iid} – only valid on its day
     wishes: [],            // {id, text}
     favs: [],              // reward texts she liked

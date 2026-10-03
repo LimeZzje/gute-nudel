@@ -278,6 +278,19 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .moodweek span { font-size: 13px; color: var(--ink2); font-weight: 700; }
 textarea { width: 100%; border: 2px solid var(--line); border-radius: 12px; background: var(--paper); padding: 10px 12px; font-size: 16px; font-family: inherit; color: inherit; }
 
+/* ---------- cookbook ---------- */
+.recipe-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; padding: 12px 14px; margin-bottom: 10px; font-size: 16px; }
+.recipe-row .ri { font-size: 30px; }
+.recipe-row .rt { flex: 1; min-width: 0; }
+.plate { display: inline-flex; gap: 2px; margin-left: 6px; vertical-align: middle; }
+.pb { font-size: 16px; filter: grayscale(1); opacity: .3; }
+.pb.on { filter: none; opacity: 1; }
+.platecheck .chips { margin: 6px 0; }
+.steps-ol { padding-left: 22px; margin: 6px 0 14px; }
+.steps-ol li { margin: 8px 0; line-height: 1.45; }
+.cookmode { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); padding: 20px 16px; min-height: 60vh; display: flex; flex-direction: column; }
+.cookmode .cstep { font-size: 26px; line-height: 1.4; font-weight: 700; flex: 1; margin: 20px 0; }
+
 /* ---------- handing tasks to the partner ---------- */
 .txt .tag, .pick .tag, .inc-t .tag, .list-plain .tag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 800; color: var(--accent); vertical-align: middle; }
 .tag.hot { background: var(--accent); color: #fff !important; border-radius: 99px; padding: 1px 8px; }

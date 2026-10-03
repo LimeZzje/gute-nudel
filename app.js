@@ -1,8 +1,9 @@
 import * as C from './content.js';
+import * as K from './cookbook.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.16';
+const VERSION = '2026-10-03.17';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -249,8 +250,8 @@ function incomingCard() {
 
 function tick(id, el) {
   const it = S.items.find(i => i.id === id); if (!it) return;
-  const row = el.closest('.item');
-  row.classList.add('done', 'ticking', 'leaving');
+  const row = el && el.closest('.item');
+  if (row) row.classList.add('done', 'ticking', 'leaving');
   const n = workToday().length, stars = n < C.CAP ? 1 : 0;
   floatStar(el, stars ? '+1 ⭐' : '✓');
   setTimeout(() => {
@@ -319,6 +320,7 @@ function questCard(q, active) {
 }
 const QTABS = [['haushalt', '🔁 Haushalt'], ['quests', '⚔ Quests'], ['gemuetlich', '🫖 Gemütlich'], ['wuensche', '💭 Wünsche']];
 function viewRuhe() {
+  if (ui.sub === 'cook') return viewCook();
   let h = `<div class="chips qtabs">${QTABS.map(([k, l]) => `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}">${l}</button>`).join('')}</div>`;
   if (ui.qtab === 'haushalt') return h + viewHaushalt();
   if (ui.qtab === 'gemuetlich') return h + viewGemuetlich();
@@ -717,11 +719,42 @@ const A = {
     if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
     scheduleChores(); closeModal(); commit(); toast('Gespeichert 🔁');
   },
+  cookback() { ui.sub = null; ui.qtab = 'haushalt'; render(); scrollTo(0, 0); },
+  cookhome() { endCookMode(); ui.rid = null; ui.sides = []; render(); scrollTo(0, 0); },
+  cookreroll() { ui.sugSeed = (ui.sugSeed || 1) + 1; render(); },
+  ccat(el) { ui.ccat = el.dataset.v; render(); },
+  recipe(el) { ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; render(); scrollTo(0, 0); },
+  side(el) { const id = el.dataset.id, a = ui.sides || (ui.sides = []); a.includes(id) ? a.splice(a.indexOf(id), 1) : a.push(id); render(); },
+  cookshop2() {
+    const r = recipeById(ui.rid), sides = sidesOf(), have = new Set(S.shop.filter(x => !x.done).map(x => x.text.toLowerCase().replace(/ \(.*\)$/, '')));
+    const add = r.ing.concat(...sides.map(s => s.ing)).filter(([, t]) => t && !have.has(t.toLowerCase()));
+    add.forEach(([q, t]) => S.shop.push({ id: uid(), text: q ? t + ' (' + q + ')' : t, done: false, from: r.title }));
+    commit(); toast(add.length ? add.length + ' Sachen auf der Einkaufsliste 🛒' : 'Steht schon alles drauf 🛒');
+  },
+  cookstart() { ui.cstep = 0; render(); scrollTo(0, 0); },
+  cnext() { ui.cstep++; render(); },
+  cprev() { ui.cstep = Math.max(0, ui.cstep - 1); render(); },
+  cookstop() { endCookMode(); render(); },
+  cooktimer() { const r = recipeById(ui.rid), [t, m] = cookSteps(r, sidesOf())[ui.cstep]; startTimer(r.icon, r.title, m); render(); },
+  cookdone() {
+    const r = recipeById(ui.rid);
+    modal(`<h2>Guten Appetit! ${r.icon}</h2><p>Wie hat’s geschmeckt?</p><div class="row">${K.TASTE.map(([e, l, v]) => `<button class="btn soft" data-a="taste" data-v="${v}" style="font-size:16px">${e}<br>${l}</button>`).join('')}</div>`);
+  },
+  taste(el) {
+    const r = recipeById(ui.rid), v = +el.dataset.v, c = S.cook[r.id] || { n: 0 };
+    S.cook[r.id] = { n: c.n + 1, last: today(), taste: v };
+    endCookMode(); closeModal();
+    // the "Kochen" chore on today's page counts as done
+    const k = S.items.find(i => i.where === 'heute' && i.chore && ((S.chores.find(x => x.id === i.chore) || {}).tools || []).includes('recipes'));
+    ui.rid = null; ui.sides = [];
+    if (k) tick(k.id, null); else commit();
+    toast(v === 3 ? 'Notiert: Lieblingsessen 😍 – kommt öfter dran' : v === 1 ? 'Notiert 😕 – das schlage ich nicht mehr vor' : 'Notiert 🙂' + (k ? '' : ''));
+  },
   tool(el) {
     const t = el.dataset.t, c = el.dataset.c && S.chores.find(x => x.id === el.dataset.c);
     if (t === 'timer') return timerModal();
     if (t === 'list') return shopModal();
-    if (t === 'recipes') { ui.cookEdit = false; return cookModal(); }
+    if (t === 'recipes') { closeModal(); ui.tab = 'ruhe'; ui.sub = 'cook'; ui.rid = null; ui.cstep = null; render(); scrollTo(0, 0); return; }
     if (t === 'music') {
       if (c && c.music) { window.open(c.music, '_blank', 'noopener'); return; }
       ui.ce = null; if (c) A.choreedit({ dataset: { id: c.id } });
@@ -973,6 +1006,85 @@ function cookModal(rid) {
     <div class="steps">${S.recipes.map(x => `<button class="pick" data-a="cook" data-id="${x.id}"><span>${esc(x.title)}</span><span class="muted" style="margin-left:auto">${x.ingredients.length} Zutaten</span></button>`).join('') || '<p class="muted">Noch keine Rezepte.</p>'}</div>
     <div class="row"><button class="btn blue" data-a="cook" data-id="new">+ Neues Rezept</button><button class="btn" data-a="close">Fertig</button></div></div>`);
 }
+
+// ---------- the cookbook (cookbook.js): suggestions that learn, the plate check, cooking mode ----------
+const recipeById = id => K.RECIPES.find(r => r.id === id);
+// how much she'd want it: her favourites and what she rated well count more (and their kind), what she just had less,
+// and what she didn't like never comes up again
+function cookWeight(r) {
+  const c = S.cook[r.id] || {};
+  if (c.taste === 1) return 0;
+  const liked = new Set(K.RECIPES.filter(x => (S.cook[x.id] || {}).taste === 3 || (x.fav && (S.cook[x.id] || {}).taste !== 1)).flatMap(x => x.tags));
+  let w = 1 + (r.fav ? 1.5 : 0) + (c.taste === 3 ? 2.5 : c.taste === 2 ? 0.7 : 0) + 0.25 * r.tags.filter(t => liked.has(t)).length;
+  if (c.last && daysBetween(c.last, today()) < 5) w *= 0.15;
+  return w;
+}
+function cookSuggest(n) { // weighted, no repeats; ui.sugSeed changes with "andere Vorschläge"
+  let seed = (ui.sugSeed || 1) * 9973 + dayIndex();
+  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  let pool = K.RECIPES.filter(r => r.cat === 'haupt').map(r => [r, cookWeight(r)]).filter(([, w]) => w > 0);
+  const out = [];
+  while (out.length < n && pool.length) {
+    let x = rand() * pool.reduce((a, [, w]) => a + w, 0);
+    const i = pool.findIndex(([, w]) => (x -= w) < 0);
+    out.push(pool[i < 0 ? 0 : i][0]); pool.splice(i < 0 ? 0 : i, 1);
+  }
+  return out;
+}
+const sidesOf = () => (ui.sides || []).map(id => K.SIDES.find(s => s.id === id)).filter(Boolean);
+function plateHtml(r, sides) {
+  if (!r.plate) return '';
+  return '<span class="plate">' + Object.entries(K.PLATE).map(([k, [ic, l]]) => { const on = r.plate[k] || sides.some(s => s.g === k); return `<span class="pb ${on ? 'on' : ''}" title="${l}">${ic}</span>`; }).join('') + '</span>';
+}
+const tasteOf = r => { const c = S.cook[r.id]; return c && c.taste ? K.TASTE.find(t => t[2] === c.taste)[0] : ''; };
+const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">⏱ ${r.min} Min.${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span></span>${plateHtml(r, [])}</button>`;
+function viewCook() {
+  if (ui.rid && ui.cstep != null) return viewCookMode();
+  if (ui.rid) return viewRecipe();
+  let h = `<button class="btn soft" data-a="cookback" style="margin:4px 0 12px">← Haushalt</button><div class="sec-title" style="margin-top:0">📖 Kochbuch</div>`;
+  h += `<div class="card"><h3>Was koch ich heute?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was dir schmeckt.</p>` +
+    cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">⏱ ${r.min} Min. ${tasteOf(r)}</span></span></button>`).join('') +
+    `<button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
+  const cats = K.CATS.concat([['fav', '💛 Lieblinge']]), cat = ui.ccat || 'haupt';
+  h += `<div class="chips">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
+  const list = cat === 'fav' ? K.RECIPES.filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : K.RECIPES.filter(r => r.cat === cat);
+  h += list.map(recipeRow).join('') || '<p class="muted">Noch nichts hier.</p>';
+  if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
+  return h;
+}
+function viewRecipe() {
+  const r = recipeById(ui.rid); if (!r) { ui.rid = null; return viewCook(); }
+  const sides = sidesOf(), c = S.cook[r.id];
+  let h = `<button class="btn soft" data-a="cookhome" style="margin:4px 0 12px">← Kochbuch</button>`;
+  h += `<div class="card"><div style="font-size:44px;line-height:1">${r.icon}</div><h2 class="hand" style="font-size:34px;margin:6px 0">${esc(r.title)}</h2>
+    <p class="muted" style="margin:0">⏱ ${r.min} Min. · für 2 · ganz einfach${r.fav ? ' · 💛 mag sie' : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>${r.note ? `<p>${esc(r.note)}</p>` : ''}</div>`;
+  if (r.plate) {
+    const missing = Object.keys(K.PLATE).filter(k => !r.plate[k] && !sides.some(s => s.g === k));
+    const want = Object.keys(K.PLATE).filter(k => !r.plate[k]);
+    h += `<div class="card platecheck"><h3>Teller-Check ${plateHtml(r, sides)}</h3>` +
+      (missing.length ? `<p style="margin:4px 0 8px">Da fehlt noch <b>${missing.map(k => K.PLATE[k][1]).join(' & ')}</b> – nimm was dazu:</p>` : `<p style="margin:4px 0 8px">✓ Alles drauf: satt, Eiweiß und Gemüse.</p>`) +
+      want.map(k => { const hint = K.SIDE_HINTS[r.id] || [], opts = K.SIDES.filter(s => s.g === k).sort((a, b) => (hint.includes(b.id) ? 1 : 0) - (hint.includes(a.id) ? 1 : 0)).slice(0, 4);
+        return `<div class="chips">${opts.map(s => `<button class="chip ${(ui.sides || []).includes(s.id) ? 'on' : ''}" data-a="side" data-id="${s.id}">${K.PLATE[k][0]} ${esc(s.title)}</button>`).join('')}</div>`; }).join('') + '</div>';
+  }
+  const ing = r.ing.concat(...sides.map(s => s.ing.map(x => [x[0], x[1], s.title])));
+  h += `<div class="card"><h3>Zutaten</h3><ul class="list-plain">${ing.map(([q, t, from]) => `<li><span>${esc(t)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}</span><span class="muted">${esc(q)}</span></li>`).join('')}</ul>
+    <div class="row"><button class="btn soft" data-a="cookshop2">🛒 Auf die Einkaufsliste</button></div></div>`;
+  h += `<div class="card"><h3>So geht’s</h3><ol class="steps-ol">${cookSteps(r, sides).map(([t, m]) => `<li>${esc(t)}${m ? ` <span class="muted">⏲️ ${m} Min.</span>` : ''}</li>`).join('')}</ol>
+    <button class="btn green wide" data-a="cookstart">🍳 Jetzt kochen</button></div>`;
+  return h;
+}
+const cookSteps = (r, sides) => r.steps.concat(sides.map(s => ['Dazu – ' + s.title + ': ' + s.step[0], s.step[1]]));
+let wake = null;
+function viewCookMode() {
+  const r = recipeById(ui.rid), steps = cookSteps(r, sidesOf()), i = ui.cstep, [t, m] = steps[i] || ['', 0], last = i >= steps.length - 1;
+  if (!wake && navigator.wakeLock) navigator.wakeLock.request('screen').then(w => { wake = w; }).catch(() => {});   // the screen stays on while cooking
+  return `<div class="cookmode"><div class="muted" style="font-weight:800">${r.icon} ${esc(r.title)} · Schritt ${i + 1} von ${steps.length}</div>
+    <div class="bar"><i style="width:${(i + 1) / steps.length * 100}%"></i></div>
+    <p class="cstep">${esc(t)}</p>
+    ${m ? `<button class="btn blue wide" data-a="cooktimer">⏲️ Timer: ${m} Min.</button>` : ''}
+    <div class="row" style="margin-top:18px">${i ? '<button class="btn soft" data-a="cprev">← Zurück</button>' : '<button class="btn soft" data-a="cookstop">Abbrechen</button>'}${last ? '<button class="btn green" data-a="cookdone">Fertig gekocht! 🎉</button>' : '<button class="btn" data-a="cnext">Weiter →</button>'}</div></div>`;
+}
+function endCookMode() { if (wake) { wake.release().catch(() => {}); wake = null; } ui.cstep = null; }
 
 // the chore editor (a modal that keeps what's typed when a chip is tapped)
 function ceRead() {
