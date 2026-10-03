@@ -192,7 +192,7 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 
 /* ---------- week ---------- */
 .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.stat { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); padding: 12px 8px; text-align: center; }
+.stat { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); padding: 12px 8px; text-align: center; border: 0; }
 .stat b { display: block; font: 700 40px/1 Caveat, cursive; color: var(--accent); }
 .stat span { font-size: 13px; color: var(--ink2); font-weight: 700; }
 .weekbars { display: flex; align-items: flex-end; gap: 8px; height: 120px; margin: 14px 0 4px; }

@@ -2,7 +2,7 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.11';
+const VERSION = '2026-10-03.12';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -378,7 +378,7 @@ function weekStats(mon) {
 function viewWoche() {
   const mon = monday(today()), w = weekStats(mon), max = Math.max(1, ...w.per.map(p => p.work + p.rest));
   let h = `<div class="sec-title" style="margin-top:6px">Diese Woche</div>
-    <div class="stat-row"><div class="stat"><b>${w.work}</b><span>erledigt</span></div><div class="stat"><b>${w.rest}</b><span>entspannt</span></div><div class="stat"><b>${w.stars}</b><span>Sterne</span></div></div>
+    <div class="stat-row"><button class="stat" data-a="weeklog" data-k="work" data-w="${mon}"><b>${w.work}</b><span>erledigt ›</span></button><button class="stat" data-a="weeklog" data-k="rest" data-w="${mon}"><b>${w.rest}</b><span>entspannt ›</span></button><div class="stat"><b>${w.stars}</b><span>Sterne</span></div></div>
     <div class="card" style="margin-top:14px"><div class="weekbars">${w.per.map(p => `<div><i style="height:${p.work / max * 100}%"></i>${p.rest ? `<i class="rest" style="height:${p.rest / max * 100}%"></i>` : ''}${C.DAYSHORT[parse(p.d).getDay()]}</div>`).join('')}</div>
     <p class="muted" style="text-align:center;margin:6px 0 0"><span style="color:var(--accent)">■</span> erledigt &nbsp; <span style="color:#7b62b8">■</span> entspannt</p></div>
     <button class="btn wide" data-a="story" data-w="${mon}">✨ Wochenrückblick ansehen</button>`;
@@ -388,6 +388,18 @@ function viewWoche() {
     h += `<div class="sec-title">Frühere Wochen</div>` + past.map(s => `<button class="card btn soft wide" data-a="story" data-w="${s.mon}" style="text-align:left;display:flex;justify-content:space-between"><span>${shortDate(s.mon)} – ${shortDate(addDays(s.mon, 6))}</span><span>${s.work} erledigt · ${s.rest} entspannt</span></button>`).join('');
   }
   return h;
+}
+
+function weekLogModal() { // this week's done (or rested) entries by day, each removable
+  const { k, w } = ui.wl, f = k === 'rest' ? isRest : isWork;
+  const days = weekDays(w).filter(d => d <= today()).reverse();
+  let h = '';
+  for (const d of days) {
+    const es = S.log.filter(e => e.day === d && f(e)); if (!es.length) continue;
+    h += `<p class="muted" style="font-weight:800;margin:14px 0 4px">${esc(longDate(d))}</p><ul class="list-plain">` +
+      es.map(e => `<li><span>${esc(e.text)}</span>${e.stars > 0 ? `<span class="muted">+${e.stars}⭐</span>` : ''}<button class="mini-btn" data-a="logdel" data-id="${e.id}" aria-label="Entfernen">✕</button></li>`).join('') + '</ul>';
+  }
+  modal(`<h2>${k === 'rest' ? 'Entspannt' : 'Erledigt'} diese Woche</h2><div style="text-align:left">${h || '<p class="muted">Noch nichts.</p>'}</div><div class="row"><button class="btn" data-a="close">Fertig</button></div>`);
 }
 
 function story(mon) {
@@ -649,6 +661,18 @@ const A = {
   },
 
   story(el) { story(el.dataset.w); },
+  weeklog(el) { ui.wl = { k: el.dataset.k, w: el.dataset.w }; weekLogModal(); },
+  logdel(el) {
+    const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
+    modal(`<h2>Eintrag entfernen?</h2><p><b>${esc(e.text)}</b></p><p class="muted">${e.stars > 0 ? 'Die ' + e.stars + ' ⭐ dafür werden wieder abgezogen.' : 'Dafür gab es keinen Stern.'}</p><div class="row"><button class="btn" data-a="logdelyes" data-id="${e.id}">Entfernen</button><button class="btn soft" data-a="weeklogback">Abbrechen</button></div>`);
+  },
+  logdelyes(el) {
+    const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
+    S.log = S.log.filter(x => x !== e);
+    if (e.stars > 0) { S.stars = Math.max(0, S.stars - e.stars); S.earned = Math.max(0, S.earned - e.stars); }
+    commit(); weekLogModal(); toast('Entfernt');
+  },
+  weeklogback() { weekLogModal(); },
   storyclose() { const s = $('#story'); if (s) s.remove(); render(); },
   settings, settingsclose() {
     const n = $('#s-name'), k = $('#s-nick');
