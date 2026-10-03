@@ -260,6 +260,24 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .list-plain.chores li { align-items: flex-start; padding: 10px 0; }
 .list-plain.chores li > span { line-height: 1.35; }
 
+/* ---------- chore helpers, timers, mood ---------- */
+.toolbtn { border: 0; background: var(--paper2); border-radius: 10px; padding: 4px 8px; margin: 4px 4px 0 0; font-size: 15px; font-weight: 800; min-height: 36px; min-width: 40px; vertical-align: middle; }
+.toolrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.toolrow .btn { padding: 10px 4px; font-size: 14px; }
+.timers .timer { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+.timers .ti { font-size: 30px; }
+.timers .tl { flex: 1; }
+.timers .tleft { font: 700 30px/1 Caveat, cursive; color: var(--blue); }
+.timers .timer.done .tleft { color: var(--green); }
+.moodbar { position: fixed; left: 16px; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 95; max-width: 520px; margin: 0 auto; background: var(--card); box-shadow: 0 6px 24px rgba(0,0,0,.25); border-radius: 18px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 4px; animation: fade .2s; font-weight: 800; }
+.moodbar span { padding: 0 6px; white-space: nowrap; font-size: 15px; }
+.moodbar button { border: 0; background: none; font-size: 28px; min-width: 44px; min-height: 44px; border-radius: 12px; }
+.moodbar button:active { background: var(--paper2); }
+.moodweek { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+.moodweek b { display: block; font-size: 26px; }
+.moodweek span { font-size: 13px; color: var(--ink2); font-weight: 700; }
+textarea { width: 100%; border: 2px solid var(--line); border-radius: 12px; background: var(--paper); padding: 10px 12px; font-size: 16px; font-family: inherit; color: inherit; }
+
 /* ---------- handing tasks to the partner ---------- */
 .txt .tag, .pick .tag, .inc-t .tag, .list-plain .tag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 800; color: var(--accent); vertical-align: middle; }
 .tag.hot { background: var(--accent); color: #fff !important; border-radius: 99px; padding: 1px 8px; }

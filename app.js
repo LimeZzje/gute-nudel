@@ -2,12 +2,15 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.13';
+const VERSION = '2026-10-03.14';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
-const tags = i => (i.chore ? choreTag(i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
-const choreTag = i => { const c = S.chores.find(x => x.id === i.chore); return c ? `<span class="tag">🔁${c.reward ? ' 🎁' : ''}</span>` : ''; };
+const tags = i => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
+const choreTag = i => { const c = S.chores.find(x => x.id === i.chore); return c ? `<span class="tag">🔁${c.reward ? ' 🎁' : ''}</span>` + toolBtns(c, i) : ''; };
+// a chore's helpers as small buttons; a handed-over shopping list travels on the item itself
+const toolBtns = (c, i) => (c && c.tools || []).map(t => `<button class="toolbtn" data-a="tool" data-t="${t}" data-c="${c.id}" aria-label="${C.TOOLS[t][1]}">${C.TOOLS[t][0]}</button>`).join('')
+  + (i && i.list ? `<button class="toolbtn" data-a="itemlist" data-id="${i.id}" aria-label="Einkaufsliste">🛒 ${i.list.filter(x => !x.done).length}</button>` : '');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -42,7 +45,7 @@ const MONTH = 30 * 864e5;
 function postObj() { // what the partner reads: my handed-over tasks and my answers to theirs
   return {
     me: D.me(), name: S.name, ts: Date.now(),
-    out: S.sent.filter(x => x.status !== 'weg' && Date.now() - x.ts < MONTH).map(({ id, text, today, ts }) => ({ id, text, today, ts })),
+    out: S.sent.filter(x => x.status !== 'weg' && Date.now() - x.ts < MONTH).map(({ id, text, today, ts, list }) => ({ id, text, today, ts, ...(list ? { list } : {}) })),
     withdrawn: S.sent.filter(x => x.status === 'weg').map(x => x.id),
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
@@ -178,7 +181,7 @@ function viewHeute() {
   const capped = done.length >= C.CAP;
   let h = '';
 
-  h += incomingCard() + comboCard(true) + giftCards();
+  h += incomingCard() + timerCard() + comboCard(true) + giftCards();
   const lastMon = addDays(monday(d), -7);
   if (!S.weeksSeen.includes(lastMon) && S.log.some(e => weekDays(lastMon).includes(e.day)))
     h += `<button class="card btn soft wide" data-a="story" data-w="${lastMon}" style="text-align:left">✨ <b>Dein Wochenrückblick ist da.</b><br><span class="muted">Schau dir an, was du letzte Woche alles geschafft hast.</span></button>`;
@@ -199,7 +202,7 @@ function viewHeute() {
     if (due.length) h += `<p class="sub" style="margin-bottom:4px">🔁 Heute fällig – steht schon drauf:</p>` + due.map(i => `<div class="item"><span class="txt"><span>${esc(i.text)}</span>${tags(i)}</span><button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht – morgen wieder">⏭</button></div>`).join('');
     h += `<p class="sub">${S.name ? 'Hallo ' + esc(S.name) + '! ' : ''}Was kommt heute auf deine Seite? 3–5 Sachen reichen völlig – den Rest hebt die Liste für dich auf.</p>`;
     if (liste.length) {
-      h += liste.map(i => `<button class="pick ${ui.picks.has(i.id) ? 'on' : ''}" data-a="pickday" data-id="${i.id}"><span class="box">${ui.picks.has(i.id) ? '✓' : ''}</span><span>${esc(i.text)}${i.carried ? '<span class="tag">von gestern</span>' : ''}${tags(i)}</span></button>`).join('');
+      h += liste.map(i => `<button class="pick ${ui.picks.has(i.id) ? 'on' : ''}" data-a="pickday" data-id="${i.id}"><span class="box">${ui.picks.has(i.id) ? '✓' : ''}</span><span>${esc(i.text)}${i.carried ? '<span class="tag">von gestern</span>' : ''}${tags(i).replace(/<button[^>]*toolbtn[\s\S]*?<\/button>/g, '')}</span></button>`).join('');
     }
     h += `<form class="add" data-f="addplan"><input name="t" placeholder="Etwas Neues für heute…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
     h += `<div class="row" style="margin-top:14px"><button class="btn green" data-a="plandone">${ui.picks.size ? 'Los geht\'s (' + ui.picks.size + ')' : 'Los geht\'s'}</button></div>`;
@@ -237,7 +240,7 @@ function comboCard(small) {
 function incomingCard() {
   if (!S.incoming.length) return '';
   return `<div class="card incoming"><h3>🤝 ${esc(pn())} bittet dich um Hilfe</h3>` + S.incoming.map(x => `<div class="inc">
-      <div class="inc-t"><b>${esc(x.text)}</b>${x.today ? '<span class="tag hot">bitte heute</span>' : ''}</div>
+      <div class="inc-t"><b>${esc(x.text)}</b>${x.today ? '<span class="tag hot">bitte heute</span>' : ''}${x.list ? `<br><span class="muted">🛒 ${x.list.length} Sachen: ${esc(x.list.slice(0, 6).join(', '))}${x.list.length > 6 ? ' …' : ''}</span>` : ''}</div>
       ${ui.declining === x.id
         ? `<form class="add" data-f="decline" data-id="${x.id}"><input name="t" placeholder="Warum? z.B. schaff ich nicht wegen Terminen" autocomplete="off" enterkeyhint="send"><button class="btn" aria-label="Absenden">➤</button></form><button class="btn soft wide" data-a="declinecancel" style="margin-top:6px">Doch nicht</button>`
         : `<div class="row"><button class="btn green" data-a="accept" data-id="${x.id}">Übernehmen</button><button class="btn soft" data-a="declinestart" data-id="${x.id}">Geht nicht</button></div>`}
@@ -259,9 +262,19 @@ function tick(id, el) {
     const combo = S.combo && S.combo.iid === it.id && S.combo.phase === 'work' && C.COMBOS.find(c => c.id === S.combo.id);
     if (combo) S.combo.phase = 'reward';
     afterWork(n + 1, answerDone(it));
+    askMood(S.log[S.log.length - 1]);
     if (ch && ch.reward) modal(`<h2>${esc(ch.icon)} Erledigt!</h2><p><b>${esc(ch.name)}</b> ist für ${esc(choreRhythm(ch))} erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">🎁 ${esc(ch.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
     if (combo) modal(`<h2>Teil 1 geschafft!</h2><p><b>${esc(combo.work)}</b> ist erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">${combo.icon} ${esc(combo.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
   }, 650);
+}
+// "wie war's?": five faces under the screen for a few seconds — one tap, or just ignore it
+function askMood(e) {
+  if (!e) return;
+  document.querySelectorAll('.moodbar').forEach(b => b.remove());
+  const b = document.createElement('div'); b.className = 'moodbar';
+  b.innerHTML = `<span>Wie war’s?</span>` + C.MOODS.map((m, i) => `<button data-a="mood" data-id="${e.id}" data-v="${i + 1}" aria-label="${C.MOOD_WORDS[i]}">${m}</button>`).join('');
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 9000);
 }
 function afterWork(count, post = false) {
   commit(post);
@@ -335,9 +348,10 @@ function viewRuhe() {
 function viewHaushalt() {
   let h = `<div class="sec-title" style="margin-top:6px">Haushalt – läuft von allein</div>
     <p class="muted" style="margin:0 4px 14px">Was regelmäßig dran ist, landet an seinem Tag von selbst auf deiner Seite für heute. Mit Belohnung wird’s eine Doppel-Quest: erst erledigen, am selben Tag genießen.</p>`;
-  h += giftCards();
+  h += giftCards() + timerCard();
+  h += `<div class="toolrow"><button class="btn soft" data-a="tool" data-t="list">🛒 Einkaufsliste${S.shop.filter(x => !x.done).length ? ' (' + S.shop.filter(x => !x.done).length + ')' : ''}</button><button class="btn soft" data-a="tool" data-t="recipes">📖 Kochbuch</button><button class="btn soft" data-a="tool" data-t="timer">⏲️ Timer</button></div>`;
   if (S.chores.length) {
-    h += `<div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span><b>${esc(c.icon)} ${esc(c.name)}</b><br><span class="muted">${esc(choreRhythm(c))} · ${esc(choreWhen(c))}</span>${c.reward ? `<br><span class="muted">🎁 ${esc(c.reward)}</span>` : ''}</span>
+    h += `<div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span><b>${esc(c.icon)} ${esc(c.name)}</b><br><span class="muted">${esc(choreRhythm(c))} · ${esc(choreWhen(c))}</span>${c.reward ? `<br><span class="muted">🎁 ${esc(c.reward)}</span>` : ''}${(c.tools || []).length ? '<br>' + toolBtns(c) : ''}</span>
       <button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></li>`).join('')}</ul></div>`;
   }
   h += `<button class="btn wide" data-a="choreedit">+ Eigene Aufgabe</button>`;
@@ -441,7 +455,17 @@ function weekStats(mon) {
     pages: log.filter(e => e.kind === 'unlock' && e.what === 'page').length,
     stages: log.filter(e => e.kind === 'unlock' && e.what === 'stage').length,
     treats: log.filter(e => e.kind === 'reward').length,
+    moods: log.filter(e => e.mood),
   };
+}
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+const moodFace = v => C.MOODS[Math.max(0, Math.min(4, Math.round(v) - 1))];
+// how her tasks felt: average per task (at least 2 ratings), best and hardest
+function moodByTask(log) {
+  const by = {};
+  log.filter(e => e.mood).forEach(e => { const k = e.text.trim().toLowerCase(); (by[k] = by[k] || { text: e.text, m: [] }).m.push(e.mood); });
+  const L = Object.values(by).filter(x => x.m.length >= 2).map(x => ({ text: x.text, n: x.m.length, v: avg(x.m) })).sort((a, b) => b.v - a.v);
+  return { best: L.filter(x => x.v >= 3.5).slice(0, 3), hard: L.filter(x => x.v <= 2.5).reverse().slice(0, 3) };
 }
 function viewWoche() {
   const mon = monday(today()), w = weekStats(mon), max = Math.max(1, ...w.per.map(p => p.work + p.rest));
@@ -450,6 +474,15 @@ function viewWoche() {
     <div class="card" style="margin-top:14px"><div class="weekbars">${w.per.map(p => `<div><i style="height:${p.work / max * 100}%"></i>${p.rest ? `<i class="rest" style="height:${p.rest / max * 100}%"></i>` : ''}${C.DAYSHORT[parse(p.d).getDay()]}</div>`).join('')}</div>
     <p class="muted" style="text-align:center;margin:6px 0 0"><span style="color:var(--accent)">■</span> erledigt &nbsp; <span style="color:#7b62b8">■</span> entspannt</p></div>
     <button class="btn wide" data-a="story" data-w="${mon}">✨ Wochenrückblick ansehen</button>`;
+  if (w.moods.length) {
+    const t = moodByTask(S.log.filter(e => e.day >= addDays(today(), -28)));
+    h += `<div class="sec-title">Wie es sich angefühlt hat</div><div class="card">
+      <div class="moodweek">${w.per.map(p => { const m = w.moods.filter(e => e.day === p.d).map(e => e.mood); return `<div><b>${m.length ? moodFace(avg(m)) : '·'}</b><span>${C.DAYSHORT[parse(p.d).getDay()]}</span></div>`; }).join('')}</div>
+      <p class="muted" style="text-align:center;margin:8px 0 0">Diese Woche im Schnitt: ${moodFace(avg(w.moods.map(e => e.mood)))} ${C.MOOD_WORDS[Math.round(avg(w.moods.map(e => e.mood))) - 1]} · ${w.moods.length} Bewertungen</p>
+      ${t.best.length ? `<p style="margin:12px 0 4px"><b>Fühlt sich gut an</b></p><ul class="list-plain">${t.best.map(x => `<li><span>${esc(x.text)}</span><span>${moodFace(x.v)}</span></li>`).join('')}</ul>` : ''}
+      ${t.hard.length ? `<p style="margin:12px 0 4px"><b>Zieht Energie</b> <span class="muted">– vielleicht mal an ${esc(pn())} abgeben?</span></p><ul class="list-plain">${t.hard.map(x => `<li><span>${esc(x.text)}</span><span>${moodFace(x.v)}</span></li>`).join('')}</ul>` : ''}
+      <p class="hint">Die letzten 4 Wochen, ab 2 Bewertungen pro Aufgabe.</p></div>`;
+  }
   const past = [];
   for (let i = 1; i <= 8; i++) { const m = addDays(mon, -7 * i); const s = weekStats(m); if (s.log.length) past.push(s); }
   if (past.length) {
@@ -465,7 +498,7 @@ function weekLogModal() { // this week's done (or rested) entries by day, each r
   for (const d of days) {
     const es = S.log.filter(e => e.day === d && f(e)); if (!es.length) continue;
     h += `<p class="muted" style="font-weight:800;margin:14px 0 4px">${esc(longDate(d))}</p><ul class="list-plain">` +
-      es.map(e => `<li><span>${esc(e.text)}</span>${e.stars > 0 ? `<span class="muted">+${e.stars}⭐</span>` : ''}<button class="mini-btn" data-a="logdel" data-id="${e.id}" aria-label="Entfernen">✕</button></li>`).join('') + '</ul>';
+      es.map(e => `<li><span>${esc(e.text)}${e.mood ? ' ' + C.MOODS[e.mood - 1] : ''}</span>${e.stars > 0 ? `<span class="muted">+${e.stars}⭐</span>` : ''}<button class="mini-btn" data-a="logdel" data-id="${e.id}" aria-label="Entfernen">✕</button></li>`).join('') + '</ul>';
   }
   modal(`<h2>${k === 'rest' ? 'Entspannt' : 'Erledigt'} diese Woche</h2><div style="text-align:left">${h || '<p class="muted">Noch nichts.</p>'}</div><div class="row"><button class="btn" data-a="close">Fertig</button></div>`);
 }
@@ -482,6 +515,8 @@ function story(mon) {
     ['linear-gradient(160deg,#4f9a5b,#2d7a6e)', best && best.work ? `<div class="k">DEIN STÄRKSTER TAG</div><div class="t">${C.DAYNAMES[parse(best.d).getDay()]}</div><div class="n">${best.work}</div><p class="p">Sachen an einem Tag. Wow.</p>`
       : `<div class="k">DEIN STÄRKSTER TAG</div><div class="t">kommt noch.</div>`],
     ['linear-gradient(160deg,#3b2f52,#7b62b8)', `<div class="k">ENTSPANNUNGS-QUESTS ÜBERLEBT</div><div class="n">${w.rest}</div><p class="p">${w.rest ? 'Trotz extremer Schwierigkeit.<br>Respekt. Das ist die eigentliche Heldentat.' : 'Die Couch vermisst dich.<br>Nächste Woche vielleicht? Sie wartet.'}</p>`],
+    ...(w.moods.length >= 3 ? [['linear-gradient(160deg,#2d7a6e,#4f9a5b)', (() => { const t = moodByTask(w.log), a = avg(w.moods.map(e => e.mood)); return `<div class="k">SO HAT SICH DEINE WOCHE ANGEFÜHLT</div><div class="n">${moodFace(a)}</div><div class="t">${C.MOOD_WORDS[Math.round(a) - 1]}</div>` +
+      (t.best[0] ? `<p class="p">Am liebsten: <b>${esc(t.best[0].text)}</b> ${moodFace(t.best[0].v)}</p>` : '') + (t.hard[0] ? `<p class="p">Am zähesten: <b>${esc(t.hard[0].text)}</b> ${moodFace(t.hard[0].v)}</p>` : ''); })()]] : []),
     ['linear-gradient(160deg,#e3a92b,#e0864a)', `<div class="k">DU HAST VERDIENT</div><div class="n">${w.stars}</div><div class="t">gute Nudel Sterne</div><p class="p">${[w.pages ? w.pages + (w.pages === 1 ? ' neue Seite' : ' neue Seiten') + ' im Fotobuch' : '', w.stages ? w.stages + ' Wachstumsschritt' + (w.stages === 1 ? '' : 'e') + ' für die Pflanze' : '', w.treats ? w.treats + ' Mal was gegönnt' : ''].filter(Boolean).join('<br>') || 'Gesammelt und bereit zum Ausgeben.'}</p>`],
     ['linear-gradient(160deg,#c8577a,#6b4fb0)', hl.length ? `<div class="k">EIN PAAR DINGE, DIE DU GESCHAFFT HAST</div><ul>${hl.map(t => '<li>' + esc(t) + '</li>').join('')}</ul><p class="p">…und alles andere auch.</p>` : `<div class="k">DIESE WOCHE</div><div class="t">durfte auch mal leer sein.</div>`],
     ['linear-gradient(160deg,#e0864a,#e3a92b)', `<div class="t" style="font-size:52px">Du darfst stolz auf dich sein.</div><p class="p">Nicht weil alles erledigt ist – das ist es nie.<br>Sondern weil du so viel gegeben hast.<br>Und weil du eine gute Nudel bist. 💛</p><button class="btn soft" data-a="storyclose" style="margin-top:20px;background:rgba(255,255,255,.9);color:#c8577a">Schließen</button>`],
@@ -598,7 +633,8 @@ const A = {
   dsend() {
     const picked = S.items.filter(i => ui.dpicks.has(i.id)); if (!picked.length) return;
     S.items = S.items.filter(i => !ui.dpicks.has(i.id));
-    picked.forEach(i => S.sent.push({ id: uid(), text: i.text, today: !!ui.dtoday, ts: Date.now(), status: 'wartet' }));
+    const listOf = i => { const c = i.chore && S.chores.find(x => x.id === i.chore); return c && (c.tools || []).includes('list') && S.shop.some(x => !x.done) ? S.shop.filter(x => !x.done).map(x => x.text) : (i.list ? i.list.filter(x => !x.done).map(x => x.text) : null); };
+    picked.forEach(i => { const list = listOf(i); S.sent.push({ id: uid(), text: i.text, today: !!ui.dtoday, ts: Date.now(), status: 'wartet', ...(list ? { list } : {}) }); });
     picked.forEach(i => { const c = i.chore && S.chores.find(x => x.id === i.chore); if (c) c.last = today(); });   // handed over counts as handled
     S.log.push({ id: uid(), text: picked.length + (picked.length === 1 ? ' Aufgabe' : ' Aufgaben') + ' an ' + pn() + ' abgegeben', kind: 'delegate', day: today(), ts: Date.now(), stars: 1 }); earn(1);
     closeModal(); commit(true);
@@ -616,7 +652,7 @@ const A = {
   },
   accept(el) {
     const x = S.incoming.find(y => y.id === el.dataset.id); if (!x) return;
-    S.items.push({ id: uid(), text: x.text, where: x.today ? 'heute' : 'liste', created: Date.now(), from: pn(), did: x.id, ...(x.today ? { urgent: true } : {}) });
+    S.items.push({ id: uid(), text: x.text, where: x.today ? 'heute' : 'liste', created: Date.now(), from: pn(), did: x.id, ...(x.today ? { urgent: true } : {}), ...(x.list ? { list: x.list.map(t => ({ id: uid(), text: t, done: false })) } : {}) });
     if (x.today) { S.today.planned = true; S.today.closed = false; }
     S.answered[x.id] = { status: 'ok', ts: Date.now() }; S.incoming = S.incoming.filter(y => y !== x);
     commit(true); toast(x.today ? 'Steht auf deiner Seite für heute ☀' : 'Steht jetzt auf deiner Liste 📋');
@@ -641,7 +677,7 @@ const A = {
   qtab(el) { ui.qtab = el.dataset.v; render(); scrollTo(0, 0); },
   choretpl(el) {
     const t = C.CHORE_TEMPLATES.find(x => x.name === el.dataset.v); if (!t) return;
-    const c = { id: uid(), icon: t.icon, name: t.name, ...(t.week ? { week: t.week.slice() } : { every: t.every }), reward: t.reward || null, last: null };
+    const c = { id: uid(), icon: t.icon, name: t.name, ...(t.week ? { week: t.week.slice() } : { every: t.every }), reward: t.reward || null, last: null, tools: (t.tools || []).slice(), music: '' };
     S.chores.push(c);
     const n = scheduleChores(); commit();
     toast(c.icon + ' ' + c.name + ' – ' + choreRhythm(c) + (n ? ' · steht heute schon drauf' : ''));
@@ -658,8 +694,8 @@ const A = {
   choredelyes(el) { S.chores = S.chores.filter(x => x.id !== el.dataset.id); S.items = S.items.filter(i => i.chore !== el.dataset.id); closeModal(); commit(); },
   choreedit(el) {
     const c = el.dataset.id && S.chores.find(x => x.id === el.dataset.id);
-    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, week: (c.week || []).slice(), reward: c.reward || '', start: 'heute' }
-      : { id: null, icon: '🔁', name: '', mode: 'days', every: 7, week: [], reward: '', start: 'heute' };
+    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, week: (c.week || []).slice(), reward: c.reward || '', start: 'heute', tools: (c.tools || []).slice(), music: c.music || '' }
+      : { id: null, icon: '🔁', name: '', mode: 'days', every: 7, week: [], reward: '', start: 'heute', tools: [], music: '' };
     choreModal();
   },
   cemode(el) { ceRead(); ui.ce.mode = el.dataset.v; choreModal(); },
@@ -667,6 +703,7 @@ const A = {
   cerew(el) { ceRead(); ui.ce.reward = ui.ce.reward === el.dataset.v ? '' : el.dataset.v; ui.ce.own = false; choreModal(); },
   ceown() { ceRead(); ui.ce.own = true; ui.ce.reward = ''; choreModal(); },
   cestart(el) { ceRead(); ui.ce.start = el.dataset.v; choreModal(); },
+  cetool(el) { ceRead(); const t = el.dataset.v, a = ui.ce.tools; a.includes(t) ? a.splice(a.indexOf(t), 1) : a.push(t); choreModal(); },
   cesave() {
     ceRead();
     const e = ui.ce, msg = $('#ce-msg');
@@ -675,10 +712,52 @@ const A = {
     const every = Math.max(1, Math.min(90, Math.round(+e.every) || 7));
     let c = e.id && S.chores.find(x => x.id === e.id);
     if (!c) { c = { id: uid(), icon: '🔁', last: null }; S.chores.push(c); if (e.start === 'morgen') c.skip = addDays(today(), 1); }
-    Object.assign(c, { name: e.name, reward: e.reward || null, ...(e.mode === 'week' ? { week: e.week.slice(), every: undefined } : { every, week: undefined }) });
+    Object.assign(c, { name: e.name, reward: e.reward || null, tools: e.tools.slice(), music: e.music || '', ...(e.mode === 'week' ? { week: e.week.slice(), every: undefined } : { every, week: undefined }) });
     S.items.filter(i => i.chore === c.id).forEach(i => { i.text = c.name; });
     if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
     scheduleChores(); closeModal(); commit(); toast('Gespeichert 🔁');
+  },
+  tool(el) {
+    const t = el.dataset.t, c = el.dataset.c && S.chores.find(x => x.id === el.dataset.c);
+    if (t === 'timer') return timerModal();
+    if (t === 'list') return shopModal();
+    if (t === 'recipes') { ui.cookEdit = false; return cookModal(); }
+    if (t === 'music') {
+      if (c && c.music) { window.open(c.music, '_blank', 'noopener'); return; }
+      ui.ce = null; if (c) A.choreedit({ dataset: { id: c.id } });
+      toast('Füg hier den Link zu deiner Playlist ein 🎵');
+    }
+  },
+  timerset(el) { startTimer(el.dataset.i, el.dataset.l, +el.dataset.m); },
+  timerown() { const m = Math.round(+($('#tm-min').value || 0)); if (m > 0) startTimer('⏲️', 'Timer', Math.min(600, m)); },
+  timerstop(el) { S.timers = S.timers.filter(t => t.id !== el.dataset.id); closeModal(); commit(); runTimers(); },
+  shoptick(el) {
+    const it = el.dataset.item && S.items.find(i => i.id === el.dataset.item), L = it ? it.list : S.shop, x = L.find(y => y.id === el.dataset.id); if (!x) return;
+    x.done = !x.done; commit(); shopModal(it);
+  },
+  shopclear() { S.shop = S.shop.filter(x => !x.done); commit(); shopModal(); },
+  itemlist(el) { const it = S.items.find(i => i.id === el.dataset.id); if (it && it.list) shopModal(it); },
+  cook(el) { ui.cookEdit = false; cookModal(el.dataset.id || null); },
+  cookedit(el) { ui.cookEdit = true; cookModal(el.dataset.id); },
+  cooksave(el) {
+    const title = $('#rc-title').value.trim(), ing = $('#rc-ing').value.split('\n').map(x => x.trim()).filter(Boolean), steps = $('#rc-steps').value.trim();
+    if (!title) { $('#rc-msg').textContent = 'Wie heißt das Rezept?'; return; }
+    let r = el.dataset.id && S.recipes.find(x => x.id === el.dataset.id);
+    if (!r) { r = { id: uid() }; S.recipes.push(r); }
+    Object.assign(r, { title, ingredients: ing, steps }); ui.cookEdit = false; commit(); cookModal(r.id);
+  },
+  cookdel(el) { S.recipes = S.recipes.filter(x => x.id !== el.dataset.id); ui.cookEdit = false; commit(); cookModal(); },
+  cookshop(el) {
+    const r = S.recipes.find(x => x.id === el.dataset.id); if (!r) return;
+    const have = new Set(S.shop.filter(x => !x.done).map(x => x.text.toLowerCase()));
+    const add = r.ingredients.filter(x => !have.has(x.toLowerCase()));
+    add.forEach(t => S.shop.push({ id: uid(), text: t, done: false, from: r.title }));
+    commit(); toast(add.length ? add.length + ' Zutaten auf der Einkaufsliste 🛒' : 'Steht schon alles drauf 🛒');
+  },
+  mood(el) {
+    const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
+    e.mood = +el.dataset.v; D.saveLocal(S); D.scheduleBackup(S);
+    const bar = el.closest('.moodbar'); if (bar) { bar.innerHTML = '<span>' + C.MOODS[e.mood - 1] + ' notiert</span>'; setTimeout(() => bar.remove(), 900); }
   },
   giftdone(el) {
     const g = S.gifts.find(x => x.id === el.dataset.id); if (!g) return;
@@ -823,12 +902,84 @@ const A = {
   stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ ${C.REST_STARS} pro überlebter Entspannungs-Quest<br>⭐ 1 pro Schritt beim Gemütlich-machen und Vorbereiten</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
 };
 
+// ---------- helpers: timer, shopping list, cookbook, music ----------
+const fmtLeft = ms => { const s = Math.max(0, Math.round(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+function timerCard() {
+  if (!S.timers.length) return '';
+  return `<div class="card timers">${S.timers.map(t => { const left = t.end - Date.now(); return `<div class="timer ${left <= 0 ? 'done' : ''}"><span class="ti">${t.icon}</span><span class="tl"><b>${esc(t.label)}</b><br><span class="tleft" data-end="${t.end}">${left > 0 ? fmtLeft(left) : 'fertig!'}</span></span><button class="mini-btn" data-a="timerstop" data-id="${t.id}" aria-label="${left > 0 ? 'Abbrechen' : 'Erledigt'}">${left > 0 ? '✕' : '✓'}</button></div>`; }).join('')}</div>`;
+}
+let timerTick = null, rang = new Set();
+function runTimers() { // the countdown on screen, and the alarm when one is done (only while the app is open)
+  clearInterval(timerTick);
+  if (!S.timers.length) return;
+  timerTick = setInterval(() => {
+    document.querySelectorAll('.tleft[data-end]').forEach(el => { const l = +el.dataset.end - Date.now(); el.textContent = l > 0 ? fmtLeft(l) : 'fertig!'; });
+    S.timers.filter(t => t.end <= Date.now() && !rang.has(t.id)).forEach(t => { rang.add(t.id); timerAlarm(t, false); });
+  }, 1000);
+}
+function timerAlarm(t, late) {
+  try { if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([400, 200, 400, 200, 800]); } catch (e) {}
+  try { const a = new (window.AudioContext || window.webkitAudioContext)(); [0, .35, .7].forEach(d => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = 880; o.connect(g); g.connect(a.destination); g.gain.setValueAtTime(.25, a.currentTime + d); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + d + .3); o.start(a.currentTime + d); o.stop(a.currentTime + d + .3); }); } catch (e) {}
+  modal(`<h2>${t.icon} ${esc(t.label)} ist fertig!</h2>${late ? `<p class="muted">schon seit ${Math.max(1, Math.round((Date.now() - t.end) / 60000))} Min.</p>` : ''}<div class="row"><button class="btn" data-a="timerstop" data-id="${t.id}">Okay</button></div>`);
+  render();
+}
+function timerModal() {
+  const android = /Android/i.test(navigator.userAgent);
+  modal(`<div style="text-align:left"><h2 style="text-align:center">⏲️ Timer</h2>
+    ${C.TIMERS.map(([ic, l, mins]) => `<p class="muted" style="font-weight:800;margin:12px 0 4px">${ic} ${l}</p><div class="chips">${mins.map(m => `<button class="chip" data-a="timerset" data-l="${l}" data-i="${ic}" data-m="${m}">${m >= 60 ? Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + ' h' : m + ' Min.'}</button>`).join('')}</div>`).join('')}
+    <label class="field"><span>Eigener Timer (Minuten)</span><input id="tm-min" type="number" min="1" max="600" inputmode="numeric" placeholder="z.B. 75"></label>
+    <div class="row"><button class="btn soft" data-a="timerown">Starten</button></div>
+    ${android ? `<label class="field" style="display:flex;gap:8px;align-items:center"><input id="tm-phone" type="checkbox" style="width:auto" ${ui.phoneAlarm ? 'checked' : ''}><span style="margin:0">⏰ Auch den Handy-Timer stellen (Test: klingt auch, wenn die App zu ist)</span></label>` : ''}
+    <p class="hint">Die App klingelt, solange sie offen ist. Ist sie zu, sagt sie dir beim nächsten Öffnen, seit wann die Maschine fertig ist.</p>
+    <div class="row"><button class="btn" data-a="close">Fertig</button></div></div>`);
+}
+function startTimer(icon, label, mins) {
+  const t = { id: uid(), icon, label, end: Date.now() + mins * 60000 };
+  S.timers.push(t); commit(); runTimers();
+  const ph = $('#tm-phone'); ui.phoneAlarm = !!(ph && ph.checked);
+  closeModal(); toast(icon + ' ' + label + ': ' + mins + ' Min.');
+  if (ui.phoneAlarm) { // Android's own clock app takes the timer (nothing leaves the phone); may not work on every phone
+    try { location.href = 'intent:#Intent;action=android.intent.action.SET_TIMER;i.android.intent.extra.alarm.LENGTH=' + mins * 60 + ';S.android.intent.extra.alarm.MESSAGE=' + encodeURIComponent(label + ' fertig') + ';b.android.intent.extra.alarm.SKIP_UI=true;end'; } catch (e) {}
+  }
+}
+function shopModal(item) { // her list — or a handed-over one (item.list) on the partner's phone
+  const L = item ? item.list : S.shop, open = L.filter(x => !x.done), done = L.filter(x => x.done);
+  modal(`<div style="text-align:left"><h2 style="text-align:center">🛒 ${item ? esc(item.text) : 'Einkaufsliste'}</h2>
+    ${item ? `<p class="muted">von ${esc(item.from || '')}</p>` : ''}
+    <div class="steps">${open.concat(done).map(x => `<button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}" ${item ? `data-item="${item.id}"` : ''}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(x.text)}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}</span></button>`).join('') || '<p class="muted">Noch leer.</p>'}</div>
+    ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
+    <div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}<button class="btn" data-a="close">Fertig</button></div></div>`);
+}
+function cookModal(rid) {
+  if (!S.recipes) S.recipes = C.EXAMPLE_RECIPES.map(r => ({ id: uid(), ...r, ingredients: r.ingredients.slice() }));
+  const r = rid && S.recipes.find(x => x.id === rid);
+  if (rid === 'new' || (r && ui.cookEdit)) {
+    const e = r || { title: '', ingredients: [], steps: '' };
+    return modal(`<div style="text-align:left"><h2 style="text-align:center">📖 ${r ? 'Rezept ändern' : 'Neues Rezept'}</h2>
+      <label class="field"><span>Name</span><input id="rc-title" value="${esc(e.title)}" placeholder="z.B. Omas Linsensuppe"></label>
+      <label class="field"><span>Zutaten (eine pro Zeile)</span><textarea id="rc-ing" rows="6">${esc(e.ingredients.join('\n'))}</textarea></label>
+      <label class="field"><span>So geht’s</span><textarea id="rc-steps" rows="5">${esc(e.steps)}</textarea></label>
+      <p class="muted" id="rc-msg" style="color:var(--danger)"></p>
+      <div class="row"><button class="btn" data-a="cooksave" data-id="${r ? r.id : ''}">Speichern</button><button class="btn soft" data-a="cook" data-id="${r ? r.id : ''}">Abbrechen</button></div>
+      ${r ? `<div class="row"><button class="btn soft" data-a="cookdel" data-id="${r.id}" style="color:var(--danger)">Rezept löschen</button></div>` : ''}</div>`);
+  }
+  if (r) return modal(`<div style="text-align:left"><h2 style="text-align:center">📖 ${esc(r.title)}</h2>
+    <p class="muted" style="font-weight:800;margin:6px 0">Zutaten</p><ul class="list-plain">${r.ingredients.map(x => `<li><span>${esc(x)}</span></li>`).join('')}</ul>
+    <div class="row"><button class="btn green" data-a="cookshop" data-id="${r.id}">🛒 Alles auf die Einkaufsliste</button></div>
+    ${r.steps ? `<p class="muted" style="font-weight:800;margin:14px 0 6px">So geht’s</p><p style="white-space:pre-wrap">${esc(r.steps)}</p>` : ''}
+    <div class="row"><button class="btn soft" data-a="cookedit" data-id="${r.id}">✎ Ändern</button><button class="btn soft" data-a="cook">← Alle Rezepte</button></div></div>`);
+  modal(`<div style="text-align:left"><h2 style="text-align:center">📖 Kochbuch</h2>
+    <div class="steps">${S.recipes.map(x => `<button class="pick" data-a="cook" data-id="${x.id}"><span>${esc(x.title)}</span><span class="muted" style="margin-left:auto">${x.ingredients.length} Zutaten</span></button>`).join('') || '<p class="muted">Noch keine Rezepte.</p>'}</div>
+    <div class="row"><button class="btn blue" data-a="cook" data-id="new">+ Neues Rezept</button><button class="btn" data-a="close">Fertig</button></div></div>`);
+}
+
 // the chore editor (a modal that keeps what's typed when a chip is tapped)
 function ceRead() {
   const n = $('#ce-name'), ev = $('#ce-every'), r = $('#ce-own');
   if (n) ui.ce.name = n.value.trim();
   if (ev) ui.ce.every = ev.value;
   if (r && ui.ce.own) ui.ce.reward = r.value.trim();
+  const m = $('#ce-music'); if (m) ui.ce.music = m.value.trim();
 }
 function choreModal() {
   const e = ui.ce;
@@ -844,6 +995,9 @@ function choreModal() {
     <div class="chips">${opts.map(r => `<button class="chip ${e.reward === r && !e.own ? 'on' : ''}" data-a="cerew" data-v="${esc(r)}">${esc(r)}</button>`).join('')}<button class="chip ${e.own ? 'on' : ''}" data-a="ceown">✏️ Eigene…</button></div>
     ${e.own ? `<label class="field"><span>Deine Belohnung</span><input id="ce-own" value="${esc(e.reward)}" placeholder="Was gönnst du dir?" autocomplete="off"></label>` : ''}
     <p class="hint">Keine ausgewählt = einfach eine Aufgabe ohne Belohnung.</p>
+    <p class="muted" style="font-weight:800;margin:12px 0 4px">🛠 Helfer dazu</p>
+    <div class="chips">${Object.entries(C.TOOLS).map(([k, [ic, l]]) => `<button class="chip ${e.tools.includes(k) ? 'on' : ''}" data-a="cetool" data-v="${k}">${ic} ${l}</button>`).join('')}</div>
+    ${e.tools.includes('music') ? `<label class="field"><span>Link zu deiner Playlist (Spotify, YouTube Music …)</span><input id="ce-music" value="${esc(e.music)}" placeholder="https://…" autocapitalize="off" autocomplete="off" spellcheck="false"></label>` : ''}
     <p class="muted" id="ce-msg" style="color:var(--danger)"></p>
     <div class="row"><button class="btn" data-a="cesave">Speichern</button><button class="btn soft" data-a="close">Abbrechen</button></div></div>`);
 }
@@ -858,6 +1012,7 @@ function delegateModal() {
 }
 
 const FORMS = {
+  shopadd(t) { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => S.shop.push({ id: uid(), text: x, done: false })); commit(); shopModal(); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
   decline(t, form) {
     const id = form.dataset.id, x = S.incoming.find(y => y.id === id); if (!x) return;
     S.answered[id] = { status: 'nein', reason: t, ts: Date.now() }; S.incoming = S.incoming.filter(y => y !== x); ui.declining = null;
@@ -872,6 +1027,7 @@ const FORMS = {
     S.today.planned = true;
     floatStar(form.querySelector('button'), stars ? '+1 ⭐' : '✓'); toast(pick(C.PRAISE) + (stars ? ' +1 ⭐' : ''));
     afterWork(n + 1);
+    askMood(S.log[S.log.length - 1]);
   },
   wish(t) { S.wishes.push({ id: uid(), text: t }); commit(); toast('Gemerkt 💛 – taucht jetzt auch bei den Belohnungen auf.'); },
 };
@@ -973,6 +1129,8 @@ async function start() {
   if (!S.welcomed) welcome();
   else D.askPersistent();
   syncPost();
+  runTimers();
+  S.timers.filter(t => t.end <= Date.now()).forEach(t => { rang.add(t.id); setTimeout(() => timerAlarm(t, true), 600); });
 }
 start();
 window.__gn = { get S() { return S; }, ui, render, commit, D, rollover, syncPost };

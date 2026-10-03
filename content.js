@@ -68,12 +68,13 @@ export const COMBOS = [
 ];
 // Recurring chores (Haushalt): one-tap templates — rhythm (every N days or weekdays, 0 = Sunday) and a fitting reward
 export const CHORE_TEMPLATES = [
-  { icon: '🧺', name: 'Wäsche waschen', every: 3, reward: 'Füße hoch in frischen Kuschelsocken' },
-  { icon: '🛁', name: 'Bad putzen', every: 7, reward: 'Ein extra schönes Bad – mit Snacks und Serie oder Hörbuch' },
+  { icon: '🧺', name: 'Wäsche waschen', every: 3, reward: 'Füße hoch in frischen Kuschelsocken', tools: ['timer'] },
+  { icon: '🛁', name: 'Bad putzen', every: 7, reward: 'Ein extra schönes Bad – mit Snacks und Serie oder Hörbuch', tools: ['music'] },
+  { icon: '🍳', name: 'Kochen', every: 1, reward: null, tools: ['recipes'] },
   { icon: '🛏️', name: 'Bettwäsche wechseln', every: 14, reward: 'Heute früh ins frische Bett – mit Buch und Tee, Handy bleibt draußen' },
-  { icon: '🧹', name: 'Staubsaugen', every: 7, reward: 'Film-Nest im frisch gesaugten Wohnzimmer' },
+  { icon: '🧹', name: 'Staubsaugen', every: 7, reward: 'Film-Nest im frisch gesaugten Wohnzimmer', tools: ['music'] },
   { icon: '🍽️', name: 'Küche aufräumen', every: 2, reward: 'Kaffee und etwas Süßes am sauberen Tisch – in Ruhe' },
-  { icon: '🛒', name: 'Wocheneinkauf', week: [6], reward: 'Eine Sache nur für dich: Blumen, Lieblingssnack, irgendwas Schönes' },
+  { icon: '🛒', name: 'Wocheneinkauf', week: [6], reward: 'Eine Sache nur für dich: Blumen, Lieblingssnack, irgendwas Schönes', tools: ['list'] },
   { icon: '🪴', name: 'Pflanzen gießen', every: 3, reward: '20 Minuten Sonne und ein Getränk auf dem Balkon' },
   { icon: '🗑️', name: 'Müll rausbringen', week: [1, 4], reward: null },
   { icon: '🧊', name: 'Kühlschrank ausmisten', every: 14, reward: 'Etwas Leckeres kochen – oder bestellen. Beides zählt.' },
@@ -81,6 +82,16 @@ export const CHORE_TEMPLATES = [
   { icon: '🧽', name: 'Staub wischen', every: 10, reward: 'Eine Folge deiner Lieblingsserie – ohne Handy daneben' },
 ];
 export const DOW = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+// Helpers a chore can have (any chore, several at once). Only the shopping list travels along when a chore is handed over.
+export const TOOLS = { timer: ['⏲️', 'Timer'], list: ['🛒', 'Einkaufsliste'], recipes: ['📖', 'Kochbuch'], music: ['🎵', 'Musik'] };
+export const TIMERS = [['🧺', 'Waschmaschine', [30, 60, 90, 120, 180]], ['🌀', 'Trockner', [60, 90, 120, 150]], ['🍝', 'Küche', [10, 15, 20, 30, 45]]];
+// How it felt: after every tick, one tap (or none)
+export const MOODS = ['😫', '😕', '😐', '🙂', '😄'];
+export const MOOD_WORDS = ['richtig zäh', 'eher zäh', 'okay', 'gut', 'richtig gut'];
+export const EXAMPLE_RECIPES = [
+  { title: 'Spaghetti Aglio e Olio', ingredients: ['Spaghetti', 'Knoblauch', 'Olivenöl', 'Chili', 'Petersilie', 'Parmesan'], steps: 'Nudeln kochen. Knoblauch in Scheiben mit Chili in viel Öl langsam goldig werden lassen. Nudeln mit etwas Nudelwasser in die Pfanne, schwenken, Petersilie und Parmesan drüber.' },
+  { title: 'Ofengemüse mit Feta', ingredients: ['Kartoffeln', 'Paprika', 'Zucchini', 'Rote Zwiebel', 'Feta', 'Olivenöl', 'Rosmarin'], steps: 'Alles in Stücke, mit Öl, Salz und Rosmarin aufs Blech. 35 Min. bei 200 °C. Feta zerbröseln, die letzten 10 Minuten mit rein.' },
+];
 export const COMBO_REWARD_STARS = 2;
 export const CHORE_REWARDS = [...new Set(COMBOS.map(c => c.reward).concat(['Ein Kapitel im Lieblingsbuch – mit Tee', 'Lieblingsessen bestellen – kein Kochen heute', 'Ein warmes Fußbad', 'Eine Runde Kuscheln']))]; // + the 1 star part 1 gets as a normal task = 3 in total
 
