@@ -4,7 +4,7 @@ import * as Sh from './shop.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.28';
+const VERSION = '2026-10-03.29';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -807,10 +807,6 @@ const A = {
   cookshop2() {
     const r = recipeById(ui.rid), all = r.ing.concat(...sidesOf().map(s => s.ing)).filter(([, t]) => t);
     const add = all.filter(([, t]) => ingWanted(t) && !onList(t));
-    // learn: what she unticked is usually at home; what she ticked although it was "Vorrat" isn't
-    const P = new Set(S.pantry || []);
-    all.forEach(([, t]) => { const k = ingKey(t), picked = ui.ingPick && k in ui.ingPick; if (picked && !ui.ingPick[k] && !onList(t)) P.add(k); if (picked && ui.ingPick[k]) P.delete(k); });
-    S.pantry = [...P];
     add.forEach(([q, t]) => S.shop.push({ id: uid(), text: q ? t + ' (' + q + ')' : t, done: false, from: r.title }));
     (ui.ingExtra || []).forEach(t => S.shop.push({ id: uid(), text: t, done: false }));
     const nExtra = (ui.ingExtra || []).length;
@@ -1164,11 +1160,11 @@ function cookSuggest(n) { // weighted, no repeats; ui.sugSeed changes with "ande
   }
   return out;
 }
-// which ingredients go on the list: her choice for this recipe, else — not already on the list, not something she
-// usually has (what she unticked before, and salt/oil/spices)
+// which ingredients go on the list: her choice for this recipe, else — not already on the list and not a pantry staple
+// (salt/oil/spices: marked "Vorrat?" so she can tick them when they're empty). Nothing is remembered — things run out.
 const ingKey = t => Sh.norm(t);
 const onList = t => S.shop.some(x => !x.done && Sh.norm(x.text) === ingKey(t));
-const isPantry = t => (S.pantry || []).includes(ingKey(t)) || Sh.classify(t, S.shopLearn || {}) === 'backen';
+const isPantry = t => Sh.classify(t, S.shopLearn || {}) === 'backen';
 const ingWanted = t => { const k = ingKey(t); return ui.ingPick && k in ui.ingPick ? ui.ingPick[k] : !onList(t) && !isPantry(t); };
 const sidesOf = () => (ui.sides || []).map(id => K.SIDES.find(s => s.id === id)).filter(Boolean);
 function plateHtml(r, sides) {
@@ -1207,7 +1203,7 @@ function viewRecipe() {
   }
   const ing = r.ing.concat(...sides.map(s => s.ing.map(x => [x[0], x[1], s.title])));
   const sel = ing.filter(([, t]) => t && ingWanted(t)).length, total = sel + (ui.ingExtra || []).length;
-  h += `<div class="card"><h3>Zutaten</h3><p class="muted" style="margin-top:0">Was du schon daheim hast, abwählen – ich merk’s mir fürs nächste Mal.</p>
+  h += `<div class="card"><h3>Zutaten</h3><p class="muted" style="margin-top:0">Was du gerade noch daheim hast, einfach abwählen.</p>
     <div class="steps">${ing.map(([q, t, from]) => { const on = t && ingWanted(t), why = onList(t) ? 'steht schon drauf' : isPantry(t) ? 'Vorrat?' : '';
       return `<button class="pick ${on ? 'on' : ''}" data-a="ingtoggle" data-v="${esc(t)}"><span class="box">${on ? '✓' : ''}</span><span style="flex:1">${esc(t)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}${why && !on ? ` <span class="tag">${why}</span>` : ''}</span><span class="muted">${esc(q)}</span></button>`; }).join('')}</div>
     ${(ui.ingExtra || []).length ? `<div class="steps">${ui.ingExtra.map((t, i) => `<div class="shoprow"><span class="pick on" style="cursor:default"><span class="box">✓</span><span style="flex:1">${esc(t)} <span class="tag">dazu</span></span></span><button class="mini-btn" data-a="ingextradel" data-i="${i}" aria-label="Entfernen">✕</button></div>`).join('')}</div>` : ''}
