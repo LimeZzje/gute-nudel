@@ -1,6 +1,7 @@
 // All texts that make up the "game": rest quests, cozy recipes, prep quests, reward ideas, plant stages, strain names.
 export const CAP = 10;          // tasks per day that earn stars; after that: "Genug für heute!"
-export const PAGE_COST = 10;    // stars per photo book page
+export const PAGE_COST = 10;    // stars per photo book page …
+export const pageCost = pages => (pages === 0 ? 1 : PAGE_COST); // … except the first: 1 star, so she sees right away what it is about
 export const STAGE_COST = 10;   // stars per plant stage
 export const REST_STARS = 3;    // a finished rest quest: 1 like a task + 2 bonus ("8 instead of 10")
 export const BOOK_PAGES = 30;

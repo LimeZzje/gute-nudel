@@ -5,6 +5,7 @@ import { plantSVG } from './plant.js';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
+const tags = i => (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -24,12 +25,53 @@ const dayLog = k => S.log.filter(e => e.day === k);
 const workToday = () => dayLog(today()).filter(isWork);
 
 // ---------- saving ----------
-function commit() {
+function commit(post = false) {
   S.updatedAt = Date.now();
   D.saveLocal(S);
   D.scheduleBackup(S);
+  if (post || S.postedName !== S.name) { S.postedName = S.name; D.schedulePost(postObj()); }
   render();
 }
+
+// ---------- handing tasks to the partner ----------
+const pn = () => S.partnerName || 'Partner';
+const MONTH = 30 * 864e5;
+function postObj() { // what the partner reads: my handed-over tasks and my answers to theirs
+  return {
+    name: S.name, ts: Date.now(),
+    out: S.sent.filter(x => Date.now() - x.ts < MONTH).map(({ id, text, today, ts }) => ({ id, text, today, ts })),
+    replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
+  };
+}
+const RANK = { wartet: 0, ok: 1, nein: 1, erledigt: 2 };
+let syncing = false;
+async function syncPost() {
+  if (syncing || !D.canPost() || !navigator.onLine) return;
+  syncing = true;
+  try {
+    const p = await D.readPartnerPost(); if (!p) return;
+    let changed = false; const back = [], took = [], done = [];
+    if (p.name && p.name !== S.partnerName) { S.partnerName = p.name; changed = true; }
+    const inc = (p.out || []).filter(x => !S.answered[x.id]);
+    if (inc.map(x => x.id).join() !== S.incoming.map(x => x.id).join()) { S.incoming = inc; changed = true; }
+    for (const r of p.replies || []) {
+      const x = S.sent.find(y => y.id === r.id);
+      if (!x || RANK[r.status] <= RANK[x.status]) continue;
+      x.status = r.status; x.reason = r.reason || ''; changed = true;
+      if (r.status === 'nein') { S.items.unshift({ id: uid(), text: x.text, where: 'liste', created: Date.now(), back: x.reason }); back.push(x); }
+      else if (r.status === 'ok') took.push(x); else done.push(x);
+    }
+    const before = S.sent.length;
+    S.sent = S.sent.filter(x => x.status === 'wartet' || x.status === 'ok' || Date.now() - x.ts < 14 * 864e5);
+    if (S.sent.length !== before) changed = true;
+    if (changed) commit();
+    if (back.length) modal(`<h2>Kommt zurück</h2><p>${esc(pn())} kann das gerade nicht übernehmen:</p><div style="text-align:left">${back.map(x => `<p><b>${esc(x.text)}</b><br><span class="muted">„${esc(x.reason)}“</span></p>`).join('')}</div><p class="muted">${back.length > 1 ? 'Die Aufgaben sind' : 'Die Aufgabe ist'} wieder auf deiner Liste.</p><div class="row"><button class="btn" data-a="close">Okay</button></div>`);
+    else if (done.length) toast(pn() + ' hat erledigt: ' + done.map(x => x.text).join(', ') + ' 🎉');
+    else if (took.length) toast(pn() + ' übernimmt ' + (took.length === 1 ? '„' + took[0].text + '“' : took.length + ' Aufgaben') + ' 💛');
+  } catch (e) { console.warn('post', e); }
+  finally { syncing = false; }
+}
+function answerDone(item) { if (item.did) { S.answered[item.did] = { status: 'erledigt', ts: Date.now() }; return true; } return false; }
 function earn(n) { S.stars += n; S.earned += n; }
 
 function rollover() {
@@ -85,6 +127,7 @@ function renderTop() {
   c.className = st === 'ok' ? 'ok' : st === 'wait' ? 'wait' : st === 'bad' ? 'bad' : '';
   c.title = { ok: 'Gesichert', wait: 'Wird gleich gesichert', bad: 'Sicherung hat nicht geklappt', none: 'Sicherung nicht eingerichtet' }[st] || '';
   document.querySelectorAll('nav#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  $('#tabs [data-tab="heute"]').classList.toggle('dot', S.incoming.length > 0);
 }
 
 // ---------- HEUTE ----------
@@ -94,6 +137,7 @@ function viewHeute() {
   const capped = done.length >= C.CAP;
   let h = '';
 
+  h += incomingCard();
   const lastMon = addDays(monday(d), -7);
   if (!S.weeksSeen.includes(lastMon) && S.log.some(e => weekDays(lastMon).includes(e.day)))
     h += `<button class="card btn soft wide" data-a="story" data-w="${lastMon}" style="text-align:left">✨ <b>Dein Wochenrückblick ist da.</b><br><span class="muted">Schau dir an, was du letzte Woche alles geschafft hast.</span></button>`;
@@ -112,7 +156,7 @@ function viewHeute() {
   if (!S.today.planned && heute.length === 0 && done.length === 0) {
     h += `<p class="sub">${S.name ? 'Hallo ' + esc(S.name) + '! ' : ''}Was kommt heute auf deine Seite? 3–5 Sachen reichen völlig – den Rest hebt die Liste für dich auf.</p>`;
     if (liste.length) {
-      h += liste.map(i => `<button class="pick ${ui.picks.has(i.id) ? 'on' : ''}" data-a="pickday" data-id="${i.id}"><span class="box">${ui.picks.has(i.id) ? '✓' : ''}</span><span>${esc(i.text)}${i.carried ? '<span class="tag">von gestern</span>' : ''}</span></button>`).join('');
+      h += liste.map(i => `<button class="pick ${ui.picks.has(i.id) ? 'on' : ''}" data-a="pickday" data-id="${i.id}"><span class="box">${ui.picks.has(i.id) ? '✓' : ''}</span><span>${esc(i.text)}${i.carried ? '<span class="tag">von gestern</span>' : ''}${tags(i)}</span></button>`).join('');
     }
     h += `<form class="add" data-f="addplan"><input name="t" placeholder="Etwas Neues für heute…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
     h += `<div class="row" style="margin-top:14px"><button class="btn green" data-a="plandone">${ui.picks.size ? 'Los geht\'s (' + ui.picks.size + ')' : 'Los geht\'s'}</button></div>`;
@@ -121,10 +165,11 @@ function viewHeute() {
   }
 
   if (heute.length === 0 && done.length === 0) h += `<p class="sub">Nichts geplant. Genieß es – oder hol dir etwas aus der Liste.</p>`;
-  h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span></div><button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button></div>`).join('');
+  h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i)}</div><button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button></div>`).join('');
   if (!finished) {
     h += `<form class="add" data-f="addtoday"><input name="t" placeholder="Noch etwas für heute…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
     h += `<div class="row" style="margin-top:12px">${liste.length ? '<button class="btn soft" data-a="fromlist">Aus der Liste holen</button>' : ''}${heute.length ? '<button class="btn soft" data-a="closeday">Für heute Schluss</button>' : ''}</div>`;
+    if (D.canPost() && S.items.length) h += `<button class="btn soft wide" data-a="delegate" style="margin-top:10px">🤝 An ${esc(pn())} abgeben</button>`;
   }
   if (done.length) {
     h += `<div class="donebox"><div class="muted" style="margin:14px 0 4px;font-weight:800">Heute geschafft (${done.length})</div>` +
@@ -135,6 +180,16 @@ function viewHeute() {
   return h;
 }
 
+function incomingCard() {
+  if (!S.incoming.length) return '';
+  return `<div class="card incoming"><h3>🤝 ${esc(pn())} bittet dich um Hilfe</h3>` + S.incoming.map(x => `<div class="inc">
+      <div class="inc-t"><b>${esc(x.text)}</b>${x.today ? '<span class="tag hot">bitte heute</span>' : ''}</div>
+      ${ui.declining === x.id
+        ? `<form class="add" data-f="decline" data-id="${x.id}"><input name="t" placeholder="Warum? z.B. schaff ich nicht wegen Terminen" autocomplete="off" enterkeyhint="send"><button class="btn" aria-label="Absenden">➤</button></form><button class="btn soft wide" data-a="declinecancel" style="margin-top:6px">Doch nicht</button>`
+        : `<div class="row"><button class="btn green" data-a="accept" data-id="${x.id}">Übernehmen</button><button class="btn soft" data-a="declinestart" data-id="${x.id}">Geht nicht</button></div>`}
+    </div>`).join('') + '</div>';
+}
+
 function tick(id, el) {
   const it = S.items.find(i => i.id === id); if (!it) return;
   const row = el.closest('.item');
@@ -143,13 +198,13 @@ function tick(id, el) {
   floatStar(el, stars ? '+1 ⭐' : '✓');
   setTimeout(() => {
     S.items = S.items.filter(i => i !== it);
-    S.log.push({ id: uid(), text: it.text, kind: 'task', day: today(), ts: Date.now(), stars });
+    S.log.push({ id: uid(), text: it.text, kind: 'task', day: today(), ts: Date.now(), stars, ...(it.did ? { did: it.did, from: it.from } : {}) });
     earn(stars);
-    afterWork(n + 1);
+    afterWork(n + 1, answerDone(it));
   }, 650);
 }
-function afterWork(count) {
-  commit();
+function afterWork(count, post = false) {
+  commit(post);
   if (count === C.CAP && !S.today.capShown) {
     S.today.capShown = true; commit();
     modal(`<h2>Genug für heute!</h2><p>Du hast heute <b>${C.CAP} Sachen</b> geschafft. Das ist richtig viel.</p>
@@ -167,10 +222,16 @@ function afterWork(count) {
 function viewListe() {
   const l = S.items.filter(i => i.where === 'liste');
   let h = `<section class="pad"><h2>Alles, was irgendwann dran ist</h2><p class="sub">Hier darf alles stehen. Nichts davon muss heute passieren.</p>`;
-  h += l.map(i => `<div class="item"><button class="chk" data-a="toheute" data-id="${i.id}" aria-label="Für heute einplanen" title="Für heute">☀</button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span></div><button class="mini-btn" data-a="del" data-id="${i.id}" aria-label="Löschen">✕</button></div>`).join('');
+  h += l.map(i => `<div class="item"><button class="chk" data-a="toheute" data-id="${i.id}" aria-label="Für heute einplanen" title="Für heute">☀</button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i)}</div><button class="mini-btn" data-a="del" data-id="${i.id}" aria-label="Löschen">✕</button></div>`).join('');
   if (!l.length) h += `<p class="muted">Die Liste ist leer. Wie schön.</p>`;
   h += `<form class="add" data-f="addlist"><input name="t" placeholder="Neue Aufgabe…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
+  if (D.canPost() && S.items.length) h += `<button class="btn soft wide" data-a="delegate" style="margin-top:12px">🤝 An ${esc(pn())} abgeben</button>`;
   h += `<p class="hint">Tipp: Mit ☀ kommt eine Aufgabe auf die Seite von heute.</p></section>`;
+  const sent = S.sent.filter(x => x.status !== 'nein');
+  if (sent.length) {
+    const lbl = { wartet: 'wartet auf Antwort', ok: 'übernommen 💛', erledigt: 'erledigt 🎉' };
+    h += `<div class="card"><h3>🤝 Abgegeben an ${esc(pn())}</h3><ul class="list-plain">${sent.slice().reverse().map(x => `<li><span>${esc(x.text)}${x.today ? ' <span class="tag hot">heute</span>' : ''}</span><span class="st st-${x.status}">${lbl[x.status]}</span></li>`).join('')}</ul></div>`;
+  }
   return h;
 }
 
@@ -234,8 +295,8 @@ function viewSchaetze() {
     <h3>${pages ? 'Dein Fotobuch' : 'Ein geheimes Fotobuch'}</h3>
     <p class="muted">${pages ? pages + ' von ' + C.BOOK_PAGES + ' Seiten' : 'Was drin ist? Das verrät dir Seite 1.'}</p>
     <div class="bar"><i style="width:${pages / C.BOOK_PAGES * 100}%"></i></div></div></div>
-    <div class="row" style="margin-top:10px">${full ? '' : `<button class="btn" data-a="unlockpage" ${S.stars < C.PAGE_COST ? 'disabled' : ''}>Seite freischalten · ${C.PAGE_COST} ⭐</button>`}${pages ? '<button class="btn soft" data-a="openbook">Ansehen</button>' : ''}</div>
-    ${!full && S.stars < C.PAGE_COST ? `<p class="hint">Noch ${C.PAGE_COST - S.stars} ⭐ bis zur nächsten Seite.</p>` : ''}</div>`;
+    <div class="row" style="margin-top:10px">${full ? '' : `<button class="btn" data-a="unlockpage" ${S.stars < C.pageCost(pages) ? 'disabled' : ''}>Seite freischalten · ${C.pageCost(pages)} ⭐</button>`}${pages ? '<button class="btn soft" data-a="openbook">Ansehen</button>' : ''}</div>
+    ${!full && S.stars < C.pageCost(pages) ? `<p class="hint">Noch ${C.pageCost(pages) - S.stars} ⭐ bis zur nächsten Seite.</p>` : ''}</div>`;
 
   const st = S.plant.stage, ripe = st >= C.STAGES.length - 1;
   h += `<div class="card"><h3>🌿 Deine Pflanze${S.plant.harvests.length ? ' · Ernte Nr. ' + (S.plant.harvests.length + 1) : ''}</h3>
@@ -393,8 +454,10 @@ const A = {
   undo(el) {
     const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
     S.log = S.log.filter(x => x !== e); S.stars = Math.max(0, S.stars - e.stars); S.earned = Math.max(0, S.earned - e.stars);
-    if (e.kind === 'task') S.items.unshift({ id: uid(), text: e.text, where: 'heute', created: Date.now() });
-    S.today.celebrated = false; S.today.closed = false; commit();
+    if (e.kind === 'task') S.items.unshift({ id: uid(), text: e.text, where: 'heute', created: Date.now(), ...(e.did ? { did: e.did, from: e.from } : {}) });
+    let post = false;
+    if (e.did && S.answered[e.did]) { S.answered[e.did] = { status: 'ok', ts: Date.now() }; post = true; }
+    S.today.celebrated = false; S.today.closed = false; commit(post);
   },
   closeday() {
     modal(`<h2>Für heute Schluss?</h2><p>Was noch offen ist, wandert zurück auf die Liste. Es läuft nicht weg.</p><div class="row"><button class="btn green" data-a="closeyes">Ja, Feierabend!</button><button class="btn soft" data-a="close">Doch nicht</button></div>`);
@@ -412,6 +475,26 @@ const A = {
   toheute(el) { const i = S.items.find(x => x.id === el.dataset.id); if (i) { i.where = 'heute'; S.today.planned = true; S.today.closed = false; commit(); toast('Auf der Seite von heute ☀'); } },
   del(el) { S.items = S.items.filter(x => x.id !== el.dataset.id); commit(); },
 
+  delegate() { ui.dpicks = new Set(); ui.dtoday = false; delegateModal(); },
+  dpick(el) { const id = el.dataset.id; ui.dpicks.has(id) ? ui.dpicks.delete(id) : ui.dpicks.add(id); delegateModal(); },
+  dtoday() { ui.dtoday = !ui.dtoday; delegateModal(); },
+  dsend() {
+    const picked = S.items.filter(i => ui.dpicks.has(i.id)); if (!picked.length) return;
+    S.items = S.items.filter(i => !ui.dpicks.has(i.id));
+    picked.forEach(i => S.sent.push({ id: uid(), text: i.text, today: !!ui.dtoday, ts: Date.now(), status: 'wartet' }));
+    S.log.push({ id: uid(), text: picked.length + (picked.length === 1 ? ' Aufgabe' : ' Aufgaben') + ' an ' + pn() + ' abgegeben', kind: 'delegate', day: today(), ts: Date.now(), stars: 1 }); earn(1);
+    closeModal(); commit(true);
+    modal(`<h2>Abgegeben!</h2><p>Nicht alles allein machen zu müssen, ist auch eine Stärke.</p><p>+1 gute Nudel Stern ⭐</p><p class="muted">${esc(pn())} sieht ${picked.length === 1 ? 'die Aufgabe' : 'die Aufgaben'} beim nächsten Öffnen der App.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
+  },
+  accept(el) {
+    const x = S.incoming.find(y => y.id === el.dataset.id); if (!x) return;
+    S.items.push({ id: uid(), text: x.text, where: x.today ? 'heute' : 'liste', created: Date.now(), from: pn(), did: x.id, ...(x.today ? { urgent: true } : {}) });
+    if (x.today) { S.today.planned = true; S.today.closed = false; }
+    S.answered[x.id] = { status: 'ok', ts: Date.now() }; S.incoming = S.incoming.filter(y => y !== x);
+    commit(true); toast(x.today ? 'Steht auf deiner Seite für heute ☀' : 'Steht jetzt auf deiner Liste 📋');
+  },
+  declinestart(el) { ui.declining = el.dataset.id; render(); const i = document.querySelector('form[data-f="decline"] input'); if (i) i.focus(); },
+  declinecancel() { ui.declining = null; render(); },
   queststart(el) { S.quest = el.dataset.id; commit(); scrollTo({ top: 0, behavior: 'smooth' }); },
   questquit() { S.quest = null; commit(); },
   questdone() {
@@ -447,10 +530,11 @@ const A = {
   delwish(el) { S.wishes = S.wishes.filter(w => w.id !== el.dataset.id); commit(); },
 
   async unlockpage() {
-    if (S.stars < C.PAGE_COST || S.book.pages >= C.BOOK_PAGES) return;
-    S.stars -= C.PAGE_COST; S.book.pages++;
+    const cost = C.pageCost(S.book.pages);
+    if (S.stars < cost || S.book.pages >= C.BOOK_PAGES) return;
+    S.stars -= cost; S.book.pages++;
     const n = S.book.pages;
-    S.log.push({ id: uid(), text: 'Fotobuch Seite ' + n, kind: 'unlock', what: 'page', day: today(), ts: Date.now(), stars: -C.PAGE_COST });
+    S.log.push({ id: uid(), text: 'Fotobuch Seite ' + n, kind: 'unlock', what: 'page', day: today(), ts: Date.now(), stars: -cost });
     commit();
     const o = modal(`<h2>Seite ${n}!</h2><div class="polaroid reveal" id="rv"><div class="muted" style="padding:60px 0">Wird entwickelt…</div><div class="cap">${n} / ${C.BOOK_PAGES}</div></div><div class="row"><button class="btn" data-a="${n >= C.BOOK_PAGES ? 'collage' : 'close'}">${n >= C.BOOK_PAGES ? 'Das ganze Buch ✨' : 'Schön!'}</button></div>`);
     const u = await D.photoURL(n), rv = o.querySelector('#rv');
@@ -517,7 +601,21 @@ const A = {
   stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ ${C.REST_STARS} pro überlebter Entspannungs-Quest<br>⭐ 1 pro Schritt beim Gemütlich-machen und Vorbereiten</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
 };
 
+function delegateModal() {
+  const open = [...S.items.filter(i => i.where === 'heute'), ...S.items.filter(i => i.where !== 'heute')];
+  const n = ui.dpicks.size;
+  modal(`<h2>An ${esc(pn())} abgeben</h2><p class="muted">Welche Aufgaben soll ${esc(pn())} übernehmen?</p>
+    <div style="text-align:left">${open.map(i => `<button class="pick ${ui.dpicks.has(i.id) ? 'on' : ''}" data-a="dpick" data-id="${i.id}"><span class="box">${ui.dpicks.has(i.id) ? '✓' : ''}</span><span>${esc(i.text)}</span></button>`).join('')}</div>
+    <div class="chips" style="justify-content:center;margin-top:12px"><button class="chip ${ui.dtoday ? 'on' : ''}" data-a="dtoday">☀ Bitte heute erledigen</button></div>
+    <div class="row"><button class="btn" data-a="dsend" ${n ? '' : 'disabled'}>Abgeben${n ? ' (' + n + ')' : ''} · +1 ⭐</button><button class="btn soft" data-a="close">Abbrechen</button></div>`);
+}
+
 const FORMS = {
+  decline(t, form) {
+    const id = form.dataset.id, x = S.incoming.find(y => y.id === id); if (!x) return;
+    S.answered[id] = { status: 'nein', reason: t, ts: Date.now() }; S.incoming = S.incoming.filter(y => y !== x); ui.declining = null;
+    commit(true); toast('Okay – ' + pn() + ' bekommt sie mit deiner Begründung zurück.');
+  },
   addplan(t) { const it = { id: uid(), text: t, where: 'liste', created: Date.now() }; S.items.push(it); ui.picks.add(it.id); commit(); },
   addtoday(t) { S.items.push({ id: uid(), text: t, where: 'heute', created: Date.now() }); S.today.planned = true; commit(); },
   addlist(t) { S.items.push({ id: uid(), text: t, where: 'liste', created: Date.now() }); commit(); },
@@ -560,10 +658,11 @@ function bind() {
   $('#cloud').addEventListener('click', settings);
   $('#stars').addEventListener('click', A.stars);
   D.backup.listeners.add(renderTop);
-  addEventListener('online', () => D.flushBackup());
+  addEventListener('online', () => { D.flushBackup(); D.flushPost(); syncPost(); });
+  setInterval(() => { if (document.visibilityState === 'visible') syncPost(); }, 90000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') D.flushBackup();
-    else if (rollover()) commit();
+    else { if (rollover()) commit(); syncPost(); }
   });
   setInterval(() => { if (rollover()) commit(); }, 60000);
 }
@@ -609,6 +708,7 @@ async function start() {
   }
   if (!S.welcomed) welcome();
   else D.askPersistent();
+  syncPost();
 }
 start();
-window.__gn = { get S() { return S; }, ui, render, commit, D, rollover };
+window.__gn = { get S() { return S; }, ui, render, commit, D, rollover, syncPost };

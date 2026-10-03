@@ -252,3 +252,15 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--ink2); flex: none; }
 .dot.ok { background: var(--green); } .dot.wait { background: var(--gold); } .dot.bad { background: var(--danger); }
 .warn { background: #fff3d6; color: #6b4a00; border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 15px; margin: 8px 0; }
+
+/* ---------- handing tasks to the partner ---------- */
+.txt .tag, .pick .tag, .inc-t .tag, .list-plain .tag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 800; color: var(--accent); vertical-align: middle; }
+.tag.hot { background: var(--accent); color: #fff !important; border-radius: 99px; padding: 1px 8px; }
+.incoming { border: 2px solid var(--accent); }
+.incoming .inc { padding: 10px 0; border-top: 1px dashed var(--line); }
+.incoming .inc:first-of-type { border-top: 0; }
+.incoming .inc-t { margin-bottom: 8px; font-size: 18px; }
+.list-plain .st { font-size: 13px; font-weight: 800; color: var(--ink2); white-space: nowrap; }
+.list-plain .st-ok { color: var(--accent); } .list-plain .st-erledigt { color: var(--green); }
+nav#tabs button { position: relative; }
+nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: calc(50% + 10px); width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }

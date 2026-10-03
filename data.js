@@ -37,6 +37,10 @@ export function freshState() {
     wishes: [],            // {id, text}
     favs: [],              // reward texts she liked
     weeksSeen: [],
+    sent: [],              // tasks I handed to the partner: {id, text, today, ts, status: wartet|ok|nein|erledigt, reason}
+    answered: {},          // my answers to the partner's tasks: id -> {status: ok|nein|erledigt, reason, ts}
+    incoming: [],          // partner's tasks waiting for my answer: {id, text, today, ts}
+    partnerName: '', postedName: null,
   };
 }
 
@@ -89,7 +93,27 @@ const b64 = str => { const by = new TextEncoder().encode(str); let s = ''; for (
 const FILE_ = () => getCfg().file || 'sicherung/stand.json';
 export const backup = { status: 'none', last: +localStorage.getItem('gn_lastbackup') || 0, err: '', listeners: new Set() };
 function setStatus(st, err = '') { backup.status = st; backup.err = err; backup.listeners.forEach(f => f()); }
-let timer = null, pending = null, running = false, sha = null;
+let timer = null, pending = null, running = false;
+
+// write a JSON file into the repo (one commit); knows each file's version so it never overwrites blindly
+const shas = {};
+const ghErr = st => new Error(st === 401 ? 'Schlüssel ungültig oder abgelaufen' : st === 404 ? 'Repo nicht gefunden' : 'GitHub ' + st);
+async function putJSON(path, obj, msg) {
+  const content = b64(JSON.stringify(obj, null, 1));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!(path in shas) || attempt) { const g = await gh(path); shas[path] = g.ok ? (await g.json()).sha : null; if (!g.ok && g.status !== 404) throw ghErr(g.status); }
+    const r = await gh(path, { method: 'PUT', body: JSON.stringify({ message: msg, content, ...(shas[path] ? { sha: shas[path] } : {}) }) });
+    if (r.ok) { shas[path] = (await r.json()).content.sha; return; }
+    if ((r.status === 409 || r.status === 422) && !attempt) continue;
+    throw ghErr(r.status);
+  }
+}
+async function getJSON(path) { // null if the file does not exist yet
+  const r = await gh(path, { raw: true });
+  if (r.status === 404) return null;
+  if (!r.ok) throw ghErr(r.status);
+  return JSON.parse(await r.text());
+}
 
 export function scheduleBackup(state, delay = 8000) {
   pending = state;
@@ -106,15 +130,7 @@ export async function flushBackup() {
   running = true;
   const s = pending; pending = null;
   try {
-    const body = JSON.stringify(s, null, 1);
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (!sha || attempt) { const g = await gh(FILE_()); sha = g.ok ? (await g.json()).sha : null; if (!g.ok && g.status !== 404) throw new Error('GitHub ' + g.status); }
-      const d = new Date();
-      const r = await gh(FILE_(), { method: 'PUT', body: JSON.stringify({ message: 'Sicherung ' + d.toLocaleString('de-DE'), content: b64(body), ...(sha ? { sha } : {}) }) });
-      if (r.ok) { sha = (await r.json()).content.sha; break; }
-      if ((r.status === 409 || r.status === 422) && !attempt) continue;
-      throw new Error(r.status === 401 ? 'Schlüssel ungültig oder abgelaufen' : r.status === 404 ? 'Repo nicht gefunden' : 'GitHub ' + r.status);
-    }
+    await putJSON(FILE_(), s, 'Sicherung ' + new Date().toLocaleString('de-DE'));
     backup.last = Date.now(); localStorage.setItem('gn_lastbackup', backup.last);
     setStatus('ok');
   } catch (e) {
@@ -128,12 +144,7 @@ export async function flushBackup() {
 }
 export function hasPending() { return !!pending; }
 
-export async function fetchBackup() { // the newest backup from GitHub, or null
-  const r = await gh(FILE_(), { raw: true });
-  if (r.status === 404) return null;
-  if (!r.ok) throw new Error(r.status === 401 ? 'Schlüssel ungültig oder abgelaufen' : 'GitHub ' + r.status);
-  return JSON.parse(await r.text());
-}
+export const fetchBackup = () => getJSON(FILE_()); // the newest backup from GitHub, or null
 export async function testConnection() {
   const c = getCfg();
   const r = await fetch(API() + '/repos/' + c.owner + '/' + c.repo, { headers: { Authorization: 'Bearer ' + c.token, Accept: 'application/vnd.github+json' }, cache: 'no-store' });
@@ -143,6 +154,29 @@ export async function testConnection() {
   return { ok: false, msg: r.status === 401 ? 'Schlüssel ungültig' : r.status === 404 ? 'Repo nicht gefunden (Name oder Schlüssel-Rechte prüfen)' : 'Fehler ' + r.status };
 }
 export function tokenExpiry() { const e = localStorage.getItem('gn_tokexp'); return e ? new Date(e.replace(' UTC', 'Z').replace(' ', 'T')) : null; }
+
+// ---------- post: handing tasks to the partner ----------
+// Each person only ever WRITES their own file post/<me>.json and only READS the partner's, so the two phones
+// can never overwrite each other. Ids: her file is "stand" (the default), his is "stefan".
+export const me = () => (FILE_().match(/([\w-]+)\.json$/) || [])[1] || 'stand';
+export const partner = () => getCfg().partner || (me() === 'stand' ? 'stefan' : 'stand');
+export const canPost = () => configured(getCfg());
+let postTimer = null, postPending = null, postRunning = false;
+export function schedulePost(obj, delay = 1500) {
+  postPending = obj;
+  if (!canPost()) return;
+  clearTimeout(postTimer); postTimer = setTimeout(flushPost, delay);
+}
+export async function flushPost() {
+  clearTimeout(postTimer);
+  if (!postPending || postRunning || !canPost() || !navigator.onLine) return;
+  postRunning = true;
+  const o = postPending; postPending = null;
+  try { await putJSON('post/' + me() + '.json', o, 'Post ' + new Date().toLocaleString('de-DE')); }
+  catch (e) { if (!postPending) postPending = o; postTimer = setTimeout(flushPost, 30000); }
+  finally { postRunning = false; if (postPending) { clearTimeout(postTimer); postTimer = setTimeout(flushPost, 1500); } }
+}
+export const readPartnerPost = () => getJSON('post/' + partner() + '.json');
 
 // ---------- photos ----------
 const pad = n => String(n).padStart(2, '0');
