@@ -2,11 +2,12 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.12';
+const VERSION = '2026-10-03.13';
 let S = null;                                   // the state (see data.js freshState)
-const ui = { tab: 'heute', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
+const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
-const tags = i => (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
+const tags = i => (i.chore ? choreTag(i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
+const choreTag = i => { const c = S.chores.find(x => x.id === i.chore); return c ? `<span class="tag">🔁${c.reward ? ' 🎁' : ''}</span>` : ''; };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -81,10 +82,39 @@ async function syncPost() {
 function answerDone(item) { if (item.did) { S.answered[item.did] = { status: 'erledigt', ts: Date.now() }; return true; } return false; }
 function earn(n) { S.stars += n; S.earned += n; }
 
+// ---------- recurring chores: due ones land on today's page by themselves ----------
+const daysBetween = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
+function choreDue(c, d) {
+  if ((c.skip && c.skip > d) || c.last === d) return false;
+  if (c.week && c.week.length) return c.week.includes(parse(d).getDay());
+  return !c.last || daysBetween(c.last, d) >= (c.every || 7);
+}
+function choreWhen(c) { // "heute", "morgen", "in 3 Tagen", "Mo"
+  const d = today();
+  if (choreDue(c, d)) return S.log.some(e => e.day === d && e.chore === c.id) ? 'heute erledigt ✓' : 'heute fällig';
+  for (let n = 1; n <= 120; n++) {
+    const k = addDays(d, n), x = Object.assign({}, c, { last: c.last === d ? d : c.last });
+    if (choreDue(x, k)) return n === 1 ? 'morgen' : c.week && c.week.length ? C.DOW[parse(k).getDay()] + ', ' + shortDate(k) : 'in ' + n + ' Tagen';
+  }
+  return '–';
+}
+const choreRhythm = c => c.week && c.week.length ? 'jeden ' + c.week.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(x => C.DOW[x]).join(' & ') : c.every === 1 ? 'jeden Tag' : 'alle ' + c.every + ' Tage';
+function scheduleChores() {
+  const d = today();
+  let added = 0;
+  for (const c of S.chores) {
+    if (!choreDue(c, d) || S.items.some(i => i.chore === c.id) || S.log.some(e => e.day === d && e.chore === c.id)) continue;
+    S.items.push({ id: uid(), text: c.name, where: 'heute', created: Date.now(), chore: c.id });
+    added++;
+  }
+  return added;
+}
+
 function rollover() {
   const d = today();
   if (S.today.day === d) return false;
-  if (S.today.day) { // yesterday's leftovers go back to the top of the list, marked "von gestern"
+  if (S.today.day) { // yesterday's leftovers go back to the top of the list, marked "von gestern" — chores just come back when due
+    S.items = S.items.filter(i => !(i.chore && i.where === 'heute'));
     S.items.forEach(i => { i.carried = false; });
     const left = S.items.filter(i => i.where === 'heute');
     left.forEach(i => { i.where = 'liste'; i.carried = true; });
@@ -93,6 +123,8 @@ function rollover() {
   S.today = { day: d, planned: false, capShown: false, closed: false, celebrated: false };
   S.quest = null;
   if (S.combo && S.combo.day !== d) S.combo = null;   // the reward belongs to its day
+  S.gifts = S.gifts.filter(g => g.day === d);
+  scheduleChores();
   return true;
 }
 
@@ -146,7 +178,7 @@ function viewHeute() {
   const capped = done.length >= C.CAP;
   let h = '';
 
-  h += incomingCard() + comboCard(true);
+  h += incomingCard() + comboCard(true) + giftCards();
   const lastMon = addDays(monday(d), -7);
   if (!S.weeksSeen.includes(lastMon) && S.log.some(e => weekDays(lastMon).includes(e.day)))
     h += `<button class="card btn soft wide" data-a="story" data-w="${lastMon}" style="text-align:left">✨ <b>Dein Wochenrückblick ist da.</b><br><span class="muted">Schau dir an, was du letzte Woche alles geschafft hast.</span></button>`;
@@ -156,13 +188,15 @@ function viewHeute() {
     h += `<div class="celebrate"><div class="big">Tag geschafft!</div>
       <p>${done.length === 1 ? 'Eine Sache' : done.length + ' Sachen'} erledigt. Für heute ist Schluss – der Rest wartet bis morgen.</p>
       <p class="muted">Und jetzt? Das Schwierigste kommt noch:</p>
-      <div class="row"><button class="btn" data-a="go" data-tab="ruhe">Gemütlich machen</button><button class="btn soft" data-a="go" data-tab="schaetze" data-to="reward">Belohnung aussuchen</button></div></div>`;
+      <div class="row"><button class="btn" data-a="go" data-tab="ruhe" data-q="gemuetlich">Gemütlich machen</button><button class="btn soft" data-a="go" data-tab="schaetze" data-to="reward">Belohnung aussuchen</button></div></div>`;
   } else if (capped) {
     h += `<div class="card warn" style="text-align:center">🌙 Genug für heute! Ab jetzt gibt es nur noch Sterne fürs Entspannen.</div>`;
   }
 
   h += `<section class="pad"><h2>${esc(longDate(d))}</h2>`;
-  if (!S.today.planned && heute.length === 0 && done.length === 0) {
+  const due = heute.filter(i => i.chore);
+  if (!S.today.planned && heute.length === due.length && done.length === 0) {
+    if (due.length) h += `<p class="sub" style="margin-bottom:4px">🔁 Heute fällig – steht schon drauf:</p>` + due.map(i => `<div class="item"><span class="txt"><span>${esc(i.text)}</span>${tags(i)}</span><button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht – morgen wieder">⏭</button></div>`).join('');
     h += `<p class="sub">${S.name ? 'Hallo ' + esc(S.name) + '! ' : ''}Was kommt heute auf deine Seite? 3–5 Sachen reichen völlig – den Rest hebt die Liste für dich auf.</p>`;
     if (liste.length) {
       h += liste.map(i => `<button class="pick ${ui.picks.has(i.id) ? 'on' : ''}" data-a="pickday" data-id="${i.id}"><span class="box">${ui.picks.has(i.id) ? '✓' : ''}</span><span>${esc(i.text)}${i.carried ? '<span class="tag">von gestern</span>' : ''}${tags(i)}</span></button>`).join('');
@@ -174,7 +208,7 @@ function viewHeute() {
   }
 
   if (heute.length === 0 && done.length === 0) h += `<p class="sub">Nichts geplant. Genieß es – oder hol dir etwas aus der Liste.</p>`;
-  h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i)}</div><button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button></div>`).join('');
+  h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i)}</div>${i.chore ? `<button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht – morgen wieder">⏭</button>` : `<button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button>`}</div>`).join('');
   if (!finished) {
     h += `<form class="add" data-f="addtoday"><input name="t" placeholder="Noch etwas für heute…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
     h += `<div class="row" style="margin-top:12px">${liste.length ? '<button class="btn soft" data-a="fromlist">Aus der Liste holen</button>' : ''}${heute.length ? '<button class="btn soft" data-a="closeday">Für heute Schluss</button>' : ''}</div>`;
@@ -187,6 +221,10 @@ function viewHeute() {
   h += `<form class="add" data-f="extra" style="margin-top:16px"><input name="t" placeholder="Sonst noch was geschafft?" autocomplete="off" enterkeyhint="done"><button class="btn green" aria-label="Als erledigt eintragen">✓</button></form>`;
   h += '</section>';
   return h;
+}
+
+function giftCards() {
+  return S.gifts.filter(g => g.day === today()).map(g => `<div class="card quest active"><div class="lvl">🎁 HEUTE WARTET AUF DICH</div><h3>${esc(g.reward)}</h3><p style="color:#d8cdee">${esc(g.icon + ' ' + g.name)} ist erledigt. Jetzt kommt der schöne Teil – gleich oder heute Abend.</p><button class="btn wide" data-a="giftdone" data-id="${g.id}">Genossen! +${C.COMBO_REWARD_STARS} ⭐</button></div>`).join('');
 }
 
 function comboCard(small) {
@@ -214,11 +252,14 @@ function tick(id, el) {
   floatStar(el, stars ? '+1 ⭐' : '✓');
   setTimeout(() => {
     S.items = S.items.filter(i => i !== it);
-    S.log.push({ id: uid(), text: it.text, kind: 'task', day: today(), ts: Date.now(), stars, ...(it.did ? { did: it.did, from: it.from } : {}) });
+    const ch = it.chore && S.chores.find(c => c.id === it.chore);
+    S.log.push({ id: uid(), text: it.text, kind: 'task', day: today(), ts: Date.now(), stars, ...(it.did ? { did: it.did, from: it.from } : {}), ...(ch ? { chore: ch.id, prevLast: ch.last || null } : {}) });
     earn(stars);
+    if (ch) { ch.last = today(); if (ch.reward) S.gifts.push({ id: uid(), cid: ch.id, day: today(), icon: ch.icon, name: ch.name, reward: ch.reward }); }
     const combo = S.combo && S.combo.iid === it.id && S.combo.phase === 'work' && C.COMBOS.find(c => c.id === S.combo.id);
     if (combo) S.combo.phase = 'reward';
     afterWork(n + 1, answerDone(it));
+    if (ch && ch.reward) modal(`<h2>${esc(ch.icon)} Erledigt!</h2><p><b>${esc(ch.name)}</b> ist für ${esc(choreRhythm(ch))} erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">🎁 ${esc(ch.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
     if (combo) modal(`<h2>Teil 1 geschafft!</h2><p><b>${esc(combo.work)}</b> ist erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">${combo.icon} ${esc(combo.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
   }, 650);
 }
@@ -228,7 +269,7 @@ function afterWork(count, post = false) {
     S.today.capShown = true; commit();
     modal(`<h2>Genug für heute!</h2><p>Du hast heute <b>${C.CAP} Sachen</b> geschafft. Das ist richtig viel.</p>
       <p>Du kannst weiter abhaken – aber Sterne gibt es heute nur noch fürs <b>Entspannen</b>. 😌</p>
-      <div class="row"><button class="btn" data-a="go" data-tab="ruhe">Zum Entspannen</button><button class="btn soft" data-a="close">Okay</button></div>`);
+      <div class="row"><button class="btn" data-a="go" data-tab="ruhe" data-q="quests">Zum Entspannen</button><button class="btn soft" data-a="close">Okay</button></div>`);
     return;
   }
   const heute = S.items.filter(i => i.where === 'heute');
@@ -263,8 +304,13 @@ function questCard(q, active) {
     ${active ? `<div class="row"><button class="btn" data-a="questdone">Überlebt! +${C.REST_STARS} ⭐</button><button class="btn soft" data-a="questquit">Später</button></div>`
       : `<button class="btn wide" data-a="queststart" data-id="${q.id}">Quest annehmen</button>`}</div>`;
 }
+const QTABS = [['haushalt', '🔁 Haushalt'], ['quests', '⚔ Quests'], ['gemuetlich', '🫖 Gemütlich'], ['wuensche', '💭 Wünsche']];
 function viewRuhe() {
-  let h = `<div class="sec-title" style="margin-top:6px">Entspannen – die schwerste Disziplin</div>
+  let h = `<div class="chips qtabs">${QTABS.map(([k, l]) => `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}">${l}</button>`).join('')}</div>`;
+  if (ui.qtab === 'haushalt') return h + viewHaushalt();
+  if (ui.qtab === 'gemuetlich') return h + viewGemuetlich();
+  if (ui.qtab === 'wuensche') return h + viewWuensche();
+  h += `<div class="sec-title" style="margin-top:6px">Entspannen – die schwerste Disziplin</div>
     <p class="muted" style="margin:0 4px 14px">Jede überlebte Quest bringt ${C.REST_STARS} Sterne. Auch wenn du heute schon genug geschafft hast.</p>`;
   const active = C.QUESTS.find(q => q.id === S.quest);
   if (active) h += questCard(active, true);
@@ -284,8 +330,26 @@ function viewRuhe() {
       <button class="btn wide" data-a="combostart" data-id="${c.id}">Quest annehmen</button></div>`).join('');
     h += `<button class="btn soft wide" data-a="allcombos">${ui.showAllCombos ? 'Weniger anzeigen' : 'Alle ' + C.COMBOS.length + ' Doppel-Quests anzeigen'}</button>`;
   }
+  return h;
+}
+function viewHaushalt() {
+  let h = `<div class="sec-title" style="margin-top:6px">Haushalt – läuft von allein</div>
+    <p class="muted" style="margin:0 4px 14px">Was regelmäßig dran ist, landet an seinem Tag von selbst auf deiner Seite für heute. Mit Belohnung wird’s eine Doppel-Quest: erst erledigen, am selben Tag genießen.</p>`;
+  h += giftCards();
+  if (S.chores.length) {
+    h += `<div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span><b>${esc(c.icon)} ${esc(c.name)}</b><br><span class="muted">${esc(choreRhythm(c))} · ${esc(choreWhen(c))}</span>${c.reward ? `<br><span class="muted">🎁 ${esc(c.reward)}</span>` : ''}</span>
+      <button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></li>`).join('')}</ul></div>`;
+  }
+  h += `<button class="btn wide" data-a="choreedit">+ Eigene Aufgabe</button>`;
+  const free = C.CHORE_TEMPLATES.filter(t => !S.chores.some(c => c.name === t.name));
+  if (free.length) h += `<div class="sec-title">Mit einem Tipp dazu</div><p class="muted" style="margin:0 4px 10px">Rhythmus und Belohnung kannst du danach mit ✎ ändern.</p><div class="chips">` +
+    free.map(t => `<button class="chip" data-a="choretpl" data-v="${esc(t.name)}">${t.icon} ${esc(t.name)} · ${esc(choreRhythm(t))}</button>`).join('') + '</div>';
+  return h;
+}
+function viewGemuetlich() {
+  let h = '';
 
-  h += `<div class="sec-title">Gemütlichkeits-Rezepte</div><p class="muted" style="margin:0 4px 12px">Du musst dir nichts ausdenken – such dir eins aus. Jeder Schritt zählt schon: +1 ⭐, und am Ende +2 fürs Genießen.</p>`;
+  h += `<div class="sec-title" style="margin-top:6px">Gemütlichkeits-Rezepte</div><p class="muted" style="margin:0 4px 12px">Du musst dir nichts ausdenken – such dir eins aus. Jeder Schritt zählt schon: +1 ⭐, und am Ende +2 fürs Genießen.</p>`;
   for (const r of C.RECIPES) {
     const on = S.recipe && S.recipe.id === r.id, ready = r.prep && (S.preps[r.prep] || []).length && (S.preps[r.prep] || []).every(Boolean);
     h += `<div class="card recipe"><h3>${r.icon} ${esc(r.title)}${ready ? '<span class="ready">vorbereitet</span>' : ''}</h3><div class="muted">${r.time}</div>`;
@@ -311,7 +375,11 @@ function viewRuhe() {
     h += `<button class="btn soft wide" data-a="prepopen" data-id="${p.id}">${open ? 'Zuklappen' : full ? 'Ansehen' : n ? 'Weitermachen' : 'Anfangen'}</button></div>`;
   }
 
-  h += `<div class="sec-title">Was dir guttun würde</div><div class="card"><p class="muted" style="margin-top:0">Fällt dir etwas ein, das dir Freude machen würde? Schreib es auf, wenn es dir einfällt – dann musst du nicht suchen, wenn du es brauchst.</p>
+  return h;
+}
+function viewWuensche() {
+  let h = '';
+  h += `<div class="sec-title" style="margin-top:6px">Was dir guttun würde</div><div class="card"><p class="muted" style="margin-top:0">Fällt dir etwas ein, das dir Freude machen würde? Schreib es auf, wenn es dir einfällt – dann musst du nicht suchen, wenn du es brauchst.</p>
     <ul class="list-plain">${S.wishes.map(w => `<li><span>${esc(w.text)}</span><button class="mini-btn" data-a="delwish" data-id="${w.id}" aria-label="Löschen">✕</button></li>`).join('')}</ul>
     <form class="add" data-f="wish"><input name="t" placeholder="Das würde mir gefallen…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form></div>`;
   return h;
@@ -492,7 +560,7 @@ function exportFile() {
 
 // ---------- actions ----------
 const A = {
-  go(el) { closeModal(); ui.tab = el.dataset.tab; ui.sub = null; render(); scrollTo(0, 0); if (el.dataset.to) setTimeout(() => { const t = document.getElementById(el.dataset.to); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); },
+  go(el) { closeModal(); ui.tab = el.dataset.tab; ui.sub = null; if (el.dataset.q) ui.qtab = el.dataset.q; render(); scrollTo(0, 0); if (el.dataset.to) setTimeout(() => { const t = document.getElementById(el.dataset.to); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); },
   close: closeModal,
   pickday(el) { const id = el.dataset.id; ui.picks.has(id) ? ui.picks.delete(id) : ui.picks.add(id); render(); },
   plandone() { S.items.forEach(i => { if (ui.picks.has(i.id)) { i.where = 'heute'; } }); ui.picks.clear(); S.today.planned = true; commit(); },
@@ -501,7 +569,8 @@ const A = {
   undo(el) {
     const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
     S.log = S.log.filter(x => x !== e); S.stars = Math.max(0, S.stars - e.stars); S.earned = Math.max(0, S.earned - e.stars);
-    if (e.kind === 'task') S.items.unshift({ id: uid(), text: e.text, where: 'heute', created: Date.now(), ...(e.did ? { did: e.did, from: e.from } : {}) });
+    if (e.kind === 'task') S.items.unshift({ id: uid(), text: e.text, where: 'heute', created: Date.now(), ...(e.did ? { did: e.did, from: e.from } : {}), ...(e.chore ? { chore: e.chore } : {}) });
+    if (e.chore) { const c = S.chores.find(x => x.id === e.chore); if (c) c.last = e.prevLast || null; S.gifts = S.gifts.filter(g => !(g.cid === e.chore && g.day === e.day)); }
     let post = false;
     if (e.did && S.answered[e.did]) { S.answered[e.did] = { status: 'ok', ts: Date.now() }; post = true; }
     S.today.celebrated = false; S.today.closed = false; commit(post);
@@ -511,6 +580,7 @@ const A = {
   },
   closeyes() {
     closeModal();
+    S.items = S.items.filter(i => !(i.chore && i.where === 'heute'));   // chores come back when they're due again
     S.items.filter(i => i.where === 'heute').forEach(i => { i.where = 'liste'; });
     S.today.closed = true; S.today.planned = true; commit(); confetti(40);
   },
@@ -529,6 +599,7 @@ const A = {
     const picked = S.items.filter(i => ui.dpicks.has(i.id)); if (!picked.length) return;
     S.items = S.items.filter(i => !ui.dpicks.has(i.id));
     picked.forEach(i => S.sent.push({ id: uid(), text: i.text, today: !!ui.dtoday, ts: Date.now(), status: 'wartet' }));
+    picked.forEach(i => { const c = i.chore && S.chores.find(x => x.id === i.chore); if (c) c.last = today(); });   // handed over counts as handled
     S.log.push({ id: uid(), text: picked.length + (picked.length === 1 ? ' Aufgabe' : ' Aufgaben') + ' an ' + pn() + ' abgegeben', kind: 'delegate', day: today(), ts: Date.now(), stars: 1 }); earn(1);
     closeModal(); commit(true);
     modal(`<h2>Abgegeben!</h2><p>Nicht alles allein machen zu müssen, ist auch eine Stärke.</p><p>+1 gute Nudel Stern ⭐</p><p class="muted">${esc(pn())} sieht ${picked.length === 1 ? 'die Aufgabe' : 'die Aufgaben'} beim nächsten Öffnen der App.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
@@ -567,6 +638,54 @@ const A = {
     modal(`<h2>Doppel-Quest bestanden!</h2><p><b>${esc(c.title)}</b> – Arbeit erledigt <i>und</i> genossen.</p><p>+${C.COMBO_REWARD_STARS} gute Nudel Sterne ⭐</p><p class="muted">Das ist die hohe Kunst.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
   },
   allcombos() { ui.showAllCombos = !ui.showAllCombos; render(); },
+  qtab(el) { ui.qtab = el.dataset.v; render(); scrollTo(0, 0); },
+  choretpl(el) {
+    const t = C.CHORE_TEMPLATES.find(x => x.name === el.dataset.v); if (!t) return;
+    const c = { id: uid(), icon: t.icon, name: t.name, ...(t.week ? { week: t.week.slice() } : { every: t.every }), reward: t.reward || null, last: null };
+    S.chores.push(c);
+    const n = scheduleChores(); commit();
+    toast(c.icon + ' ' + c.name + ' – ' + choreRhythm(c) + (n ? ' · steht heute schon drauf' : ''));
+  },
+  choreskip(el) {
+    const it = S.items.find(i => i.id === el.dataset.id), c = it && S.chores.find(x => x.id === it.chore); if (!it) return;
+    if (c) c.skip = addDays(today(), 1);
+    S.items = S.items.filter(i => i !== it); commit(); toast('Heute nicht – morgen wieder 🔁');
+  },
+  choredel(el) {
+    const c = S.chores.find(x => x.id === el.dataset.id); if (!c) return;
+    modal(`<h2>${esc(c.icon)} Löschen?</h2><p><b>${esc(c.name)}</b> kommt dann nicht mehr von allein.</p><div class="row"><button class="btn" data-a="choredelyes" data-id="${c.id}">Löschen</button><button class="btn soft" data-a="close">Doch nicht</button></div>`);
+  },
+  choredelyes(el) { S.chores = S.chores.filter(x => x.id !== el.dataset.id); S.items = S.items.filter(i => i.chore !== el.dataset.id); closeModal(); commit(); },
+  choreedit(el) {
+    const c = el.dataset.id && S.chores.find(x => x.id === el.dataset.id);
+    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, week: (c.week || []).slice(), reward: c.reward || '', start: 'heute' }
+      : { id: null, icon: '🔁', name: '', mode: 'days', every: 7, week: [], reward: '', start: 'heute' };
+    choreModal();
+  },
+  cemode(el) { ceRead(); ui.ce.mode = el.dataset.v; choreModal(); },
+  ceday(el) { ceRead(); const d = +el.dataset.v, w = ui.ce.week; w.includes(d) ? w.splice(w.indexOf(d), 1) : w.push(d); choreModal(); },
+  cerew(el) { ceRead(); ui.ce.reward = ui.ce.reward === el.dataset.v ? '' : el.dataset.v; ui.ce.own = false; choreModal(); },
+  ceown() { ceRead(); ui.ce.own = true; ui.ce.reward = ''; choreModal(); },
+  cestart(el) { ceRead(); ui.ce.start = el.dataset.v; choreModal(); },
+  cesave() {
+    ceRead();
+    const e = ui.ce, msg = $('#ce-msg');
+    if (!e.name) { msg.textContent = 'Wie heißt die Aufgabe?'; return; }
+    if (e.mode === 'week' && !e.week.length) { msg.textContent = 'Mindestens einen Wochentag wählen.'; return; }
+    const every = Math.max(1, Math.min(90, Math.round(+e.every) || 7));
+    let c = e.id && S.chores.find(x => x.id === e.id);
+    if (!c) { c = { id: uid(), icon: '🔁', last: null }; S.chores.push(c); if (e.start === 'morgen') c.skip = addDays(today(), 1); }
+    Object.assign(c, { name: e.name, reward: e.reward || null, ...(e.mode === 'week' ? { week: e.week.slice(), every: undefined } : { every, week: undefined }) });
+    S.items.filter(i => i.chore === c.id).forEach(i => { i.text = c.name; });
+    if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
+    scheduleChores(); closeModal(); commit(); toast('Gespeichert 🔁');
+  },
+  giftdone(el) {
+    const g = S.gifts.find(x => x.id === el.dataset.id); if (!g) return;
+    S.log.push({ id: uid(), text: g.name + ': ' + g.reward, kind: 'rest', day: today(), ts: Date.now(), stars: C.COMBO_REWARD_STARS }); earn(C.COMBO_REWARD_STARS);
+    S.gifts = S.gifts.filter(x => x !== g); commit(); confetti(60);
+    modal(`<h2>Doppel-Quest bestanden!</h2><p><b>${esc(g.name)}</b> – erledigt <i>und</i> genossen.</p><p>+${C.COMBO_REWARD_STARS} gute Nudel Sterne ⭐</p><p class="muted">Das ist die hohe Kunst.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
+  },
   queststart(el) { S.quest = el.dataset.id; commit(); scrollTo({ top: 0, behavior: 'smooth' }); },
   questquit() { S.quest = null; commit(); },
   questdone() {
@@ -704,6 +823,31 @@ const A = {
   stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ ${C.REST_STARS} pro überlebter Entspannungs-Quest<br>⭐ 1 pro Schritt beim Gemütlich-machen und Vorbereiten</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
 };
 
+// the chore editor (a modal that keeps what's typed when a chip is tapped)
+function ceRead() {
+  const n = $('#ce-name'), ev = $('#ce-every'), r = $('#ce-own');
+  if (n) ui.ce.name = n.value.trim();
+  if (ev) ui.ce.every = ev.value;
+  if (r && ui.ce.own) ui.ce.reward = r.value.trim();
+}
+function choreModal() {
+  const e = ui.ce;
+  const opts = C.CHORE_REWARDS.concat(S.wishes.map(w => w.text)).filter((x, i, a) => a.indexOf(x) === i);
+  modal(`<div style="text-align:left"><h2 style="text-align:center">${e.id ? 'Aufgabe ändern' : 'Neue Aufgabe'}</h2>
+    <label class="field"><span>Was ist dran?</span><input id="ce-name" value="${esc(e.name)}" placeholder="z.B. Wäsche waschen" autocomplete="off"></label>
+    <p class="muted" style="font-weight:800;margin:12px 0 4px">Wie oft?</p>
+    <div class="chips"><button class="chip ${e.mode === 'days' ? 'on' : ''}" data-a="cemode" data-v="days">Alle paar Tage</button><button class="chip ${e.mode === 'week' ? 'on' : ''}" data-a="cemode" data-v="week">An Wochentagen</button></div>
+    ${e.mode === 'days' ? `<label class="field"><span>Alle wie viele Tage?</span><input id="ce-every" type="number" min="1" max="90" inputmode="numeric" value="${esc(e.every)}"></label>`
+      : `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(d => `<button class="chip ${e.week.includes(d) ? 'on' : ''}" data-a="ceday" data-v="${d}">${C.DOW[d]}</button>`).join('')}</div>`}
+    ${e.id ? '' : `<p class="muted" style="font-weight:800;margin:12px 0 4px">Ab wann?</p><div class="chips"><button class="chip ${e.start === 'heute' ? 'on' : ''}" data-a="cestart" data-v="heute">Ab heute</button><button class="chip ${e.start === 'morgen' ? 'on' : ''}" data-a="cestart" data-v="morgen">Ab morgen</button></div>`}
+    <p class="muted" style="font-weight:800;margin:12px 0 4px">🎁 Belohnung danach (am selben Tag)</p>
+    <div class="chips">${opts.map(r => `<button class="chip ${e.reward === r && !e.own ? 'on' : ''}" data-a="cerew" data-v="${esc(r)}">${esc(r)}</button>`).join('')}<button class="chip ${e.own ? 'on' : ''}" data-a="ceown">✏️ Eigene…</button></div>
+    ${e.own ? `<label class="field"><span>Deine Belohnung</span><input id="ce-own" value="${esc(e.reward)}" placeholder="Was gönnst du dir?" autocomplete="off"></label>` : ''}
+    <p class="hint">Keine ausgewählt = einfach eine Aufgabe ohne Belohnung.</p>
+    <p class="muted" id="ce-msg" style="color:var(--danger)"></p>
+    <div class="row"><button class="btn" data-a="cesave">Speichern</button><button class="btn soft" data-a="close">Abbrechen</button></div></div>`);
+}
+
 function delegateModal() {
   const open = [...S.items.filter(i => i.where === 'heute'), ...S.items.filter(i => i.where !== 'heute')];
   const n = ui.dpicks.size;
@@ -802,6 +946,7 @@ async function start() {
   else if (S.me !== D.me()) S = D.freshState();
   S.me = D.me();
   rollover();
+  scheduleChores();
   bind();
   render();
   await D.saveLocal(S);

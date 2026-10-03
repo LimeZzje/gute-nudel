@@ -66,7 +66,23 @@ export const COMBOS = [
   { id: 'papier', icon: '✏️', title: 'Die Papierschlacht', diff: 5, work: '20 Minuten Papierkram', reward: 'Etwas Kreatives: kritzeln, Tagebuch, basteln', boss: 'Zwanzig Minuten. Dann gehört das Papier wieder der Kunst.' },
   { id: 'schrank', icon: '👗', title: 'Das Kleiderschrank-Orakel', diff: 4, work: 'Kleiderschrank aussortieren', reward: 'Das Lieblingsoutfit anziehen und auf einen Kaffee raus', boss: 'Das Orakel spricht: Du siehst heute gut aus.' },
 ];
-export const COMBO_REWARD_STARS = 2; // + the 1 star part 1 gets as a normal task = 3 in total
+// Recurring chores (Haushalt): one-tap templates — rhythm (every N days or weekdays, 0 = Sunday) and a fitting reward
+export const CHORE_TEMPLATES = [
+  { icon: '🧺', name: 'Wäsche waschen', every: 3, reward: 'Füße hoch in frischen Kuschelsocken' },
+  { icon: '🛁', name: 'Bad putzen', every: 7, reward: 'Ein extra schönes Bad – mit Snacks und Serie oder Hörbuch' },
+  { icon: '🛏️', name: 'Bettwäsche wechseln', every: 14, reward: 'Heute früh ins frische Bett – mit Buch und Tee, Handy bleibt draußen' },
+  { icon: '🧹', name: 'Staubsaugen', every: 7, reward: 'Film-Nest im frisch gesaugten Wohnzimmer' },
+  { icon: '🍽️', name: 'Küche aufräumen', every: 2, reward: 'Kaffee und etwas Süßes am sauberen Tisch – in Ruhe' },
+  { icon: '🛒', name: 'Wocheneinkauf', week: [6], reward: 'Eine Sache nur für dich: Blumen, Lieblingssnack, irgendwas Schönes' },
+  { icon: '🪴', name: 'Pflanzen gießen', every: 3, reward: '20 Minuten Sonne und ein Getränk auf dem Balkon' },
+  { icon: '🗑️', name: 'Müll rausbringen', week: [1, 4], reward: null },
+  { icon: '🧊', name: 'Kühlschrank ausmisten', every: 14, reward: 'Etwas Leckeres kochen – oder bestellen. Beides zählt.' },
+  { icon: '🪟', name: 'Fenster putzen', every: 30, reward: '10 Minuten aus dem sauberen Fenster schauen – mit Getränk' },
+  { icon: '🧽', name: 'Staub wischen', every: 10, reward: 'Eine Folge deiner Lieblingsserie – ohne Handy daneben' },
+];
+export const DOW = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+export const COMBO_REWARD_STARS = 2;
+export const CHORE_REWARDS = [...new Set(COMBOS.map(c => c.reward).concat(['Ein Kapitel im Lieblingsbuch – mit Tee', 'Lieblingsessen bestellen – kein Kochen heute', 'Ein warmes Fußbad', 'Eine Runde Kuscheln']))]; // + the 1 star part 1 gets as a normal task = 3 in total
 
 // Cozy recipes: the app does the thinking. Each setup step earns 1 star, enjoying it at the end +2.
 export const RECIPES = [

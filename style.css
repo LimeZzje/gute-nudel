@@ -254,6 +254,12 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .dot.ok { background: var(--green); } .dot.wait { background: var(--gold); } .dot.bad { background: var(--danger); }
 .warn { background: #fff3d6; color: #6b4a00; border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 15px; margin: 8px 0; }
 
+/* ---------- Quests sub-tabs, chores ---------- */
+.qtabs { position: sticky; top: 64px; z-index: 5; background: var(--paper); padding: 6px 0 8px; margin: 0 0 4px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.qtabs .chip { padding: 8px 2px; font-size: 13px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-plain.chores li { align-items: flex-start; padding: 10px 0; }
+.list-plain.chores li > span { line-height: 1.35; }
+
 /* ---------- handing tasks to the partner ---------- */
 .txt .tag, .pick .tag, .inc-t .tag, .list-plain .tag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 800; color: var(--accent); vertical-align: middle; }
 .tag.hot { background: var(--accent); color: #fff !important; border-radius: 99px; padding: 1px 8px; }

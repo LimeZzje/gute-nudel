@@ -34,6 +34,8 @@ export function freshState() {
     recipe: null,          // {id, mini, done: [bool]}
     preps: {},             // id -> [bool]
     quest: null,           // active quest id
+    chores: [],            // recurring chores: {id, icon, name, every (days) | week [0..6], reward, last (day), skip (day)}
+    gifts: [],             // chore rewards waiting today: {id, cid, day, icon, name, reward}
     combo: null,           // active double quest: {id, day, phase: 'work'|'reward', iid} – only valid on its day
     wishes: [],            // {id, text}
     favs: [],              // reward texts she liked
