@@ -315,6 +315,15 @@ textarea { width: 100%; border: 2px solid var(--line); border-radius: 12px; back
 .dayt.on { background: var(--blue); color: var(--card); }
 .dayt.today { outline: 2px solid var(--accent); outline-offset: -2px; }
 
+/* ---------- shopping list by section ---------- */
+.stores { margin: 0 0 8px; }
+.stores .chip { padding: 6px 12px; font-size: 14px; min-height: 36px; }
+.shopsec { margin-top: 10px; }
+.sechead { display: flex; align-items: center; justify-content: space-between; font-weight: 900; font-size: 15px; color: var(--blue); padding: 4px 2px; border-bottom: 2px solid var(--line); }
+.sechead > span:last-child { display: flex; flex: none; }
+.tagpick { margin: 4px 0 8px; }
+.tagpick .chip { font-size: 13px; padding: 6px 10px; min-height: 36px; }
+
 /* ---------- cookbook ---------- */
 .shoprow { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }
 .shoprow .pick { flex: 1; border-bottom: 0; }

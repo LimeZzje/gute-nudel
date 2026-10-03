@@ -36,7 +36,8 @@ export function freshState() {
     quest: null,           // active quest id
     chores: [],            // recurring chores: {id, icon, name, every (days) | week [0..6], reward, last (day), skip (day)}
     gifts: [],             // chore rewards waiting today
-    shop: [],              // her shopping list: {id, text, done, from}
+    shop: [],              // her shopping list: {id, text, done, from, sec?}
+    shopStore: 'standard', shopOrder: {}, shopLearn: {},   // chosen store, her own section order per store, sections she corrected
     recipes: null,         // her cookbook: {id, title, ingredients[], steps} (null = the examples not added yet)
     timers: [],            // running: {id, icon, label, end}
     cook: {},              // what she cooked: recipe id -> {n, last (day), taste 1–3}: {id, cid, day, icon, name, reward}

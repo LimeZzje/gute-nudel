@@ -1,9 +1,10 @@
 import * as C from './content.js';
 import * as K from './cookbook.js';
+import * as Sh from './shop.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.25';
+const VERSION = '2026-10-03.26';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -838,6 +839,18 @@ const A = {
     if (it) it.list = it.list.filter(y => y.id !== el.dataset.id); else S.shop = S.shop.filter(y => y.id !== el.dataset.id);
     commit(); shopModal(it, true);
   },
+  shopstore(el) { S.shopStore = el.dataset.v; commit(); shopAgain(); },
+  shopedit() { ui.shopEdit = !ui.shopEdit; ui.tagId = null; shopAgain(); },
+  shopmove(el) {
+    const o = shopOrder(), i = +el.dataset.v, j = i + +el.dataset.d; if (j < 0 || j >= o.length) return;
+    [o[i], o[j]] = [o[j], o[i]];
+    S.shopOrder = Object.assign({}, S.shopOrder, { [Sh.STORES[S.shopStore] ? S.shopStore : 'standard']: o }); commit(); shopAgain();
+  },
+  shoptag(el) { ui.tagId = ui.tagId === el.dataset.id ? null : el.dataset.id; shopAgain(); },
+  shopsec(el) { // her correction: this item — and this word from now on — belongs there
+    const it = el.dataset.item && S.items.find(i => i.id === el.dataset.item), L = it ? it.list : S.shop, x = L.find(y => y.id === el.dataset.id); if (!x) return;
+    x.sec = el.dataset.v; S.shopLearn = Object.assign({}, S.shopLearn, { [Sh.norm(x.text)]: el.dataset.v }); ui.tagId = null; commit(); shopAgain();
+  },
   shopclear() { S.shop = S.shop.filter(x => !x.done); commit(); shopModal(null, true); },
   itemlist(el) { const it = S.items.find(i => i.id === el.dataset.id); if (it && it.list) shopModal(it); },
   cook(el) { ui.cookEdit = false; cookModal(el.dataset.id || null); },
@@ -1052,14 +1065,33 @@ function startTimer(icon, label, mins) {
     try { location.href = 'intent:#Intent;action=android.intent.action.SET_TIMER;i.android.intent.extra.alarm.LENGTH=' + mins * 60 + ';S.android.intent.extra.alarm.MESSAGE=' + encodeURIComponent(label + ' fertig') + ';b.android.intent.extra.alarm.SKIP_UI=true;end'; } catch (e) {}
   }
 }
+// the list grouped by supermarket section, in the chosen store's order (shop.js); ticked items go to "Im Wagen"
+const secOf = x => x.sec || Sh.classify(x.text, S.shopLearn || {});
+const shopOrder = () => { const st = Sh.STORES[S.shopStore] ? S.shopStore : 'standard'; return ((S.shopOrder || {})[st] || Sh.STORES[st][1]).slice(); };
 function shopModal(item, keep) { // her list — or a handed-over one (item.list) on the partner's phone; keep = update in place
+  ui.shopItemId = item ? item.id : null;
   const L = item ? item.list : S.shop, open = L.filter(x => !x.done), done = L.filter(x => x.done), di = item ? ` data-item="${item.id}"` : '';
+  const row = x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(x.text)}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}</span></button>`
+    + (!x.done && (ui.shopEdit || secOf(x) === 'sonst') ? `<button class="mini-btn" data-a="shoptag" data-id="${x.id}"${di} aria-label="Abteilung wählen">🏷️</button>` : '')
+    + `<button class="mini-btn" data-a="shopdel" data-id="${x.id}"${di} aria-label="Entfernen">✕</button></div>`
+    + (ui.tagId === x.id ? `<div class="chips tagpick">${Object.entries(Sh.SECTIONS).map(([k, [ic, l]]) => `<button class="chip ${secOf(x) === k ? 'on' : ''}" data-a="shopsec" data-id="${x.id}" data-v="${k}"${di}>${ic} ${l.split(' (')[0]}</button>`).join('')}</div>` : '');
+  const order = shopOrder();
+  const groups = order.map((sec, i) => {
+    const xs = open.filter(x => secOf(x) === sec);
+    if (!xs.length && !ui.shopEdit) return '';
+    const [ic, l] = Sh.SECTIONS[sec];
+    return `<div class="shopsec"><div class="sechead"><span>${ic} ${l}${xs.length ? ' <span class="muted">(' + xs.length + ')</span>' : ''}</span>${ui.shopEdit ? `<span><button class="mini-btn" data-a="shopmove" data-v="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Nach oben">↑</button><button class="mini-btn" data-a="shopmove" data-v="${i}" data-d="1" ${i < order.length - 1 ? '' : 'disabled'} aria-label="Nach unten">↓</button></span>` : ''}</div>${xs.map(row).join('')}</div>`;
+  }).join('');
   modal(`<div style="text-align:left"><h2 style="text-align:center">🛒 ${item ? esc(item.text) : 'Einkaufsliste'}</h2>
     ${item ? `<p class="muted">von ${esc(item.from || '')}</p>` : ''}
-    <div class="steps">${open.concat(done).map(x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(x.text)}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}</span></button><button class="mini-btn" data-a="shopdel" data-id="${x.id}"${di} aria-label="Entfernen">✕</button></div>`).join('') || '<p class="muted">Noch leer.</p>'}</div>
+    <div class="chips stores">${Object.entries(Sh.STORES).map(([k, [l]]) => `<button class="chip ${(S.shopStore || 'standard') === k ? 'on' : ''}" data-a="shopstore" data-v="${k}">${l}</button>`).join('')}<button class="chip ${ui.shopEdit ? 'on' : ''}" data-a="shopedit">↕ Reihenfolge anpassen</button></div>
+    ${ui.shopEdit ? `<p class="hint" style="margin:0 0 6px">So wie in deiner ${esc(Sh.STORES[S.shopStore] ? Sh.STORES[S.shopStore][0] : 'Filiale')}-Filiale: ↑↓ verschiebt Abteilungen, 🏷️ ändert die Abteilung eines Artikels.</p>` : ''}
+    <div class="steps">${groups || (open.length ? '' : '<p class="muted">Noch leer.</p>')}
+    ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
     <div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}<button class="btn" data-a="close">Fertig</button></div></div>`, '', keep);
 }
+const shopAgain = () => shopModal(ui.shopItemId ? S.items.find(i => i.id === ui.shopItemId) : null, true);
 function cookModal(rid) {
   if (!S.recipes) S.recipes = C.EXAMPLE_RECIPES.map(r => ({ id: uid(), ...r, ingredients: r.ingredients.slice() }));
   const r = rid && S.recipes.find(x => x.id === rid);
