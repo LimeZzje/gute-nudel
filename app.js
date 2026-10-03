@@ -2,6 +2,7 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
+const VERSION = '2026-10-03.8';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -443,7 +444,7 @@ function settings() {
     <div class="row"><button class="btn soft" data-a="export">Als Datei speichern</button></div>
     <div class="row"><button class="btn soft" data-a="wipe" style="color:var(--danger)">Handy trennen & leeren</button></div>
     <p class="muted" id="s-msg"></p>
-    <div class="row"><button class="btn" data-a="settingsclose">Fertig</button></div></div>`);
+    <div class="row"><button class="btn" data-a="settingsclose">Fertig</button></div><p class="muted" style="text-align:center;margin-top:10px">Version ${VERSION} · ${esc(D.me())}</p></div>`);
 }
 async function saveCfgAndTest() {
   const msg = $('#s-msg');
@@ -765,7 +766,17 @@ async function start() {
   bind();
   render();
   await D.saveLocal(S);
-  if ('serviceWorker' in navigator && !localStorage.getItem('gn_nosw')) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && !localStorage.getItem('gn_nosw')) {
+    // look for a new version on start, when the app comes back to the front and every 30 min; when one takes over, reload once
+    const had = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !reloading) { reloading = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      const check = () => { if (navigator.onLine) reg.update().catch(() => {}); };
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+      setInterval(check, 30 * 60e3);
+    }).catch(() => {});
+  }
   if (fromLink) { // check the key; a fresh phone with an existing backup gets everything back
     const r = await D.testConnection().catch(() => ({ ok: false, msg: 'keine Verbindung' }));
     if (!r.ok) toast('Sicherung: ' + r.msg);
