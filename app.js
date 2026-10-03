@@ -2,7 +2,7 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.8';
+const VERSION = '2026-10-03.9';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -440,6 +440,8 @@ function settings() {
     <label class="field"><span>Repo</span><input id="s-repo" value="${esc(c.repo || 'gute-nudel-daten')}" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
     <label class="field"><span>Schlüssel (Token)</span><input id="s-token" type="password" value="${esc(c.token || '')}" autocomplete="off" spellcheck="false"></label>
     <div class="row"><button class="btn blue" data-a="cfgsave">Verbinden & testen</button></div>
+    <label class="field"><span>…oder Einrichtungs-Link einfügen (vom QR-Code)</span><input id="s-link" placeholder="https://limezzje.github.io/gute-nudel/#setup=…" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+    <div class="row"><button class="btn soft" data-a="cfglink">Mit Link einrichten</button></div>
     <div class="row"><button class="btn soft" data-a="backupnow">Jetzt sichern</button><button class="btn soft" data-a="restore">Wiederherstellen</button></div>
     <div class="row"><button class="btn soft" data-a="export">Als Datei speichern</button></div>
     <div class="row"><button class="btn soft" data-a="wipe" style="color:var(--danger)">Handy trennen & leeren</button></div>
@@ -647,6 +649,11 @@ const A = {
   storyclose() { const s = $('#story'); if (s) s.remove(); render(); },
   settings, settingsclose() { const n = $('#s-name'); if (n && n.value.trim() !== S.name) { S.name = n.value.trim(); commit(); } closeModal(); },
   cfgsave: saveCfgAndTest,
+  cfglink() { // same as opening the QR link, but inside the installed app (iPhone: home-screen apps have their own storage)
+    const v = ($('#s-link').value || '').trim(), i = v.indexOf('#setup=');
+    if (i < 0) { $('#s-msg').textContent = '❌ Das ist kein Einrichtungs-Link.'; return; }
+    location.replace(location.pathname + v.slice(i)); location.reload();
+  },
   async backupnow() { D.scheduleBackup(S, 0); await D.flushBackup(); settings(); },
   restore() {
     modal(`<h2>Wiederherstellen?</h2><p>Der Stand aus der letzten Sicherung ersetzt alles, was gerade auf dem Handy ist.</p><div class="row"><button class="btn" data-a="restoreyes">Ja, wiederherstellen</button><button class="btn soft" data-a="settings">Abbrechen</button></div><p class="muted" id="s-msg"></p>`);
