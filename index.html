@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gute Nudel</title>
+<meta name="theme-color" content="#fbf7ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#24222a" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preload" href="fonts/nunito.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top">
+  <h1>Gute Nudel</h1>
+  <button id="stars" aria-label="Gute Nudel Sterne"><span class="s">★</span><span id="starsn">0</span></button>
+  <button id="cloud" aria-label="Einstellungen und Sicherung">☁</button>
+</header>
+<main id="main"></main>
+<nav id="tabs">
+  <button data-tab="heute" class="on"><span class="i">📝</span>Heute</button>
+  <button data-tab="liste"><span class="i">📋</span>Liste</button>
+  <button data-tab="ruhe"><span class="i">🛋️</span>Entspannen</button>
+  <button data-tab="schaetze"><span class="i">🎁</span>Schätze</button>
+  <button data-tab="woche"><span class="i">✨</span>Woche</button>
+</nav>
+<script type="module" src="app.js"></script>
+</body>
+</html>
