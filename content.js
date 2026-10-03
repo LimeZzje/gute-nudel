@@ -68,7 +68,7 @@ export const COMBOS = [
 ];
 // Recurring chores (Haushalt): one-tap templates — rhythm (every N days or weekdays, 0 = Sunday) and a fitting reward
 export const CHORE_TEMPLATES = [
-  { icon: '🧺', name: 'Wäsche waschen', every: 3, reward: 'Füße hoch in frischen Kuschelsocken', tools: ['timer'] },
+  { icon: '🧺', name: 'Wäsche waschen', every: 3, reward: 'Füße hoch in frischen Kuschelsocken' },
   { icon: '🛁', name: 'Bad putzen', every: 7, reward: 'Ein extra schönes Bad – mit Snacks und Serie oder Hörbuch', tools: ['music'] },
   { icon: '🍳', name: 'Kochen', every: 1, reward: null, tools: ['recipes'] },
   { icon: '🛏️', name: 'Bettwäsche wechseln', every: 14, reward: 'Heute früh ins frische Bett – mit Buch und Tee, Handy bleibt draußen' },
@@ -90,8 +90,7 @@ export const EXAMPLE_WEEK = [
   { name: 'Wocheneinkauf', week: [5] }, { name: 'Bad putzen', week: [6] }, { name: 'Bettwäsche wechseln', every: 14 },
 ];
 // Helpers a chore can have (any chore, several at once). Only the shopping list travels along when a chore is handed over.
-export const TOOLS = { timer: ['⏲️', 'Timer'], list: ['🛒', 'Einkaufsliste'], recipes: ['📖', 'Kochbuch'], music: ['🎵', 'Musik'] };
-export const TIMERS = [['🧺', 'Waschmaschine', [30, 60, 90, 120, 180]], ['🌀', 'Trockner', [60, 90, 120, 150]], ['🍝', 'Küche', [10, 15, 20, 30, 45]]];
+export const TOOLS = { list: ['🛒', 'Einkaufsliste'], recipes: ['📖', 'Kochbuch'], music: ['🎵', 'Musik'] };
 // How it felt: after every tick, one tap (or none)
 export const MOODS = ['😫', '😕', '😐', '🙂', '😄'];
 export const MOOD_WORDS = ['richtig zäh', 'eher zäh', 'okay', 'gut', 'richtig gut'];

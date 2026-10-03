@@ -262,7 +262,8 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 
 /* ---------- chore helpers, timers, mood ---------- */
 .toolbtn { border: 0; background: var(--paper2); border-radius: 10px; padding: 4px 8px; margin: 4px 4px 0 0; font-size: 15px; font-weight: 800; min-height: 36px; min-width: 40px; vertical-align: middle; }
-.toolrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.steptimer { font-size: 14px; color: var(--blue); }
+.toolrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
 .toolrow .btn { padding: 10px 4px; font-size: 14px; }
 .timers .timer { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
 .timers .ti { font-size: 30px; }

@@ -4,14 +4,14 @@ import * as Sh from './shop.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.29';
+const VERSION = '2026-10-03.32';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
 const tags = i => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
 const choreTag = i => { const c = S.chores.find(x => x.id === i.chore); return c ? `<span class="tag">🔁${c.reward ? ' 🎁' : ''}</span>` + toolBtns(c, i) : ''; };
 // a chore's helpers as small buttons; a handed-over shopping list travels on the item itself
-const toolBtns = (c, i) => (c && c.tools || []).map(t => `<button class="toolbtn" data-a="tool" data-t="${t}" data-c="${c.id}" aria-label="${C.TOOLS[t][1]}">${C.TOOLS[t][0]}</button>`).join('')
+const toolBtns = (c, i) => (c && c.tools || []).filter(t => C.TOOLS[t]).map(t => `<button class="toolbtn" data-a="tool" data-t="${t}" data-c="${c.id}" aria-label="${C.TOOLS[t][1]}">${C.TOOLS[t][0]}</button>`).join('')
   + (i && i.list ? `<button class="toolbtn" data-a="itemlist" data-id="${i.id}" aria-label="Einkaufsliste">🛒 ${i.list.filter(x => !x.done).length}</button>` : '');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -241,7 +241,7 @@ function viewHeute() {
   const capped = done.length >= C.CAP;
   let h = '';
 
-  h += incomingCard() + timerCard() + comboCard(true) + giftCards();
+  h += incomingCard() + comboCard(true) + giftCards();
   const lastMon = addDays(monday(d), -7);
   if (!S.weeksSeen.includes(lastMon) && S.log.some(e => weekDays(lastMon).includes(e.day)))
     h += `<button class="card btn soft wide" data-a="story" data-w="${lastMon}" style="text-align:left">✨ <b>Dein Wochenrückblick ist da.</b><br><span class="muted">Schau dir an, was du letzte Woche alles geschafft hast.</span></button>`;
@@ -392,8 +392,8 @@ function viewRuhe() {
 function viewHaushalt() {
   let h = `<div class="sec-title" style="margin-top:6px">Nestpflege – läuft von allein</div>
     <p class="muted" style="margin:0 4px 14px">Was regelmäßig dran ist, kommt von selbst auf deine Seite, wenn es Zeit ist – du musst nicht dran denken. Und wenn du magst, wartet danach am selben Tag etwas Schönes auf dich.</p>`;
-  h += giftCards() + timerCard();
-  h += `<div class="toolrow"><button class="btn soft" data-a="tool" data-t="list">🛒 Einkaufsliste${S.shop.filter(x => !x.done).length ? ' (' + S.shop.filter(x => !x.done).length + ')' : ''}</button><button class="btn soft" data-a="tool" data-t="recipes">📖 Kochbuch</button><button class="btn soft" data-a="tool" data-t="timer">⏲️ Timer</button></div>`;
+  h += giftCards();
+  h += `<div class="toolrow"><button class="btn soft" data-a="tool" data-t="list">🛒 Einkaufsliste${S.shop.filter(x => !x.done).length ? ' (' + S.shop.filter(x => !x.done).length + ')' : ''}</button><button class="btn soft" data-a="tool" data-t="recipes">📖 Kochbuch</button></div>`;
   h += weekPlanner();
   h += `<button class="btn wide" data-a="choreedit">+ Etwas Eigenes</button>`;
   const free = C.CHORE_TEMPLATES.filter(t => !S.chores.some(c => c.name === t.name));
@@ -818,7 +818,8 @@ const A = {
   cnext() { ui.cstep++; render(); },
   cprev() { ui.cstep = Math.max(0, ui.cstep - 1); render(); },
   cookstop() { endCookMode(); render(); },
-  cooktimer() { const r = recipeById(ui.rid), [t, m] = cookSteps(r, sidesOf())[ui.cstep]; startTimer(r.icon, r.title, m); render(); },
+  steptimer(el) { const r = recipeById(ui.rid), i = el.dataset.i != null ? +el.dataset.i : ui.cstep, [, m] = cookSteps(r, sidesOf())[i]; phoneTimer(m); },
+  cooktimer() { A.steptimer({ dataset: {} }); },
   cookdone() {
     const r = recipeById(ui.rid);
     modal(`<h2>Guten Appetit! ${r.icon}</h2><p>Wie hat’s geschmeckt?</p><div class="row">${K.TASTE.map(([e, l, v]) => `<button class="btn soft" data-a="taste" data-v="${v}" style="font-size:16px">${e}<br>${l}</button>`).join('')}</div>`);
@@ -835,7 +836,6 @@ const A = {
   },
   tool(el) {
     const t = el.dataset.t, c = el.dataset.c && S.chores.find(x => x.id === el.dataset.c);
-    if (t === 'timer') return timerModal();
     if (t === 'list') return shopModal();
     if (t === 'recipes') { closeModal(); ui.tab = 'ruhe'; ui.sub = 'cook'; ui.rid = null; ui.cstep = null; render(); scrollTo(0, 0); return; }
     if (t === 'music') {
@@ -844,9 +844,6 @@ const A = {
       toast('Füg hier den Link zu deiner Playlist ein 🎵');
     }
   },
-  timerset(el) { startTimer(el.dataset.i, el.dataset.l, +el.dataset.m); },
-  timerown() { const m = Math.round(+($('#tm-min').value || 0)); if (m > 0) startTimer('⏲️', 'Timer', Math.min(600, m)); },
-  timerstop(el) { S.timers = S.timers.filter(t => t.id !== el.dataset.id); closeModal(); commit(); runTimers(); },
   shoptick(el) {
     const it = el.dataset.item && S.items.find(i => i.id === el.dataset.item), L = it ? it.list : S.shop, x = L.find(y => y.id === el.dataset.id); if (!x) return;
     x.done = !x.done; commit(); shopModal(it, true);
@@ -1044,45 +1041,14 @@ const A = {
   stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ 2 fürs Genießen eines Gemütlichkeits-Rezepts, einer fertigen Vorbereitung oder einer Belohnung nach der Hausarbeit</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
 };
 
-// ---------- helpers: timer, shopping list, cookbook, music ----------
-const fmtLeft = ms => { const s = Math.max(0, Math.round(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
-function timerCard() {
-  if (!S.timers.length) return '';
-  return `<div class="card timers">${S.timers.map(t => { const left = t.end - Date.now(); return `<div class="timer ${left <= 0 ? 'done' : ''}"><span class="ti">${t.icon}</span><span class="tl"><b>${esc(t.label)}</b><br><span class="tleft" data-end="${t.end}">${left > 0 ? fmtLeft(left) : 'fertig!'}</span></span><button class="mini-btn" data-a="timerstop" data-id="${t.id}" aria-label="${left > 0 ? 'Abbrechen' : 'Erledigt'}">${left > 0 ? '✕' : '✓'}</button></div>`; }).join('')}</div>`;
-}
-let timerTick = null, rang = new Set();
-function runTimers() { // the countdown on screen, and the alarm when one is done (only while the app is open)
-  clearInterval(timerTick);
-  if (!S.timers.length) return;
-  timerTick = setInterval(() => {
-    document.querySelectorAll('.tleft[data-end]').forEach(el => { const l = +el.dataset.end - Date.now(); el.textContent = l > 0 ? fmtLeft(l) : 'fertig!'; });
-    S.timers.filter(t => t.end <= Date.now() && !rang.has(t.id)).forEach(t => { rang.add(t.id); timerAlarm(t, false); });
-  }, 1000);
-}
-function timerAlarm(t, late) {
-  try { if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([400, 200, 400, 200, 800]); } catch (e) {}
-  try { const a = new (window.AudioContext || window.webkitAudioContext)(); [0, .35, .7].forEach(d => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = 880; o.connect(g); g.connect(a.destination); g.gain.setValueAtTime(.25, a.currentTime + d); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + d + .3); o.start(a.currentTime + d); o.stop(a.currentTime + d + .3); }); } catch (e) {}
-  modal(`<h2>${t.icon} ${esc(t.label)} ist fertig!</h2>${late ? `<p class="muted">schon seit ${Math.max(1, Math.round((Date.now() - t.end) / 60000))} Min.</p>` : ''}<div class="row"><button class="btn" data-a="timerstop" data-id="${t.id}">Okay</button></div>`);
-  render();
-}
-function timerModal() {
-  const android = /Android/i.test(navigator.userAgent);
-  modal(`<div style="text-align:left"><h2 style="text-align:center">⏲️ Timer</h2>
-    ${C.TIMERS.map(([ic, l, mins]) => `<p class="muted" style="font-weight:800;margin:12px 0 4px">${ic} ${l}</p><div class="chips">${mins.map(m => `<button class="chip" data-a="timerset" data-l="${l}" data-i="${ic}" data-m="${m}">${m >= 60 ? Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + ' h' : m + ' Min.'}</button>`).join('')}</div>`).join('')}
-    <label class="field"><span>Eigener Timer (Minuten)</span><input id="tm-min" type="number" min="1" max="600" inputmode="numeric" placeholder="z.B. 75"></label>
-    <div class="row"><button class="btn soft" data-a="timerown">Starten</button></div>
-    ${android ? `<label class="field" style="display:flex;gap:8px;align-items:center"><input id="tm-phone" type="checkbox" style="width:auto" ${ui.phoneAlarm ? 'checked' : ''}><span style="margin:0">⏰ Auch den Handy-Timer stellen (Test: klingt auch, wenn die App zu ist)</span></label>` : ''}
-    <p class="hint">Die App klingelt, solange sie offen ist. Ist sie zu, sagt sie dir beim nächsten Öffnen, seit wann die Maschine fertig ist.</p>
-    <div class="row"><button class="btn" data-a="close">Fertig</button></div></div>`);
-}
-function startTimer(icon, label, mins) {
-  const t = { id: uid(), icon, label, end: Date.now() + mins * 60000 };
-  S.timers.push(t); commit(); runTimers();
-  const ph = $('#tm-phone'); ui.phoneAlarm = !!(ph && ph.checked);
-  closeModal(); toast(icon + ' ' + label + ': ' + mins + ' Min.');
-  if (ui.phoneAlarm) { // Android's own clock app takes the timer (nothing leaves the phone); may not work on every phone
-    try { location.href = 'intent:#Intent;action=android.intent.action.SET_TIMER;i.android.intent.extra.alarm.LENGTH=' + mins * 60 + ';S.android.intent.extra.alarm.MESSAGE=' + encodeURIComponent(label + ' fertig') + ';b.android.intent.extra.alarm.SKIP_UI=true;end'; } catch (e) {}
-  }
+// ---------- helpers: shopping list, cookbook, music ----------
+// Steps with a time: she sets her PHONE's timer (only that one rings with the screen off — a web app gets paused).
+function phoneTimer(mins) {
+  const hm = mins >= 60 ? Math.floor(mins / 60) + ' Std. ' + (mins % 60 ? mins % 60 + ' Min.' : '') : mins + ' Minuten';
+  modal(`<h2>⏰ Handy-Timer stellen</h2><p class="hand" style="font-size:44px;color:var(--accent);margin:4px 0">${hm}</p>
+    <p>Stell dir jetzt am Handy einen Timer – der klingelt zuverlässig, auch wenn der Bildschirm aus ist.</p>
+    <p class="muted" style="text-align:left">🗣️ Am schnellsten: <b>„Hey Google, Timer ${hm}“</b><br>⏱️ Oder: <b>Uhr-App → Timer</b></p>
+    <div class="row"><button class="btn" data-a="close">Ist gestellt ✓</button></div>`);
 }
 // the list grouped by supermarket section, in the chosen store's order (shop.js); ticked items go to "Im Wagen"
 const secOf = x => x.sec || Sh.classify(x.text, S.shopLearn || {});
@@ -1209,7 +1175,7 @@ function viewRecipe() {
     ${(ui.ingExtra || []).length ? `<div class="steps">${ui.ingExtra.map((t, i) => `<div class="shoprow"><span class="pick on" style="cursor:default"><span class="box">✓</span><span style="flex:1">${esc(t)} <span class="tag">dazu</span></span></span><button class="mini-btn" data-a="ingextradel" data-i="${i}" aria-label="Entfernen">✕</button></div>`).join('')}</div>` : ''}
     <form class="add" data-f="ingextra"><input name="t" placeholder="Noch was dazu? (z.B. Getränke)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Dazu">+</button></form>
     <div class="row"><button class="btn soft" data-a="cookshop2" ${sel + (ui.ingExtra || []).length ? '' : 'disabled'}>🛒 ${total ? total + (total === 1 ? ' Sache' : ' Sachen') + ' auf die Liste' : 'Alles da'}</button></div></div>`;
-  h += `<div class="card"><h3>So geht’s</h3><ol class="steps-ol">${cookSteps(r, sides).map(([t, m]) => `<li>${esc(t)}${m ? ` <span class="muted">⏲️ ${m} Min.</span>` : ''}</li>`).join('')}</ol>
+  h += `<div class="card"><h3>So geht’s</h3><ol class="steps-ol">${cookSteps(r, sides).map(([t, m], i) => `<li>${esc(t)}${m ? ` <button class="toolbtn steptimer" data-a="steptimer" data-i="${i}" aria-label="Handy-Timer ${m} Minuten">⏰ ${m} Min.</button>` : ''}</li>`).join('')}</ol>
     <button class="btn green wide" data-a="cookstart">🍳 Jetzt kochen</button></div>`;
   return h;
 }
@@ -1221,7 +1187,7 @@ function viewCookMode() {
   return `<div class="cookmode"><div class="muted" style="font-weight:800">${r.icon} ${esc(r.title)} · Schritt ${i + 1} von ${steps.length}</div>
     <div class="bar"><i style="width:${(i + 1) / steps.length * 100}%"></i></div>
     <p class="cstep">${esc(t)}</p>
-    ${m ? `<button class="btn blue wide" data-a="cooktimer">⏲️ Timer: ${m} Min.</button>` : ''}
+    ${m ? `<button class="btn blue wide" data-a="cooktimer">⏰ Handy-Timer: ${m} Min.</button>` : ''}
     <div class="row" style="margin-top:18px">${i ? '<button class="btn soft" data-a="cprev">← Zurück</button>' : '<button class="btn soft" data-a="cookstop">Abbrechen</button>'}${last ? '<button class="btn green" data-a="cookdone">Fertig gekocht! 🎉</button>' : '<button class="btn" data-a="cnext">Weiter →</button>'}</div></div>`;
 }
 function endCookMode() { if (wake) { wake.release().catch(() => {}); wake = null; } ui.cstep = null; }
@@ -1361,7 +1327,7 @@ function mergeStates(local, remote) {
 function takeRemote(remote, adopt) {
   S = adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote);
   D.saveLocal(S);
-  rollover(); scheduleChores(); runTimers(); render();
+  rollover(); scheduleChores(); render();
   toast(adopt ? '🔄 Auf dem neuesten Stand' : '🔄 Mit dem anderen Gerät zusammengeführt');
   return S;
 }
@@ -1435,8 +1401,7 @@ async function start() {
   else D.askPersistent();
   syncPost();
   syncDevices();
-  runTimers();
-  S.timers.filter(t => t.end <= Date.now()).forEach(t => { rang.add(t.id); setTimeout(() => timerAlarm(t, true), 600); });
+  S.timers = [];   // the in-app timer is gone (2026-10-03): nothing left over
 }
 start();
 window.__gn = { rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
