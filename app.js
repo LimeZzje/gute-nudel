@@ -3,7 +3,7 @@ import * as K from './cookbook.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.19';
+const VERSION = '2026-10-03.20';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -103,6 +103,12 @@ function choreWhen(c) { // "heute", "morgen", "in 3 Tagen", "Mo"
   return '–';
 }
 const choreRhythm = c => c.week && c.week.length ? 'jeden ' + c.week.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(x => C.DOW[x]).join(' & ') : c.every === 1 ? 'jeden Tag' : 'alle ' + c.every + ' Tage';
+// a changed plan never touches today's page: not there yet → from tomorrow; there but today no longer chosen → off again
+function planChanged(c) {
+  const on = S.items.find(i => i.chore === c.id && i.where === 'heute');
+  if (!on) c.skip = addDays(today(), 1);
+  else if (Array.isArray(c.week) && !c.week.includes(parse(today()).getDay())) S.items = S.items.filter(i => i !== on);
+}
 function scheduleChores() {
   const d = today();
   let added = 0;
@@ -334,16 +340,31 @@ function viewHaushalt() {
     <p class="muted" style="margin:0 4px 14px">Was regelmäßig dran ist, kommt von selbst auf deine Seite, wenn es Zeit ist – du musst nicht dran denken. Und wenn du magst, wartet danach am selben Tag etwas Schönes auf dich.</p>`;
   h += giftCards() + timerCard();
   h += `<div class="toolrow"><button class="btn soft" data-a="tool" data-t="list">🛒 Einkaufsliste${S.shop.filter(x => !x.done).length ? ' (' + S.shop.filter(x => !x.done).length + ')' : ''}</button><button class="btn soft" data-a="tool" data-t="recipes">📖 Kochbuch</button><button class="btn soft" data-a="tool" data-t="timer">⏲️ Timer</button></div>`;
-  if (S.chores.length) {
-    h += `<div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span><b>${esc(c.icon)} ${esc(c.name)}</b><br><span class="muted">${esc(choreRhythm(c))} · ${esc(choreWhen(c))}</span>${c.reward ? `<br><span class="muted">🎁 ${esc(c.reward)}</span>` : ''}${(c.tools || []).length ? '<br>' + toolBtns(c) : ''}</span>
-      <button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></li>`).join('')}</ul></div>`;
-  }
+  h += weekPlanner();
   h += `<button class="btn wide" data-a="choreedit">+ Etwas Eigenes</button>`;
   const free = C.CHORE_TEMPLATES.filter(t => !S.chores.some(c => c.name === t.name));
   if (free.length) h += `<div class="sec-title">Ideen zum Antippen</div><p class="muted" style="margin:0 4px 10px">Wie oft und was dich danach erwartet, kannst du mit ✎ jederzeit ändern.</p><div class="chips">` +
     free.map(t => `<button class="chip" data-a="choretpl" data-v="${esc(t.name)}">${t.icon} ${esc(t.name)} · ${esc(choreRhythm(t))}</button>`).join('') + '</div>';
   return h;
 }
+// 📅 Meine Woche: each chore with its days (Mo … So) — tap a day to move it; changes count from tomorrow
+function weekPlanner() {
+  const tdow = parse(today()).getDay();
+  let h = `<div class="sec-title">📅 Meine Woche</div>`;
+  if (S.chores.length) {
+    const per = d => S.chores.filter(c => c.week && c.week.includes(d));
+    h += `<div class="card weekstrip">${C.WEEK_ORDER.map(d => `<div class="${d === tdow ? 'today' : ''}"><b>${C.DOW[d]}</b><span>${per(d).map(c => c.icon).join('') || (d === 0 ? '🛋️' : '·')}</span></div>`).join('')}</div>`;
+    h += `<div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span class="cw"><span class="cwtop"><b>${esc(c.icon)} ${esc(c.name)}</b><span><button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></span></span>
+      <span class="days">${C.WEEK_ORDER.map(d => `<button class="dayt ${c.week && c.week.includes(d) ? 'on' : ''} ${d === tdow ? 'today' : ''}" data-a="cday" data-id="${c.id}" data-v="${d}">${C.DOW[d]}</button>`).join('')}</span>
+      <span class="muted">${c.week && c.week.length ? '' : esc(choreRhythm(c)) + ' · '}${esc(choreWhen(c))}${c.reward ? ' · 🎁 ' + esc(c.reward) : ''}</span>${(c.tools || []).length ? '<span>' + toolBtns(c) + '</span>' : ''}</span></li>`).join('')}</ul>
+      <p class="hint">Tipp auf einen Tag legt die Aufgabe dorthin (oder nimmt sie weg). Änderungen gelten ab morgen.</p></div>`;
+  }
+  const ex = C.EXAMPLE_WEEK.filter(e => C.CHORE_TEMPLATES.some(t => t.name === e.name));
+  h += `<div class="card"><h3>✨ Eine typische Woche</h3><p class="muted" style="margin-top:0">${C.WEEK_ORDER.map(d => `<b>${C.DOW[d]}</b> ${ex.filter(e => e.week && e.week.includes(d)).map(e => C.CHORE_TEMPLATES.find(t => t.name === e.name).icon).join('') || '🛋️ frei'}`).join(' · ')} · 🛏️ alle 14 Tage</p>
+    <button class="btn soft wide" data-a="exweek">Als Vorlage übernehmen</button><p class="hint">Was du schon hast, bekommt diese Tage – alles bleibt danach änderbar.</p></div>`;
+  return h;
+}
+
 function viewGemuetlich() {
   let h = '';
 
@@ -662,10 +683,26 @@ const A = {
   qtab(el) { ui.qtab = el.dataset.v; render(); scrollTo(0, 0); },
   choretpl(el) {
     const t = C.CHORE_TEMPLATES.find(x => x.name === el.dataset.v); if (!t) return;
-    const c = { id: uid(), icon: t.icon, name: t.name, ...(t.week ? { week: t.week.slice() } : { every: t.every }), reward: t.reward || null, last: null, tools: (t.tools || []).slice(), music: '' };
-    S.chores.push(c);
-    const n = scheduleChores(); commit();
-    toast(c.icon + ' ' + c.name + ' – ' + choreRhythm(c) + (n ? ' · steht heute schon drauf' : ''));
+    const c = { id: uid(), icon: t.icon, name: t.name, ...(t.week ? { week: t.week.slice() } : { every: t.every }), reward: t.reward || null, last: null, tools: (t.tools || []).slice(), music: '', skip: addDays(today(), 1) };
+    S.chores.push(c); commit();
+    toast(c.icon + ' ' + c.name + ' – ' + choreRhythm(c) + ' · ab morgen. In „Meine Woche“ legst du die Tage fest.');
+  },
+  cday(el) {
+    const c = S.chores.find(x => x.id === el.dataset.id), d = +el.dataset.v; if (!c) return;
+    if (!c.week || !c.week.length) { c.week = []; delete c.every; }   // a day tapped: from "every N days" to fixed days
+    c.week.includes(d) ? c.week.splice(c.week.indexOf(d), 1) : c.week.push(d);
+    planChanged(c); commit();
+  },
+  exweek() {
+    let added = 0;
+    for (const e of C.EXAMPLE_WEEK) {
+      const t = C.CHORE_TEMPLATES.find(x => x.name === e.name); if (!t) continue;
+      let c = S.chores.find(x => x.name === e.name);
+      if (!c) { c = { id: uid(), icon: t.icon, name: t.name, reward: t.reward || null, last: null, tools: (t.tools || []).slice(), music: '' }; S.chores.push(c); added++; }
+      if (e.week) { c.week = e.week.slice(); delete c.every; } else { c.every = e.every; delete c.week; }
+      planChanged(c);
+    }
+    commit(); toast('📅 Beispielwoche übernommen' + (added ? ' (' + added + ' neu)' : '') + ' – gilt ab morgen');
   },
   choreskip(el) {
     const it = S.items.find(i => i.id === el.dataset.id), c = it && S.chores.find(x => x.id === it.chore); if (!it) return;
@@ -679,8 +716,8 @@ const A = {
   choredelyes(el) { S.chores = S.chores.filter(x => x.id !== el.dataset.id); S.items = S.items.filter(i => i.chore !== el.dataset.id); closeModal(); commit(); },
   choreedit(el) {
     const c = el.dataset.id && S.chores.find(x => x.id === el.dataset.id);
-    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, week: (c.week || []).slice(), reward: c.reward || '', start: 'heute', tools: (c.tools || []).slice(), music: c.music || '' }
-      : { id: null, icon: '🔁', name: '', mode: 'days', every: 7, week: [], reward: '', start: 'heute', tools: [], music: '' };
+    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, week: (c.week || []).slice(), reward: c.reward || '', start: 'morgen', tools: (c.tools || []).slice(), music: c.music || '' }
+      : { id: null, icon: '🔁', name: '', mode: 'week', every: 7, week: [], reward: '', start: 'morgen', tools: [], music: '' };
     choreModal();
   },
   cemode(el) { ceRead(); ui.ce.mode = el.dataset.v; choreModal(); },
@@ -1253,4 +1290,4 @@ async function start() {
   S.timers.filter(t => t.end <= Date.now()).forEach(t => { rang.add(t.id); setTimeout(() => timerAlarm(t, true), 600); });
 }
 start();
-window.__gn = { get S() { return S; }, ui, render, commit, D, rollover, syncPost };
+window.__gn = { get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };

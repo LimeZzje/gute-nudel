@@ -82,6 +82,13 @@ export const CHORE_TEMPLATES = [
   { icon: '🧽', name: 'Staub wischen', every: 10, reward: 'Eine Folge deiner Lieblingsserie – ohne Handy daneben' },
 ];
 export const DOW = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];   // Mo … So
+// A typical week to start from (adopted with one tap, every day stays changeable): at most three things a day, Sunday free
+export const EXAMPLE_WEEK = [
+  { name: 'Wäsche waschen', week: [1, 4] }, { name: 'Pflanzen gießen', week: [1, 4] }, { name: 'Kochen', week: [1, 2, 3, 4] },
+  { name: 'Staubsaugen', week: [2] }, { name: 'Müll rausbringen', week: [2] }, { name: 'Küche aufräumen', week: [3] },
+  { name: 'Wocheneinkauf', week: [5] }, { name: 'Bad putzen', week: [6] }, { name: 'Bettwäsche wechseln', every: 14 },
+];
 // Helpers a chore can have (any chore, several at once). Only the shopping list travels along when a chore is handed over.
 export const TOOLS = { timer: ['⏲️', 'Timer'], list: ['🛒', 'Einkaufsliste'], recipes: ['📖', 'Kochbuch'], music: ['🎵', 'Musik'] };
 export const TIMERS = [['🧺', 'Waschmaschine', [30, 60, 90, 120, 180]], ['🌀', 'Trockner', [60, 90, 120, 150]], ['🍝', 'Küche', [10, 15, 20, 30, 45]]];
