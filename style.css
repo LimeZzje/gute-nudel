@@ -273,6 +273,14 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .moodbar span { padding: 0 6px; white-space: nowrap; font-size: 15px; }
 .moodbar button { border: 0; background: none; font-size: 28px; min-width: 44px; min-height: 44px; border-radius: 12px; }
 .moodbar button:active { background: var(--paper2); }
+.moodbar { overflow: hidden; }
+.moodbar .mtime { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: var(--accent); transform-origin: left; animation: mtime linear forwards; }
+@keyframes mtime { to { transform: scaleX(0); } }
+.list-plain li.rating { flex-wrap: wrap; }
+.list-plain li.rating .faces { display: flex; gap: 2px; width: 100%; justify-content: space-between; }
+.list-plain li.rating .faces button { border: 0; background: var(--paper2); border-radius: 12px; font-size: 26px; min-width: 48px; min-height: 48px; }
+.list-plain li.rating .faces button.on { background: var(--accent2); outline: 2px solid var(--accent); }
+.ratebtn { font-size: 20px; }
 .moodweek { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
 .moodweek b { display: block; font-size: 26px; }
 .moodweek span { font-size: 13px; color: var(--ink2); font-weight: 700; }

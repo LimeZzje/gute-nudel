@@ -3,7 +3,7 @@ import * as K from './cookbook.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.24';
+const VERSION = '2026-10-03.25';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -315,13 +315,16 @@ function tick(id, el) {
   }, 650);
 }
 // "wie war's?": five faces under the screen for a few seconds — one tap, or just ignore it
+const MOOD_SECS = 12;
 function askMood(e) {
   if (!e) return;
   document.querySelectorAll('.moodbar').forEach(b => b.remove());
   const b = document.createElement('div'); b.className = 'moodbar';
-  b.innerHTML = `<span>Wie war’s?</span>` + C.MOODS.map((m, i) => `<button data-a="mood" data-id="${e.id}" data-v="${i + 1}" aria-label="${C.MOOD_WORDS[i]}">${m}</button>`).join('');
+  b.innerHTML = `<span>Wie war’s?</span>` + C.MOODS.map((m, i) => `<button data-a="mood" data-id="${e.id}" data-v="${i + 1}" aria-label="${C.MOOD_WORDS[i]}">${m}</button>`).join('') +
+    `<i class="mtime" style="animation-duration:${MOOD_SECS}s"></i>`;
   document.body.appendChild(b);
-  setTimeout(() => b.remove(), 9000);
+  const t = setTimeout(() => b.remove(), MOOD_SECS * 1000);
+  b.addEventListener('pointerdown', () => { clearTimeout(t); const i = b.querySelector('.mtime'); if (i) i.remove(); setTimeout(() => b.remove(), 15000); }, { once: true });   // touched: it stays
 }
 function afterWork(count, post = false) {
   commit(post);
@@ -535,16 +538,18 @@ function viewWoche() {
   return h;
 }
 
-function weekLogModal() { // this week's done (or rested) entries by day, each removable
+function weekLogModal(keep) { // this week's done (or rested) entries by day, each removable and (re)ratable
   const { k, w } = ui.wl, f = k === 'rest' ? isRest : isWork;
   const days = weekDays(w).filter(d => d <= today()).reverse();
   let h = '';
   for (const d of days) {
     const es = S.log.filter(e => e.day === d && f(e)); if (!es.length) continue;
     h += `<p class="muted" style="font-weight:800;margin:14px 0 4px">${esc(longDate(d))}</p><ul class="list-plain">` +
-      es.map(e => `<li><span>${esc(e.text)}${e.mood ? ' ' + C.MOODS[e.mood - 1] : ''}</span>${e.stars > 0 ? `<span class="muted">+${e.stars}⭐</span>` : ''}<button class="mini-btn" data-a="logdel" data-id="${e.id}" aria-label="Entfernen">✕</button></li>`).join('') + '</ul>';
+      es.map(e => ui.rateId === e.id
+        ? `<li class="rating"><span>${esc(e.text)}</span><span class="faces">${C.MOODS.map((m, i) => `<button class="${e.mood === i + 1 ? 'on' : ''}" data-a="rateset" data-id="${e.id}" data-v="${i + 1}" aria-label="${C.MOOD_WORDS[i]}">${m}</button>`).join('')}</span></li>`
+        : `<li><span>${esc(e.text)}</span>${e.stars > 0 ? `<span class="muted">+${e.stars}⭐</span>` : ''}<button class="mini-btn ratebtn" data-a="ratepick" data-id="${e.id}" aria-label="Bewerten">${e.mood ? C.MOODS[e.mood - 1] : '☆'}</button><button class="mini-btn" data-a="logdel" data-id="${e.id}" aria-label="Entfernen">✕</button></li>`).join('') + '</ul>';
   }
-  modal(`<h2>${k === 'rest' ? 'Entspannt' : 'Erledigt'} diese Woche</h2><div style="text-align:left">${h || '<p class="muted">Noch nichts.</p>'}</div><div class="row"><button class="btn" data-a="close">Fertig</button></div>`);
+  modal(`<h2>${k === 'rest' ? 'Entspannt' : 'Erledigt'} diese Woche</h2><p class="muted" style="margin-top:0">Tipp auf ☆ (oder das Gesicht), um nachträglich zu bewerten, wie es sich angefühlt hat.</p><div style="text-align:left">${h || '<p class="muted">Noch nichts.</p>'}</div><div class="row"><button class="btn" data-a="close">Fertig</button></div>`, '', keep);
 }
 
 function story(mon) {
@@ -958,7 +963,12 @@ const A = {
   },
 
   story(el) { story(el.dataset.w); },
-  weeklog(el) { ui.wl = { k: el.dataset.k, w: el.dataset.w }; weekLogModal(); },
+  weeklog(el) { ui.wl = { k: el.dataset.k, w: el.dataset.w }; ui.rateId = null; weekLogModal(); },
+  ratepick(el) { ui.rateId = ui.rateId === el.dataset.id ? null : el.dataset.id; weekLogModal(true); },
+  rateset(el) {
+    const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
+    e.mood = +el.dataset.v; ui.rateId = null; commit(); weekLogModal(true);
+  },
   logdel(el) {
     const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
     modal(`<h2>Eintrag entfernen?</h2><p><b>${esc(e.text)}</b></p><p class="muted">${e.stars > 0 ? 'Die ' + e.stars + ' ⭐ dafür werden wieder abgezogen.' : 'Dafür gab es keinen Stern.'}</p><div class="row"><button class="btn" data-a="logdelyes" data-id="${e.id}">Entfernen</button><button class="btn soft" data-a="weeklogback">Abbrechen</button></div>`);
