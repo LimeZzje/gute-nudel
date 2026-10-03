@@ -2,7 +2,7 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.14';
+const VERSION = '2026-10-03.15';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -363,7 +363,7 @@ function viewHaushalt() {
 function viewGemuetlich() {
   let h = '';
 
-  h += `<div class="sec-title" style="margin-top:6px">Gemütlichkeits-Rezepte</div><p class="muted" style="margin:0 4px 12px">Du musst dir nichts ausdenken – such dir eins aus. Jeder Schritt zählt schon: +1 ⭐, und am Ende +2 fürs Genießen.</p>`;
+  h += `<div class="sec-title" style="margin-top:6px">Gemütlichkeits-Rezepte</div><p class="muted" style="margin:0 4px 12px">Du musst dir nichts ausdenken – such dir eins aus. Die Schritte sind nur deine Checkliste – +2 ⭐ gibt’s fürs Genießen.</p>`;
   for (const r of C.RECIPES) {
     const on = S.recipe && S.recipe.id === r.id, ready = r.prep && (S.preps[r.prep] || []).length && (S.preps[r.prep] || []).every(Boolean);
     h += `<div class="card recipe"><h3>${r.icon} ${esc(r.title)}${ready ? '<span class="ready">vorbereitet</span>' : ''}</h3><div class="muted">${r.time}</div>`;
@@ -379,7 +379,7 @@ function viewGemuetlich() {
     h += '</div>';
   }
 
-  h += `<div class="sec-title">Vorbereiten – für Tage mit Energie</div><p class="muted" style="margin:0 4px 12px">Einmal vorbereiten, dann kostet Gemütlichkeit später fast nichts mehr. Jeder Schritt +1 ⭐.</p>`;
+  h += `<div class="sec-title">Vorbereiten – für Tage mit Energie</div><p class="muted" style="margin:0 4px 12px">Einmal vorbereiten, dann kostet Gemütlichkeit später fast nichts mehr. Fertig vorbereitet: +2 ⭐.</p>`;
   for (const p of C.PREPS) {
     const st = S.preps[p.id] || [], n = st.filter(Boolean).length, full = n === p.steps.length;
     const open = ui.openPrep === p.id;
@@ -779,9 +779,8 @@ const A = {
   recstep(el) {
     const i = +el.dataset.i, r = C.RECIPES.find(x => x.id === S.recipe.id), steps = S.recipe.mini ? r.mini : r.steps;
     if (S.recipe.done[i]) return;
-    S.recipe.done[i] = true;
-    S.log.push({ id: uid(), text: r.title + ': ' + steps[i], kind: 'setup', day: today(), ts: Date.now(), stars: 1 }); earn(1);
-    floatStar(el, '+1 ⭐'); commit();
+    S.recipe.done[i] = true;   // the steps are just a checklist — the stars come when it's enjoyed
+    commit();
   },
   recstop() { S.recipe = null; commit(); },
   recdone() {
@@ -793,9 +792,11 @@ const A = {
   prepstep(el) {
     const p = C.PREPS.find(x => x.id === el.dataset.id), i = +el.dataset.i, st = S.preps[p.id] || (S.preps[p.id] = p.steps.map(() => false));
     if (st[i]) return;
-    st[i] = true; S.log.push({ id: uid(), text: p.title + ': ' + p.steps[i], kind: 'prep', day: today(), ts: Date.now(), stars: 1 }); earn(1);
-    floatStar(el, '+1 ⭐'); commit();
-    if (st.every(Boolean)) { confetti(40); toast(p.title + ' – fertig! Das hilft dir an müden Tagen.'); }
+    st[i] = true;
+    if (st.every(Boolean)) {   // only the finished preparation counts
+      S.log.push({ id: uid(), text: p.title, kind: 'prep', day: today(), ts: Date.now(), stars: 2 }); earn(2);
+      floatStar(el, '+2 ⭐'); commit(); confetti(40); toast(p.title + ' – fertig! +2 ⭐ Das hilft dir an müden Tagen.');
+    } else commit();
   },
   delwish(el) { S.wishes = S.wishes.filter(w => w.id !== el.dataset.id); commit(); },
 
@@ -899,7 +900,7 @@ const A = {
     await D.wipeLocal();
     location.replace(location.pathname);
   },
-  stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ ${C.REST_STARS} pro überlebter Entspannungs-Quest<br>⭐ 1 pro Schritt beim Gemütlich-machen und Vorbereiten</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
+  stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ ${C.REST_STARS} pro überlebter Entspannungs-Quest<br>⭐ 2 fürs Genießen eines Gemütlichkeits-Rezepts oder eine fertige Vorbereitung</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
 };
 
 // ---------- helpers: timer, shopping list, cookbook, music ----------
