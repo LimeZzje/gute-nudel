@@ -2,7 +2,7 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.10';
+const VERSION = '2026-10-03.11';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -35,7 +35,8 @@ function commit(post = false) {
 }
 
 // ---------- handing tasks to the partner ----------
-const pn = () => S.partnerName || 'Partner';
+// what the partner is called on THIS phone: own nickname, else the name they chose (her phone: "Hase" by default)
+const pn = () => S.partnerNick || (S.partnerNick === undefined && D.me() === 'stand' ? 'Hase' : '') || S.partnerName || 'Partner';
 const MONTH = 30 * 864e5;
 function postObj() { // what the partner reads: my handed-over tasks and my answers to theirs
   return {
@@ -434,6 +435,7 @@ function settings() {
   const days = exp ? Math.round((exp - Date.now()) / 864e5) : null;
   modal(`<div style="text-align:left"><h2 style="text-align:center">Einstellungen</h2>
     <label class="field"><span>Wie soll dich die App nennen?</span><input id="s-name" value="${esc(S.name)}" placeholder="Dein Name (optional)"></label>
+    <label class="field"><span>Wie heißt dein Partner hier? (Spitzname)</span><input id="s-nick" value="${esc(pn() === 'Partner' ? '' : pn())}" placeholder="${esc(S.partnerName || 'Name')}"></label>
     <h3 style="margin:18px 0 4px">☁ Sicherung</h3>
     <div class="status"><span class="dot ${dot}"></span>${esc(txt)}</div>
     ${days !== null && days < 21 ? `<div class="warn">Der Sicherungs-Schlüssel läuft in ${days} Tagen ab. Bitte einen neuen eintragen.</div>` : ''}
@@ -648,7 +650,12 @@ const A = {
 
   story(el) { story(el.dataset.w); },
   storyclose() { const s = $('#story'); if (s) s.remove(); render(); },
-  settings, settingsclose() { const n = $('#s-name'); if (n && n.value.trim() !== S.name) { S.name = n.value.trim(); commit(); } closeModal(); },
+  settings, settingsclose() {
+    const n = $('#s-name'), k = $('#s-nick');
+    if (n && n.value.trim() !== S.name) S.name = n.value.trim();
+    if (k && k.value.trim() !== pn()) S.partnerNick = k.value.trim();   // empty = use the name they chose
+    commit(); closeModal();
+  },
   cfgsave: saveCfgAndTest,
   cfglink() { // same as opening the QR link, but inside the installed app (iPhone: home-screen apps have their own storage)
     const v = ($('#s-link').value || '').trim(), i = v.indexOf('#setup=');
