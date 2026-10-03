@@ -3,7 +3,7 @@ import * as K from './cookbook.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.23';
+const VERSION = '2026-10-03.24';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -364,7 +364,7 @@ function questCard(q, active) {
     ${active ? `<div class="row"><button class="btn" data-a="questdone">Überlebt! +${C.REST_STARS} ⭐</button><button class="btn soft" data-a="questquit">Später</button></div>`
       : `<button class="btn wide" data-a="queststart" data-id="${q.id}">Quest annehmen</button>`}</div>`;
 }
-const QTABS = [['haushalt', '📅 Plan'], ['gemuetlich', '🫖 Gemütlich'], ['goenn', '💝 Gönn dir']];
+const QTABS = [['haushalt', '🪴 Nestpflege'], ['gemuetlich', '🫖 Gemütlich'], ['goenn', '💝 Gönn dir']];
 function viewRuhe() {
   if (ui.sub === 'cook') return viewCook();
   if (!QTABS.some(([k]) => k === ui.qtab)) ui.qtab = 'haushalt';
@@ -374,7 +374,7 @@ function viewRuhe() {
   return h + viewHaushalt();
 }
 function viewHaushalt() {
-  let h = `<div class="sec-title" style="margin-top:6px">Dein Plan – läuft von allein</div>
+  let h = `<div class="sec-title" style="margin-top:6px">Nestpflege – läuft von allein</div>
     <p class="muted" style="margin:0 4px 14px">Was regelmäßig dran ist, kommt von selbst auf deine Seite, wenn es Zeit ist – du musst nicht dran denken. Und wenn du magst, wartet danach am selben Tag etwas Schönes auf dich.</p>`;
   h += giftCards() + timerCard();
   h += `<div class="toolrow"><button class="btn soft" data-a="tool" data-t="list">🛒 Einkaufsliste${S.shop.filter(x => !x.done).length ? ' (' + S.shop.filter(x => !x.done).length + ')' : ''}</button><button class="btn soft" data-a="tool" data-t="recipes">📖 Kochbuch</button><button class="btn soft" data-a="tool" data-t="timer">⏲️ Timer</button></div>`;
@@ -1107,7 +1107,7 @@ const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id=
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid) return viewRecipe();
-  let h = `<button class="btn soft" data-a="cookback" style="margin:4px 0 12px">← Plan</button><div class="sec-title" style="margin-top:0">📖 Kochbuch</div>`;
+  let h = `<button class="btn soft" data-a="cookback" style="margin:4px 0 12px">← Nestpflege</button><div class="sec-title" style="margin-top:0">📖 Kochbuch</div>`;
   h += `<div class="card"><h3>Was koch ich heute?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was dir schmeckt.</p>` +
     cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">⏱ ${r.min} Min. ${tasteOf(r)}</span></span></button>`).join('') +
     `<button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
