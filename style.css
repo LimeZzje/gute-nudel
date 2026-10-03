@@ -255,8 +255,8 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .warn { background: #fff3d6; color: #6b4a00; border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 15px; margin: 8px 0; }
 
 /* ---------- Quests sub-tabs, chores ---------- */
-.qtabs { position: sticky; top: 64px; z-index: 5; background: var(--paper); padding: 6px 0 8px; margin: 0 0 4px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.qtabs .chip { padding: 8px 2px; font-size: 13px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qtabs { position: sticky; top: 64px; z-index: 5; background: var(--paper); padding: 6px 0 8px; margin: 0 0 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.qtabs .chip { padding: 8px 2px; font-size: 14px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .list-plain.chores li { align-items: flex-start; padding: 10px 0; }
 .list-plain.chores li > span { line-height: 1.35; }
 
@@ -279,6 +279,8 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 textarea { width: 100%; border: 2px solid var(--line); border-radius: 12px; background: var(--paper); padding: 10px 12px; font-size: 16px; font-family: inherit; color: inherit; }
 
 /* ---------- cookbook ---------- */
+.shoprow { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }
+.shoprow .pick { flex: 1; border-bottom: 0; }
 .recipe-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; padding: 12px 14px; margin-bottom: 10px; font-size: 16px; }
 .recipe-row .ri { font-size: 30px; }
 .recipe-row .rt { flex: 1; min-width: 0; }

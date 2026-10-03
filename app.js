@@ -3,7 +3,7 @@ import * as K from './cookbook.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.17';
+const VERSION = '2026-10-03.19';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -154,7 +154,9 @@ function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2600);
 }
-function modal(html, cls = '') {
+function modal(html, cls = '', keep = false) {
+  const cur = $('#ov');   // keep: the open one just gets new content (no close/open flicker, scroll stays)
+  if (keep && cur) { cur.querySelector('.modal').innerHTML = html; return cur; }
   closeModal();
   const o = document.createElement('div'); o.className = 'overlay'; o.id = 'ov';
   o.innerHTML = `<div class="modal ${cls}" role="dialog">${html}</div>`;
@@ -192,7 +194,7 @@ function viewHeute() {
     h += `<div class="celebrate"><div class="big">Tag geschafft!</div>
       <p>${done.length === 1 ? 'Eine Sache' : done.length + ' Sachen'} erledigt. Für heute ist Schluss – der Rest wartet bis morgen.</p>
       <p class="muted">Und jetzt? Das Schwierigste kommt noch:</p>
-      <div class="row"><button class="btn" data-a="go" data-tab="ruhe" data-q="gemuetlich">Gemütlich machen</button><button class="btn soft" data-a="go" data-tab="schaetze" data-to="reward">Belohnung aussuchen</button></div></div>`;
+      <div class="row"><button class="btn" data-a="go" data-tab="ruhe" data-q="gemuetlich">Gemütlich machen</button><button class="btn soft" data-a="go" data-tab="ruhe" data-q="goenn">Gönn dir was</button></div></div>`;
   } else if (capped) {
     h += `<div class="card warn" style="text-align:center">🌙 Genug für heute! Ab jetzt gibt es nur noch Sterne fürs Entspannen.</div>`;
   }
@@ -283,7 +285,7 @@ function afterWork(count, post = false) {
     S.today.capShown = true; commit();
     modal(`<h2>Genug für heute!</h2><p>Du hast heute <b>${C.CAP} Sachen</b> geschafft. Das ist richtig viel.</p>
       <p>Du kannst weiter abhaken – aber Sterne gibt es heute nur noch fürs <b>Entspannen</b>. 😌</p>
-      <div class="row"><button class="btn" data-a="go" data-tab="ruhe" data-q="quests">Zum Entspannen</button><button class="btn soft" data-a="close">Okay</button></div>`);
+      <div class="row"><button class="btn" data-a="go" data-tab="ruhe" data-q="gemuetlich">Gemütlich machen</button><button class="btn soft" data-a="close">Okay</button></div>`);
     return;
   }
   const heute = S.items.filter(i => i.where === 'heute');
@@ -318,47 +320,27 @@ function questCard(q, active) {
     ${active ? `<div class="row"><button class="btn" data-a="questdone">Überlebt! +${C.REST_STARS} ⭐</button><button class="btn soft" data-a="questquit">Später</button></div>`
       : `<button class="btn wide" data-a="queststart" data-id="${q.id}">Quest annehmen</button>`}</div>`;
 }
-const QTABS = [['haushalt', '🔁 Haushalt'], ['quests', '⚔ Quests'], ['gemuetlich', '🫖 Gemütlich'], ['wuensche', '💭 Wünsche']];
+const QTABS = [['haushalt', '🏡 Zuhause'], ['gemuetlich', '🫖 Gemütlich'], ['goenn', '💝 Gönn dir']];
 function viewRuhe() {
   if (ui.sub === 'cook') return viewCook();
-  let h = `<div class="chips qtabs">${QTABS.map(([k, l]) => `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}">${l}</button>`).join('')}</div>`;
-  if (ui.qtab === 'haushalt') return h + viewHaushalt();
+  if (!QTABS.some(([k]) => k === ui.qtab)) ui.qtab = 'haushalt';
+  const h = `<div class="chips qtabs">${QTABS.map(([k, l]) => `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}">${l}</button>`).join('')}</div>`;
   if (ui.qtab === 'gemuetlich') return h + viewGemuetlich();
-  if (ui.qtab === 'wuensche') return h + viewWuensche();
-  h += `<div class="sec-title" style="margin-top:6px">Entspannen – die schwerste Disziplin</div>
-    <p class="muted" style="margin:0 4px 14px">Jede überlebte Quest bringt ${C.REST_STARS} Sterne. Auch wenn du heute schon genug geschafft hast.</p>`;
-  const active = C.QUESTS.find(q => q.id === S.quest);
-  if (active) h += questCard(active, true);
-  const start = dayIndex() % C.QUESTS.length;
-  const list = ui.showAllQuests ? C.QUESTS : [0, 1, 2].map(i => C.QUESTS[(start + i * 5) % C.QUESTS.length]);
-  h += list.filter(q => q !== active).map(q => questCard(q, false)).join('');
-  h += `<button class="btn soft wide" data-a="allquests">${ui.showAllQuests ? 'Weniger anzeigen' : 'Alle ' + C.QUESTS.length + ' Quests anzeigen'}</button>`;
-
-  h += `<div class="sec-title">Doppel-Quests: erst kämpfen, dann genießen</div><p class="muted" style="margin:0 4px 12px">Teil 1 landet auf deiner Seite für heute. Ist er erledigt, wartet am selben Tag die Belohnung – gleich oder am Abend.</p>`;
-  h += comboCard(false);
-  if (!S.combo || S.combo.day !== today()) {
-    const start = (dayIndex() * 3) % C.COMBOS.length;
-    const list = ui.showAllCombos ? C.COMBOS : [0, 1, 2].map(i => C.COMBOS[(start + i * 4) % C.COMBOS.length]);
-    h += list.map(c => `<div class="card quest"><div class="lvl">DOPPEL-QUEST</div><h3>${c.icon} ${esc(c.title)}</h3>
-      <div class="meta"><span class="diff">${'★'.repeat(c.diff)}${'☆'.repeat(5 - c.diff)}</span></div>
-      <p><b>⚔ Teil 1:</b> ${esc(c.work)}</p><p><b>🎁 Teil 2:</b> ${esc(c.reward)}</p><div class="boss">${esc(c.boss)}</div>
-      <button class="btn wide" data-a="combostart" data-id="${c.id}">Quest annehmen</button></div>`).join('');
-    h += `<button class="btn soft wide" data-a="allcombos">${ui.showAllCombos ? 'Weniger anzeigen' : 'Alle ' + C.COMBOS.length + ' Doppel-Quests anzeigen'}</button>`;
-  }
-  return h;
+  if (ui.qtab === 'goenn') return h + viewGoenn();
+  return h + viewHaushalt();
 }
 function viewHaushalt() {
-  let h = `<div class="sec-title" style="margin-top:6px">Haushalt – läuft von allein</div>
-    <p class="muted" style="margin:0 4px 14px">Was regelmäßig dran ist, landet an seinem Tag von selbst auf deiner Seite für heute. Mit Belohnung wird’s eine Doppel-Quest: erst erledigen, am selben Tag genießen.</p>`;
+  let h = `<div class="sec-title" style="margin-top:6px">Zuhause – läuft von allein</div>
+    <p class="muted" style="margin:0 4px 14px">Was regelmäßig dran ist, kommt von selbst auf deine Seite, wenn es Zeit ist – du musst nicht dran denken. Und wenn du magst, wartet danach am selben Tag etwas Schönes auf dich.</p>`;
   h += giftCards() + timerCard();
   h += `<div class="toolrow"><button class="btn soft" data-a="tool" data-t="list">🛒 Einkaufsliste${S.shop.filter(x => !x.done).length ? ' (' + S.shop.filter(x => !x.done).length + ')' : ''}</button><button class="btn soft" data-a="tool" data-t="recipes">📖 Kochbuch</button><button class="btn soft" data-a="tool" data-t="timer">⏲️ Timer</button></div>`;
   if (S.chores.length) {
     h += `<div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span><b>${esc(c.icon)} ${esc(c.name)}</b><br><span class="muted">${esc(choreRhythm(c))} · ${esc(choreWhen(c))}</span>${c.reward ? `<br><span class="muted">🎁 ${esc(c.reward)}</span>` : ''}${(c.tools || []).length ? '<br>' + toolBtns(c) : ''}</span>
       <button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></li>`).join('')}</ul></div>`;
   }
-  h += `<button class="btn wide" data-a="choreedit">+ Eigene Aufgabe</button>`;
+  h += `<button class="btn wide" data-a="choreedit">+ Etwas Eigenes</button>`;
   const free = C.CHORE_TEMPLATES.filter(t => !S.chores.some(c => c.name === t.name));
-  if (free.length) h += `<div class="sec-title">Mit einem Tipp dazu</div><p class="muted" style="margin:0 4px 10px">Rhythmus und Belohnung kannst du danach mit ✎ ändern.</p><div class="chips">` +
+  if (free.length) h += `<div class="sec-title">Ideen zum Antippen</div><p class="muted" style="margin:0 4px 10px">Wie oft und was dich danach erwartet, kannst du mit ✎ jederzeit ändern.</p><div class="chips">` +
     free.map(t => `<button class="chip" data-a="choretpl" data-v="${esc(t.name)}">${t.icon} ${esc(t.name)} · ${esc(choreRhythm(t))}</button>`).join('') + '</div>';
   return h;
 }
@@ -393,9 +375,14 @@ function viewGemuetlich() {
 
   return h;
 }
-function viewWuensche() {
-  let h = '';
-  h += `<div class="sec-title" style="margin-top:6px">Was dir guttun würde</div><div class="card"><p class="muted" style="margin-top:0">Fällt dir etwas ein, das dir Freude machen würde? Schreib es auf, wenn es dir einfällt – dann musst du nicht suchen, wenn du es brauchst.</p>
+function viewGoenn() {
+  let h = `<div class="sec-title" style="margin-top:6px">Gönn dir was</div><p class="muted" style="margin:0 4px 14px">Du hast es dir verdient – wirklich. Hier findest du was Schönes, wenn dir gerade nichts einfällt.</p>`;
+  h += `<div class="card roulette" id="reward"><h3>🎁 Eine Idee, bitte</h3><p class="muted">Dir fällt nichts ein? Kein Problem – dafür ist das hier da. Kostet keine Sterne.</p>
+    <div class="chips" style="justify-content:center">${C.REWARD_SIZES.map(([k, l]) => `<button class="chip ${ui.rsize === k ? 'on' : ''}" data-a="rsize" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="idea">${ui.ridea ? esc(ui.ridea) : '…'}</div>
+    <div class="row"><button class="btn soft" data-a="roll">${ui.ridea ? 'Andere Idee' : 'Idee ziehen'}</button>${ui.ridea ? `<button class="btn soft" data-a="fav" aria-label="Merken">${S.favs.includes(ui.ridea) ? '♥' : '♡'}</button><button class="btn" data-a="treat">Gönn ich mir!</button>` : ''}</div>
+    ${S.favs.length ? `<p class="muted" style="margin-top:14px;font-weight:800;text-align:left">Deine Favoriten</p><ul class="list-plain" style="text-align:left">${S.favs.map((f, i) => `<li><span>${esc(f)}</span><button class="mini-btn" data-a="usefav" data-i="${i}" aria-label="Auswählen">→</button><button class="mini-btn" data-a="delfav" data-i="${i}" aria-label="Entfernen">✕</button></li>`).join('')}</ul>` : ''}</div>`;
+  h += `<div class="sec-title">Was dir guttun würde</div><div class="card"><p class="muted" style="margin-top:0">Fällt dir etwas ein, das dir Freude machen würde? Schreib es auf, wenn es dir einfällt – dann musst du nicht suchen, wenn du es brauchst.</p>
     <ul class="list-plain">${S.wishes.map(w => `<li><span>${esc(w.text)}</span><button class="mini-btn" data-a="delwish" data-id="${w.id}" aria-label="Löschen">✕</button></li>`).join('')}</ul>
     <form class="add" data-f="wish"><input name="t" placeholder="Das würde mir gefallen…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form></div>`;
   return h;
@@ -421,11 +408,7 @@ function viewSchaetze() {
          <p class="hint">Stufe ${st + 1} von ${C.STAGES.length}. ${S.stars < C.STAGE_COST ? 'Noch ' + (C.STAGE_COST - S.stars) + ' ⭐.' : ''}</p>`}
     ${S.plant.harvests.length ? `<p class="muted" style="margin-top:12px;font-weight:800">Erntejournal</p><div class="shelf">${S.plant.harvests.map(x => `<span class="jar">🫙 ${esc(x.name)} <span class="muted">· ${shortDate(x.day)}</span></span>`).join('')}</div>` : ''}</div>`;
 
-  h += `<div class="card roulette" id="reward"><h3>🎁 Gönn dir was</h3><p class="muted">Dir fällt nichts ein? Kein Problem – dafür ist das hier da. Belohnungen kosten nichts.</p>
-    <div class="chips" style="justify-content:center">${C.REWARD_SIZES.map(([k, l]) => `<button class="chip ${ui.rsize === k ? 'on' : ''}" data-a="rsize" data-v="${k}">${l}</button>`).join('')}</div>
-    <div class="idea">${ui.ridea ? esc(ui.ridea) : '…'}</div>
-    <div class="row"><button class="btn soft" data-a="roll">${ui.ridea ? 'Andere Idee' : 'Idee ziehen'}</button>${ui.ridea ? `<button class="btn soft" data-a="fav" aria-label="Merken">${S.favs.includes(ui.ridea) ? '♥' : '♡'}</button><button class="btn" data-a="treat">Gönn ich mir!</button>` : ''}</div>
-    ${S.favs.length ? `<p class="muted" style="margin-top:14px;font-weight:800;text-align:left">Deine Favoriten</p><ul class="list-plain" style="text-align:left">${S.favs.map((f, i) => `<li><span>${esc(f)}</span><button class="mini-btn" data-a="usefav" data-i="${i}" aria-label="Auswählen">→</button><button class="mini-btn" data-a="delfav" data-i="${i}" aria-label="Entfernen">✕</button></li>`).join('')}</ul>` : ''}</div>`;
+
   return h;
 }
 function viewBook() {
@@ -516,7 +499,7 @@ function story(mon) {
       : `<div class="k">DIESE WOCHE</div><div class="t">war eine ruhige Woche.</div><p class="p">Und das ist auch völlig in Ordnung.</p>`],
     ['linear-gradient(160deg,#4f9a5b,#2d7a6e)', best && best.work ? `<div class="k">DEIN STÄRKSTER TAG</div><div class="t">${C.DAYNAMES[parse(best.d).getDay()]}</div><div class="n">${best.work}</div><p class="p">Sachen an einem Tag. Wow.</p>`
       : `<div class="k">DEIN STÄRKSTER TAG</div><div class="t">kommt noch.</div>`],
-    ['linear-gradient(160deg,#3b2f52,#7b62b8)', `<div class="k">ENTSPANNUNGS-QUESTS ÜBERLEBT</div><div class="n">${w.rest}</div><p class="p">${w.rest ? 'Trotz extremer Schwierigkeit.<br>Respekt. Das ist die eigentliche Heldentat.' : 'Die Couch vermisst dich.<br>Nächste Woche vielleicht? Sie wartet.'}</p>`],
+    ['linear-gradient(160deg,#3b2f52,#7b62b8)', `<div class="k">SO OFT HAST DU DIR WAS GUTES GETAN</div><div class="n">${w.rest}</div><p class="p">${w.rest ? 'Das ist die eigentliche Heldentat.<br>Wirklich.' : 'Nächste Woche vielleicht?<br>Du hast es dir verdient.'}</p>`],
     ...(w.moods.length >= 3 ? [['linear-gradient(160deg,#2d7a6e,#4f9a5b)', (() => { const t = moodByTask(w.log), a = avg(w.moods.map(e => e.mood)); return `<div class="k">SO HAT SICH DEINE WOCHE ANGEFÜHLT</div><div class="n">${moodFace(a)}</div><div class="t">${C.MOOD_WORDS[Math.round(a) - 1]}</div>` +
       (t.best[0] ? `<p class="p">Am liebsten: <b>${esc(t.best[0].text)}</b> ${moodFace(t.best[0].v)}</p>` : '') + (t.hard[0] ? `<p class="p">Am zähesten: <b>${esc(t.hard[0].text)}</b> ${moodFace(t.hard[0].v)}</p>` : ''); })()]] : []),
     ['linear-gradient(160deg,#e3a92b,#e0864a)', `<div class="k">DU HAST VERDIENT</div><div class="n">${w.stars}</div><div class="t">gute Nudel Sterne</div><p class="p">${[w.pages ? w.pages + (w.pages === 1 ? ' neue Seite' : ' neue Seiten') + ' im Fotobuch' : '', w.stages ? w.stages + ' Wachstumsschritt' + (w.stages === 1 ? '' : 'e') + ' für die Pflanze' : '', w.treats ? w.treats + ' Mal was gegönnt' : ''].filter(Boolean).join('<br>') || 'Gesammelt und bereit zum Ausgeben.'}</p>`],
@@ -729,7 +712,8 @@ const A = {
     const r = recipeById(ui.rid), sides = sidesOf(), have = new Set(S.shop.filter(x => !x.done).map(x => x.text.toLowerCase().replace(/ \(.*\)$/, '')));
     const add = r.ing.concat(...sides.map(s => s.ing)).filter(([, t]) => t && !have.has(t.toLowerCase()));
     add.forEach(([q, t]) => S.shop.push({ id: uid(), text: q ? t + ' (' + q + ')' : t, done: false, from: r.title }));
-    commit(); toast(add.length ? add.length + ' Sachen auf der Einkaufsliste 🛒' : 'Steht schon alles drauf 🛒');
+    commit(); shopModal();   // the list right away, as a pop-over
+    toast(add.length ? add.length + ' Sachen dazugekommen 🛒' : 'Steht schon alles drauf 🛒');
   },
   cookstart() { ui.cstep = 0; render(); scrollTo(0, 0); },
   cnext() { ui.cstep++; render(); },
@@ -766,9 +750,14 @@ const A = {
   timerstop(el) { S.timers = S.timers.filter(t => t.id !== el.dataset.id); closeModal(); commit(); runTimers(); },
   shoptick(el) {
     const it = el.dataset.item && S.items.find(i => i.id === el.dataset.item), L = it ? it.list : S.shop, x = L.find(y => y.id === el.dataset.id); if (!x) return;
-    x.done = !x.done; commit(); shopModal(it);
+    x.done = !x.done; commit(); shopModal(it, true);
   },
-  shopclear() { S.shop = S.shop.filter(x => !x.done); commit(); shopModal(); },
+  shopdel(el) {
+    const it = el.dataset.item && S.items.find(i => i.id === el.dataset.item);
+    if (it) it.list = it.list.filter(y => y.id !== el.dataset.id); else S.shop = S.shop.filter(y => y.id !== el.dataset.id);
+    commit(); shopModal(it, true);
+  },
+  shopclear() { S.shop = S.shop.filter(x => !x.done); commit(); shopModal(null, true); },
   itemlist(el) { const it = S.items.find(i => i.id === el.dataset.id); if (it && it.list) shopModal(it); },
   cook(el) { ui.cookEdit = false; cookModal(el.dataset.id || null); },
   cookedit(el) { ui.cookEdit = true; cookModal(el.dataset.id); },
@@ -933,7 +922,7 @@ const A = {
     await D.wipeLocal();
     location.replace(location.pathname);
   },
-  stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ ${C.REST_STARS} pro überlebter Entspannungs-Quest<br>⭐ 2 fürs Genießen eines Gemütlichkeits-Rezepts oder eine fertige Vorbereitung</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
+  stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ 2 fürs Genießen eines Gemütlichkeits-Rezepts, einer fertigen Vorbereitung oder einer Belohnung nach der Hausarbeit</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
 };
 
 // ---------- helpers: timer, shopping list, cookbook, music ----------
@@ -976,13 +965,13 @@ function startTimer(icon, label, mins) {
     try { location.href = 'intent:#Intent;action=android.intent.action.SET_TIMER;i.android.intent.extra.alarm.LENGTH=' + mins * 60 + ';S.android.intent.extra.alarm.MESSAGE=' + encodeURIComponent(label + ' fertig') + ';b.android.intent.extra.alarm.SKIP_UI=true;end'; } catch (e) {}
   }
 }
-function shopModal(item) { // her list — or a handed-over one (item.list) on the partner's phone
-  const L = item ? item.list : S.shop, open = L.filter(x => !x.done), done = L.filter(x => x.done);
+function shopModal(item, keep) { // her list — or a handed-over one (item.list) on the partner's phone; keep = update in place
+  const L = item ? item.list : S.shop, open = L.filter(x => !x.done), done = L.filter(x => x.done), di = item ? ` data-item="${item.id}"` : '';
   modal(`<div style="text-align:left"><h2 style="text-align:center">🛒 ${item ? esc(item.text) : 'Einkaufsliste'}</h2>
     ${item ? `<p class="muted">von ${esc(item.from || '')}</p>` : ''}
-    <div class="steps">${open.concat(done).map(x => `<button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}" ${item ? `data-item="${item.id}"` : ''}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(x.text)}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}</span></button>`).join('') || '<p class="muted">Noch leer.</p>'}</div>
+    <div class="steps">${open.concat(done).map(x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(x.text)}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}</span></button><button class="mini-btn" data-a="shopdel" data-id="${x.id}"${di} aria-label="Entfernen">✕</button></div>`).join('') || '<p class="muted">Noch leer.</p>'}</div>
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
-    <div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}<button class="btn" data-a="close">Fertig</button></div></div>`);
+    <div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}<button class="btn" data-a="close">Fertig</button></div></div>`, '', keep);
 }
 function cookModal(rid) {
   if (!S.recipes) S.recipes = C.EXAMPLE_RECIPES.map(r => ({ id: uid(), ...r, ingredients: r.ingredients.slice() }));
@@ -1041,7 +1030,7 @@ const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id=
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid) return viewRecipe();
-  let h = `<button class="btn soft" data-a="cookback" style="margin:4px 0 12px">← Haushalt</button><div class="sec-title" style="margin-top:0">📖 Kochbuch</div>`;
+  let h = `<button class="btn soft" data-a="cookback" style="margin:4px 0 12px">← Zuhause</button><div class="sec-title" style="margin-top:0">📖 Kochbuch</div>`;
   h += `<div class="card"><h3>Was koch ich heute?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was dir schmeckt.</p>` +
     cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">⏱ ${r.min} Min. ${tasteOf(r)}</span></span></button>`).join('') +
     `<button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
@@ -1125,7 +1114,7 @@ function delegateModal() {
 }
 
 const FORMS = {
-  shopadd(t) { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => S.shop.push({ id: uid(), text: x, done: false })); commit(); shopModal(); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
+  shopadd(t) { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => S.shop.push({ id: uid(), text: x, done: false })); commit(); shopModal(null, true); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
   decline(t, form) {
     const id = form.dataset.id, x = S.incoming.find(y => y.id === id); if (!x) return;
     S.answered[id] = { status: 'nein', reason: t, ts: Date.now() }; S.incoming = S.incoming.filter(y => y !== x); ui.declining = null;
@@ -1187,7 +1176,7 @@ function welcome() {
   modal(`<h2>Hallo, gute Nudel! 💛</h2>
     <p style="text-align:left">📝 <b>Heute</b>: Such dir morgens ein paar Sachen aus. Wenn sie erledigt sind, ist der Tag geschafft – wirklich.</p>
     <p style="text-align:left">⭐ Für jede erledigte Sache gibt es einen <b>gute Nudel Stern</b>. Ab ${C.CAP} am Tag heißt es: genug für heute!</p>
-    <p style="text-align:left">🛋️ <b>Entspannen</b> ist die schwerste Disziplin. Dafür gibt es extra Sterne.</p>
+    <p style="text-align:left">💛 <b>Für dich</b>: Was zuhause regelmäßig dran ist, kommt von allein – und Gemütliches und kleine Belohnungen findest du da auch.</p>
     <p style="text-align:left">🎁 Bei <b>Schätze</b> wartet ein geheimes Fotobuch – und eine Pflanze, die mit dir wächst.</p>
     <label class="field"><span>Wie soll ich dich nennen? (optional)</span><input id="w-name" placeholder="Dein Name"></label>
     <div class="row"><button class="btn" data-a="welcomego">Los geht's</button></div>`);
