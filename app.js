@@ -2,7 +2,7 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.15';
+const VERSION = '2026-10-03.16';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1082,6 +1082,23 @@ function welcome() {
 }
 A.welcomego = () => { const n = $('#w-name').value.trim(); S.name = n; S.welcomed = true; closeModal(); commit(); D.askPersistent(); };
 
+// One-time corrections, applied on the right phone the next time it opens (each only once, noted in S.fixes).
+const FIXES = [
+  { id: '2026-10-03-stefan-cozy', me: 'stefan', stars: -4, kind: 'setup', n: 4, note: '4 Sterne aus den alten Gemütlich-Schritten zurückgenommen' },
+];
+function applyFixes() {
+  S.fixes = S.fixes || [];
+  let done = 0;
+  for (const f of FIXES) {
+    if (f.me !== D.me() || S.fixes.includes(f.id)) continue;
+    S.stars = Math.max(0, S.stars + f.stars); S.earned = Math.max(0, S.earned + f.stars);
+    if (f.kind) S.log.filter(e => e.kind === f.kind && e.stars > 0).slice(0, f.n).forEach(e => { e.stars = 0; });
+    S.fixes.push(f.id); done++;
+    toast('⭐ ' + f.note);
+  }
+  return done;
+}
+
 // setup link: …/#setup=owner/repo/token[&p=name] connects the backup in one go (the part after # never leaves the phone)
 async function setupFromLink() {
   const m = location.hash.match(/^#setup=([^/]+)\/([^/]+)\/([^/&]+)(?:&p=([\w-]+))?$/);
@@ -1104,6 +1121,7 @@ async function start() {
   S.me = D.me();
   rollover();
   scheduleChores();
+  if (applyFixes()) { S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); }
   bind();
   render();
   await D.saveLocal(S);
