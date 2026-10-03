@@ -579,12 +579,12 @@ function welcome() {
 }
 A.welcomego = () => { const n = $('#w-name').value.trim(); S.name = n; S.welcomed = true; closeModal(); commit(); D.askPersistent(); };
 
-// setup link: …/#setup=owner/repo/token connects the backup in one go (the part after # never leaves the phone)
+// setup link: …/#setup=owner/repo/token[&p=name] connects the backup in one go (the part after # never leaves the phone)
 async function setupFromLink() {
-  const m = location.hash.match(/^#setup=([^/]+)\/([^/]+)\/(.+)$/);
+  const m = location.hash.match(/^#setup=([^/]+)\/([^/]+)\/([^/&]+)(?:&p=([\w-]+))?$/);
   if (!m) return false;
   history.replaceState(null, '', location.pathname);
-  await D.setCfg({ owner: decodeURIComponent(m[1]), repo: decodeURIComponent(m[2]), token: decodeURIComponent(m[3]) });
+  await D.setCfg({ owner: decodeURIComponent(m[1]), repo: decodeURIComponent(m[2]), token: decodeURIComponent(m[3]), ...(m[4] ? { file: 'sicherung/' + m[4] + '.json' } : {}) });
   return true;
 }
 

@@ -85,7 +85,8 @@ async function gh(path, opts = {}) {
 const b64 = str => { const by = new TextEncoder().encode(str); let s = ''; for (let i = 0; i < by.length; i += 0x8000) s += String.fromCharCode(...by.subarray(i, i + 0x8000)); return btoa(s); };
 
 // ---------- backup ----------
-const FILE = 'sicherung/stand.json';
+// each person has their own save file in the repo (setup link &p=name); hers is the default
+const FILE_ = () => getCfg().file || 'sicherung/stand.json';
 export const backup = { status: 'none', last: +localStorage.getItem('gn_lastbackup') || 0, err: '', listeners: new Set() };
 function setStatus(st, err = '') { backup.status = st; backup.err = err; backup.listeners.forEach(f => f()); }
 let timer = null, pending = null, running = false, sha = null;
@@ -107,9 +108,9 @@ export async function flushBackup() {
   try {
     const body = JSON.stringify(s, null, 1);
     for (let attempt = 0; attempt < 2; attempt++) {
-      if (!sha || attempt) { const g = await gh(FILE); sha = g.ok ? (await g.json()).sha : null; if (!g.ok && g.status !== 404) throw new Error('GitHub ' + g.status); }
+      if (!sha || attempt) { const g = await gh(FILE_()); sha = g.ok ? (await g.json()).sha : null; if (!g.ok && g.status !== 404) throw new Error('GitHub ' + g.status); }
       const d = new Date();
-      const r = await gh(FILE, { method: 'PUT', body: JSON.stringify({ message: 'Sicherung ' + d.toLocaleString('de-DE'), content: b64(body), ...(sha ? { sha } : {}) }) });
+      const r = await gh(FILE_(), { method: 'PUT', body: JSON.stringify({ message: 'Sicherung ' + d.toLocaleString('de-DE'), content: b64(body), ...(sha ? { sha } : {}) }) });
       if (r.ok) { sha = (await r.json()).content.sha; break; }
       if ((r.status === 409 || r.status === 422) && !attempt) continue;
       throw new Error(r.status === 401 ? 'Schlüssel ungültig oder abgelaufen' : r.status === 404 ? 'Repo nicht gefunden' : 'GitHub ' + r.status);
@@ -128,7 +129,7 @@ export async function flushBackup() {
 export function hasPending() { return !!pending; }
 
 export async function fetchBackup() { // the newest backup from GitHub, or null
-  const r = await gh(FILE, { raw: true });
+  const r = await gh(FILE_(), { raw: true });
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(r.status === 401 ? 'Schlüssel ungültig oder abgelaufen' : 'GitHub ' + r.status);
   return JSON.parse(await r.text());
