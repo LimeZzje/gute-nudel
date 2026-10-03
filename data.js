@@ -24,7 +24,7 @@ const kvSet = (k, v) => idb('kv', 'readwrite', s => s.put(v, k));
 
 export function freshState() {
   return {
-    v: 1, created: Date.now(), updatedAt: 0, name: '',
+    v: 1, me: null, created: Date.now(), updatedAt: 0, name: '',
     stars: 0, earned: 0,
     items: [],             // {id, text, where: 'heute'|'liste', created, carried}
     log: [],               // {id, text, kind: task|extra|rest|setup|prep|reward|unlock, day, ts, stars, iid?}
@@ -143,6 +143,8 @@ export async function flushBackup() {
   }
 }
 export function hasPending() { return !!pending; }
+export function stopAll() { clearTimeout(timer); clearTimeout(postTimer); pending = null; postPending = null; }
+export async function wipeLocal() { try { await idb('kv', 'readwrite', s => s.clear()); } catch (e) {} }
 
 export const fetchBackup = () => getJSON(FILE_()); // the newest backup from GitHub, or null
 export async function testConnection() {

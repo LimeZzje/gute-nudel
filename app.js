@@ -38,7 +38,7 @@ const pn = () => S.partnerName || 'Partner';
 const MONTH = 30 * 864e5;
 function postObj() { // what the partner reads: my handed-over tasks and my answers to theirs
   return {
-    name: S.name, ts: Date.now(),
+    me: D.me(), name: S.name, ts: Date.now(),
     out: S.sent.filter(x => Date.now() - x.ts < MONTH).map(({ id, text, today, ts }) => ({ id, text, today, ts })),
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
@@ -49,7 +49,8 @@ async function syncPost() {
   if (syncing || !D.canPost() || !navigator.onLine) return;
   syncing = true;
   try {
-    const p = await D.readPartnerPost(); if (!p) return;
+    const p = (await D.readPartnerPost()) || { out: [], replies: [] };
+    if (p.me && p.me === D.me()) return;              // never treat my own mailbox as the partner's
     let changed = false; const back = [], took = [], done = [];
     if (p.name && p.name !== S.partnerName) { S.partnerName = p.name; changed = true; }
     const inc = (p.out || []).filter(x => !S.answered[x.id]);
@@ -413,6 +414,7 @@ function settings() {
     <div class="row"><button class="btn blue" data-a="cfgsave">Verbinden & testen</button></div>
     <div class="row"><button class="btn soft" data-a="backupnow">Jetzt sichern</button><button class="btn soft" data-a="restore">Wiederherstellen</button></div>
     <div class="row"><button class="btn soft" data-a="export">Als Datei speichern</button></div>
+    <div class="row"><button class="btn soft" data-a="wipe" style="color:var(--danger)">Handy trennen & leeren</button></div>
     <p class="muted" id="s-msg"></p>
     <div class="row"><button class="btn" data-a="settingsclose">Fertig</button></div></div>`);
 }
@@ -433,7 +435,7 @@ async function saveCfgAndTest() {
   } catch (e) { msg.textContent = '❌ ' + e.message; }
 }
 async function applyRestore(remote) {
-  S = Object.assign(D.freshState(), remote);
+  S = Object.assign(D.freshState(), remote, { me: D.me() });
   await D.saveLocal(S);
   rollover(); closeModal(); render(); toast('Wiederhergestellt ✓');
 }
@@ -598,6 +600,15 @@ const A = {
   },
   async restoreyes() { const m = $('#s-msg'); m.textContent = 'Lade…'; try { const r = await D.fetchBackup(); if (!r) { m.textContent = 'Keine Sicherung gefunden.'; return; } await applyRestore(r); } catch (e) { m.textContent = '❌ ' + e.message; } },
   export: exportFile,
+  wipe() {
+    modal(`<h2>Handy trennen?</h2><p>Alles auf <b>diesem Handy</b> wird gelöscht und die Verbindung getrennt. Die Sicherung bleibt unangetastet.</p><p class="muted">Danach den eigenen QR-Code scannen, dann ist alles wieder da.</p><div class="row"><button class="btn" data-a="wipeyes" style="background:var(--danger)">Ja, leeren</button><button class="btn soft" data-a="settings">Abbrechen</button></div>`);
+  },
+  async wipeyes() {
+    D.stopAll();
+    Object.keys(localStorage).filter(k => k.startsWith('gn_') && k !== 'gn_api' && k !== 'gn_nosw').forEach(k => localStorage.removeItem(k));
+    await D.wipeLocal();
+    location.replace(location.pathname);
+  },
   stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ ${C.REST_STARS} pro überlebter Entspannungs-Quest<br>⭐ 1 pro Schritt beim Gemütlich-machen und Vorbereiten</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
 };
 
@@ -692,6 +703,12 @@ async function start() {
   await D.restoreCfg();
   S = await D.loadLocal();
   if (!S) S = D.freshState();
+  // whose data is on this phone? A different person's setup link (or an old phone that never noted it) must not
+  // carry the other person's tasks over: start empty, the right person's backup is loaded below.
+  if (fromLink && S.me !== D.me()) S = D.freshState();
+  else if (!S.me) S.me = D.me();
+  else if (S.me !== D.me()) S = D.freshState();
+  S.me = D.me();
   rollover();
   bind();
   render();
@@ -702,7 +719,7 @@ async function start() {
     if (!r.ok) toast('Sicherung: ' + r.msg);
     else {
       const remote = await D.fetchBackup().catch(() => null);
-      if (remote && !S.log.length && remote.updatedAt > S.updatedAt) { await applyRestore(remote); return; }
+      if (remote && (!remote.me || remote.me === D.me()) && !S.log.length && remote.updatedAt > S.updatedAt) { await applyRestore(remote); syncPost(); return; }
       D.scheduleBackup(S, 10); toast('Sicherung eingerichtet ✓');
     }
   }
