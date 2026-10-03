@@ -579,7 +579,17 @@ function welcome() {
 }
 A.welcomego = () => { const n = $('#w-name').value.trim(); S.name = n; S.welcomed = true; closeModal(); commit(); D.askPersistent(); };
 
+// setup link: …/#setup=owner/repo/token connects the backup in one go (the part after # never leaves the phone)
+async function setupFromLink() {
+  const m = location.hash.match(/^#setup=([^/]+)\/([^/]+)\/(.+)$/);
+  if (!m) return false;
+  history.replaceState(null, '', location.pathname);
+  await D.setCfg({ owner: decodeURIComponent(m[1]), repo: decodeURIComponent(m[2]), token: decodeURIComponent(m[3]) });
+  return true;
+}
+
 async function start() {
+  const fromLink = await setupFromLink();
   await D.restoreCfg();
   S = await D.loadLocal();
   if (!S) S = D.freshState();
@@ -587,9 +597,18 @@ async function start() {
   bind();
   render();
   await D.saveLocal(S);
+  if ('serviceWorker' in navigator && !localStorage.getItem('gn_nosw')) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (fromLink) { // check the key; a fresh phone with an existing backup gets everything back
+    const r = await D.testConnection().catch(() => ({ ok: false, msg: 'keine Verbindung' }));
+    if (!r.ok) toast('Sicherung: ' + r.msg);
+    else {
+      const remote = await D.fetchBackup().catch(() => null);
+      if (remote && !S.log.length && remote.updatedAt > S.updatedAt) { await applyRestore(remote); return; }
+      D.scheduleBackup(S, 10); toast('Sicherung eingerichtet ✓');
+    }
+  }
   if (!S.welcomed) welcome();
   else D.askPersistent();
-  if ('serviceWorker' in navigator && !localStorage.getItem('gn_nosw')) navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 start();
 window.__gn = { get S() { return S; }, ui, render, commit, D, rollover };
