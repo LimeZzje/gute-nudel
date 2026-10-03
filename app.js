@@ -2,7 +2,7 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.9';
+const VERSION = '2026-10-03.10';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -130,6 +130,7 @@ function closeModal() { const o = $('#ov'); if (o) o.remove(); }
 // ---------- header ----------
 function renderTop() {
   $('#starsn').textContent = S.stars;
+  $('#top h1').innerHTML = 'Gute Nudel' + (S.name ? ' <span>' + esc(S.name) + '</span>' : '');
   const c = $('#cloud'), st = D.backup.status;
   c.className = st === 'ok' ? 'ok' : st === 'wait' ? 'wait' : st === 'bad' ? 'bad' : '';
   c.title = { ok: 'Gesichert', wait: 'Wird gleich gesichert', bad: 'Sicherung hat nicht geklappt', none: 'Sicherung nicht eingerichtet' }[st] || '';

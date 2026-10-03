@@ -1,6 +1,6 @@
 // Offline support. Online: always the newest app files from the network (so updates apply at once);
 // offline: the copy from the cache. GitHub (backup + photos) never goes through here.
-const V = 'gn-9';
+const V = 'gn-10';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'data.js', 'content.js', 'plant.js', 'manifest.json',
   'fonts/nunito.woff2', 'fonts/caveat.woff2', 'icons/icon-192.png', 'icons/icon-512.png'];
 
