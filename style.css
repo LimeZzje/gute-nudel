@@ -201,9 +201,9 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .weekbars i.rest { background: #7b62b8; }
 
 /* ---------- overlays ---------- */
-.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(20, 16, 28, .55); display: grid; place-items: center; padding: 20px; animation: fade .2s; }
+.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(20, 16, 28, .55); display: grid; place-items: center; padding: 20px; animation: fade .2s; overscroll-behavior: contain; touch-action: none; }
 @keyframes fade { from { opacity: 0; } }
-.modal { background: var(--card); border-radius: 22px; padding: 22px 18px; width: 100%; max-width: 420px; max-height: 88vh; overflow: auto; text-align: center; box-shadow: 0 10px 40px rgba(0, 0, 0, .3); animation: pop .3s cubic-bezier(.2, 1.4, .4, 1); }
+.modal { background: var(--card); border-radius: 22px; padding: 22px 18px; width: 100%; max-width: 420px; max-height: 88vh; max-height: 85dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; text-align: center; box-shadow: 0 10px 40px rgba(0, 0, 0, .3); animation: pop .3s cubic-bezier(.2, 1.4, .4, 1); }
 @keyframes pop { from { transform: scale(.85); opacity: 0; } }
 .modal h2 { font: 700 38px/1.05 Caveat, cursive; color: var(--accent); margin: 0 0 8px; }
 .modal p { margin: 8px 0; }

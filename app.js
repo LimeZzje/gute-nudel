@@ -4,7 +4,7 @@ import * as Sh from './shop.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.26';
+const VERSION = '2026-10-03.28';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -206,9 +206,21 @@ function modal(html, cls = '', keep = false) {
   o.innerHTML = `<div class="modal ${cls}" role="dialog">${html}</div>`;
   o.addEventListener('click', e => { if (e.target === o) closeModal(); });
   document.body.appendChild(o);
+  lockScroll();
   return o;
 }
-function closeModal() { const o = $('#ov'); if (o) o.remove(); }
+function closeModal() { const o = $('#ov'); if (o) o.remove(); unlockScroll(); }
+let lockedY = null;
+function lockScroll() {
+  if (lockedY != null) return;
+  lockedY = scrollY;
+  Object.assign(document.body.style, { position: 'fixed', top: -lockedY + 'px', left: '0', right: '0', width: '100%', overflow: 'hidden' });
+}
+function unlockScroll() {
+  if (lockedY == null || $('#ov')) return;
+  Object.assign(document.body.style, { position: '', top: '', left: '', right: '', width: '', overflow: '' });
+  scrollTo(0, lockedY); lockedY = null;
+}
 
 // ---------- header ----------
 function renderTop() {
@@ -788,14 +800,23 @@ const A = {
   cookhome() { endCookMode(); ui.rid = null; ui.sides = []; render(); scrollTo(0, 0); },
   cookreroll() { ui.sugSeed = (ui.sugSeed || 1) + 1; render(); },
   ccat(el) { ui.ccat = el.dataset.v; render(); },
-  recipe(el) { ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; render(); scrollTo(0, 0); },
+  recipe(el) { ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; render(); scrollTo(0, 0); },
+  ingextradel(el) { ui.ingExtra.splice(+el.dataset.i, 1); render(); },
+  ingtoggle(el) { const t = el.dataset.v; ui.ingPick = ui.ingPick || {}; ui.ingPick[ingKey(t)] = !ingWanted(t); render(); },
   side(el) { const id = el.dataset.id, a = ui.sides || (ui.sides = []); a.includes(id) ? a.splice(a.indexOf(id), 1) : a.push(id); render(); },
   cookshop2() {
-    const r = recipeById(ui.rid), sides = sidesOf(), have = new Set(S.shop.filter(x => !x.done).map(x => x.text.toLowerCase().replace(/ \(.*\)$/, '')));
-    const add = r.ing.concat(...sides.map(s => s.ing)).filter(([, t]) => t && !have.has(t.toLowerCase()));
+    const r = recipeById(ui.rid), all = r.ing.concat(...sidesOf().map(s => s.ing)).filter(([, t]) => t);
+    const add = all.filter(([, t]) => ingWanted(t) && !onList(t));
+    // learn: what she unticked is usually at home; what she ticked although it was "Vorrat" isn't
+    const P = new Set(S.pantry || []);
+    all.forEach(([, t]) => { const k = ingKey(t), picked = ui.ingPick && k in ui.ingPick; if (picked && !ui.ingPick[k] && !onList(t)) P.add(k); if (picked && ui.ingPick[k]) P.delete(k); });
+    S.pantry = [...P];
     add.forEach(([q, t]) => S.shop.push({ id: uid(), text: q ? t + ' (' + q + ')' : t, done: false, from: r.title }));
+    (ui.ingExtra || []).forEach(t => S.shop.push({ id: uid(), text: t, done: false }));
+    const nExtra = (ui.ingExtra || []).length;
+    ui.ingPick = {}; ui.ingExtra = [];
     commit(); shopModal();   // the list right away, as a pop-over
-    toast(add.length ? add.length + ' Sachen dazugekommen 🛒' : 'Steht schon alles drauf 🛒');
+    toast(add.length + nExtra ? (add.length + nExtra) + ' Sachen dazugekommen 🛒' : 'Steht schon alles drauf 🛒');
   },
   cookstart() { ui.cstep = 0; render(); scrollTo(0, 0); },
   cnext() { ui.cstep++; render(); },
@@ -851,6 +872,8 @@ const A = {
     const it = el.dataset.item && S.items.find(i => i.id === el.dataset.item), L = it ? it.list : S.shop, x = L.find(y => y.id === el.dataset.id); if (!x) return;
     x.sec = el.dataset.v; S.shopLearn = Object.assign({}, S.shopLearn, { [Sh.norm(x.text)]: el.dataset.v }); ui.tagId = null; commit(); shopAgain();
   },
+  shopwipe() { ui.shopWipe = !ui.shopWipe; shopAgain(); },
+  shopwipeyes() { S.shop = []; ui.shopWipe = false; commit(); shopAgain(); toast('Einkaufsliste geleert 🛒'); },
   shopclear() { S.shop = S.shop.filter(x => !x.done); commit(); shopModal(null, true); },
   itemlist(el) { const it = S.items.find(i => i.id === el.dataset.id); if (it && it.list) shopModal(it); },
   cook(el) { ui.cookEdit = false; cookModal(el.dataset.id || null); },
@@ -1089,7 +1112,9 @@ function shopModal(item, keep) { // her list — or a handed-over one (item.list
     <div class="steps">${groups || (open.length ? '' : '<p class="muted">Noch leer.</p>')}
     ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
-    <div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}<button class="btn" data-a="close">Fertig</button></div></div>`, '', keep);
+    <div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}<button class="btn" data-a="close">Fertig</button></div>
+    ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
+      : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}</div>`, '', keep);
 }
 const shopAgain = () => shopModal(ui.shopItemId ? S.items.find(i => i.id === ui.shopItemId) : null, true);
 function cookModal(rid) {
@@ -1139,6 +1164,12 @@ function cookSuggest(n) { // weighted, no repeats; ui.sugSeed changes with "ande
   }
   return out;
 }
+// which ingredients go on the list: her choice for this recipe, else — not already on the list, not something she
+// usually has (what she unticked before, and salt/oil/spices)
+const ingKey = t => Sh.norm(t);
+const onList = t => S.shop.some(x => !x.done && Sh.norm(x.text) === ingKey(t));
+const isPantry = t => (S.pantry || []).includes(ingKey(t)) || Sh.classify(t, S.shopLearn || {}) === 'backen';
+const ingWanted = t => { const k = ingKey(t); return ui.ingPick && k in ui.ingPick ? ui.ingPick[k] : !onList(t) && !isPantry(t); };
 const sidesOf = () => (ui.sides || []).map(id => K.SIDES.find(s => s.id === id)).filter(Boolean);
 function plateHtml(r, sides) {
   if (!r.plate) return '';
@@ -1175,8 +1206,13 @@ function viewRecipe() {
         return `<div class="chips">${opts.map(s => `<button class="chip ${(ui.sides || []).includes(s.id) ? 'on' : ''}" data-a="side" data-id="${s.id}">${K.PLATE[k][0]} ${esc(s.title)}</button>`).join('')}</div>`; }).join('') + '</div>';
   }
   const ing = r.ing.concat(...sides.map(s => s.ing.map(x => [x[0], x[1], s.title])));
-  h += `<div class="card"><h3>Zutaten</h3><ul class="list-plain">${ing.map(([q, t, from]) => `<li><span>${esc(t)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}</span><span class="muted">${esc(q)}</span></li>`).join('')}</ul>
-    <div class="row"><button class="btn soft" data-a="cookshop2">🛒 Auf die Einkaufsliste</button></div></div>`;
+  const sel = ing.filter(([, t]) => t && ingWanted(t)).length, total = sel + (ui.ingExtra || []).length;
+  h += `<div class="card"><h3>Zutaten</h3><p class="muted" style="margin-top:0">Was du schon daheim hast, abwählen – ich merk’s mir fürs nächste Mal.</p>
+    <div class="steps">${ing.map(([q, t, from]) => { const on = t && ingWanted(t), why = onList(t) ? 'steht schon drauf' : isPantry(t) ? 'Vorrat?' : '';
+      return `<button class="pick ${on ? 'on' : ''}" data-a="ingtoggle" data-v="${esc(t)}"><span class="box">${on ? '✓' : ''}</span><span style="flex:1">${esc(t)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}${why && !on ? ` <span class="tag">${why}</span>` : ''}</span><span class="muted">${esc(q)}</span></button>`; }).join('')}</div>
+    ${(ui.ingExtra || []).length ? `<div class="steps">${ui.ingExtra.map((t, i) => `<div class="shoprow"><span class="pick on" style="cursor:default"><span class="box">✓</span><span style="flex:1">${esc(t)} <span class="tag">dazu</span></span></span><button class="mini-btn" data-a="ingextradel" data-i="${i}" aria-label="Entfernen">✕</button></div>`).join('')}</div>` : ''}
+    <form class="add" data-f="ingextra"><input name="t" placeholder="Noch was dazu? (z.B. Getränke)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Dazu">+</button></form>
+    <div class="row"><button class="btn soft" data-a="cookshop2" ${sel + (ui.ingExtra || []).length ? '' : 'disabled'}>🛒 ${total ? total + (total === 1 ? ' Sache' : ' Sachen') + ' auf die Liste' : 'Alles da'}</button></div></div>`;
   h += `<div class="card"><h3>So geht’s</h3><ol class="steps-ol">${cookSteps(r, sides).map(([t, m]) => `<li>${esc(t)}${m ? ` <span class="muted">⏲️ ${m} Min.</span>` : ''}</li>`).join('')}</ol>
     <button class="btn green wide" data-a="cookstart">🍳 Jetzt kochen</button></div>`;
   return h;
@@ -1233,6 +1269,7 @@ function delegateModal() {
 }
 
 const FORMS = {
+  ingextra(t) { ui.ingExtra = (ui.ingExtra || []).concat(t.split(',').map(x => x.trim()).filter(Boolean)); render(); const i = document.querySelector('form[data-f="ingextra"] input'); if (i) i.focus(); },
   shopadd(t) { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => S.shop.push({ id: uid(), text: x, done: false })); commit(); shopModal(null, true); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
   decline(t, form) {
     const id = form.dataset.id, x = S.incoming.find(y => y.id === id); if (!x) return;
