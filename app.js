@@ -4,7 +4,7 @@ import * as Sh from './shop.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 
-const VERSION = '2026-10-03.32';
+const VERSION = '2026-10-03.34';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1266,7 +1266,29 @@ function render() {
   }
 }
 
+// ---------- Android's back button: one step back inside the app, never out of it ----------
+// A "guard" entry sits on top of the history; back pops it, we take one step back in the app and put it back.
+// (Chrome skips history entries added without a user tap, so the guard is also re-armed on the next tap.)
+let guarded = false;
+function armBack() { if (!guarded) { try { history.pushState({ gn: 'guard' }, ''); guarded = true; } catch (e) {} } }
+function goBack() {
+  if ($('#ov')) { closeModal(); return; }
+  const v = $('.viewer'), st = $('#story');
+  if (v) { v.remove(); return; }
+  if (st) { st.remove(); render(); return; }
+  if (ui.tab === 'ruhe' && ui.sub === 'cook') {
+    if (ui.cstep != null) { endCookMode(); render(); return; }
+    if (ui.rid) { ui.rid = null; ui.sides = []; render(); return; }
+    ui.sub = null; render(); return;
+  }
+  if (ui.sub) { ui.sub = null; render(); scrollTo(0, 0); return; }
+  if (ui.tab !== 'heute') { ui.tab = 'heute'; render(); scrollTo(0, 0); return; }
+  toast('Du bist auf Heute 🙂');
+}
+addEventListener('popstate', () => { guarded = false; goBack(); armBack(); });
+
 function bind() {
+  document.addEventListener('pointerdown', armBack, true);
   document.addEventListener('click', e => {
     const el = e.target.closest('[data-a]'); if (!el) return;
     const f = A[el.dataset.a]; if (f) { e.preventDefault(); f(el, e); }
@@ -1402,6 +1424,8 @@ async function start() {
   syncPost();
   syncDevices();
   S.timers = [];   // the in-app timer is gone (2026-10-03): nothing left over
+  try { history.replaceState({ gn: 'root' }, ''); } catch (e) {}
+  armBack();
 }
 start();
-window.__gn = { rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
+window.__gn = { goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
