@@ -156,4 +156,30 @@ export const DAYNAMES = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnersta
 export const DAYSHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 export const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
+// The rank (like League of Legends): climbs with ALL stars ever collected (S.earned) — spending never costs a rank.
+// Iron to Diamond have four divisions (IV → I), Master and up are single steps. About 50 stars a week:
+// Bronze after a week, Gold after ~2 months, Diamond after ~9 months, Challenger after 2+ years.
+export const RANKS = [
+  { name: 'Eisen', color: '#8a8d96', dark: '#4b4e57', from: 0 },
+  { name: 'Bronze', color: '#c27c4e', dark: '#6e3f22', from: 50 },
+  { name: 'Silber', color: '#c9d3dc', dark: '#6b7785', from: 150 },
+  { name: 'Gold', color: '#f0c34a', dark: '#9a6b10', from: 350 },
+  { name: 'Platin', color: '#57d0bd', dark: '#1d6f66', from: 700 },
+  { name: 'Smaragd', color: '#3ccf7e', dark: '#12673b', from: 1200 },
+  { name: 'Diamant', color: '#7fb6ff', dark: '#2a4f9a', from: 2000 },
+  { name: 'Meister', color: '#c27cff', dark: '#5d2393', from: 3200, single: true },
+  { name: 'Großmeister', color: '#ff5d6c', dark: '#8f1d2a', from: 4500, single: true },
+  { name: 'Herausforderer', color: '#ffe17a', dark: '#2f6fd1', from: 6000, single: true },
+];
+const DIVS = ['IV', 'III', 'II', 'I'];
+export function rankOf(total) { // → {t (tier index), tier, div, step (0… over all), name, from, to (next step's start, null at the top)}
+  const n = Math.max(0, total || 0);
+  let t = RANKS.length - 1; while (t > 0 && n < RANKS[t].from) t--;
+  const R = RANKS[t], end = RANKS[t + 1] ? RANKS[t + 1].from : null;
+  let d = 0, from = R.from, to = end;
+  if (!R.single && end) { const w = (end - R.from) / 4; d = Math.min(3, Math.floor((n - R.from) / w)); from = Math.round(R.from + d * w); to = d < 3 ? Math.round(R.from + (d + 1) * w) : end; }
+  const step = RANKS.slice(0, t).reduce((a, r) => a + (r.single ? 1 : 4), 0) + d;
+  return { t, tier: R, div: R.single ? '' : DIVS[d], step, name: R.name + '-Nudel' + (R.single ? '' : ' ' + DIVS[d]), from, to };
+}
+
 export const PRAISE = ['Gut gemacht!', 'Erledigt!', 'Abgehakt!', 'Stark!', 'Weg damit!', 'Eins weniger!', 'Läuft!'];
