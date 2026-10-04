@@ -568,3 +568,44 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 
 .nextrow { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; color: var(--ink2); }
 .nextdate { border: 2px solid var(--line); border-radius: 10px; background: var(--paper); padding: 6px 10px; font: 700 16px Nunito, sans-serif; color: var(--ink); }
+
+/* ---------- Nudel-Rush ---------- */
+.gamecard .gc-pic { font-size: 40px; width: 64px; height: 64px; display: grid; place-items: center; background: #e8f1ec; border-radius: 16px; flex: none; }
+.game { position: fixed; inset: 0; z-index: 80; background: #e8f1ec; touch-action: none; user-select: none; -webkit-user-select: none; overscroll-behavior: none; }
+.g-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.g-hud { position: absolute; left: 0; right: 0; top: 0; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 14px 8px; pointer-events: none; }
+.g-count { display: flex; flex-direction: column; align-items: center; background: #fffdf8; border-radius: 16px; padding: 4px 12px 6px; box-shadow: 0 3px 10px rgba(60, 45, 20, .15); transition: transform .08s; min-width: 64px; }
+.g-n { font: 900 28px/1 Nunito, sans-serif; color: #2b2a33; font-variant-numeric: tabular-nums; }
+.g-lbl { font: 800 11px Nunito, sans-serif; color: #6b6676; letter-spacing: .04em; }
+.g-mid { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.g-lvl { font: 700 26px/1 Caveat, cursive; color: #2b2a33; text-align: center; }
+.g-prog { position: relative; height: 9px; border-radius: 5px; background: rgba(43, 42, 51, .14); }
+.g-prog i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 5px; background: #f6c945; }
+.g-prog b { position: absolute; right: -6px; top: -9px; font-size: 18px; }
+.g-btns { display: flex; gap: 6px; pointer-events: auto; }
+.g-ic { width: 42px; height: 42px; border: 0; border-radius: 12px; background: #fffdf8; box-shadow: 0 3px 10px rgba(60, 45, 20, .15); font: 900 15px Nunito, sans-serif; color: #2b2a33; }
+.g-banner { position: absolute; left: 50%; top: 28%; transform: translateX(-50%); font: 700 46px/1 Caveat, cursive; color: #2b2a33; background: #fffdf8; padding: 8px 22px 12px; border-radius: 18px; box-shadow: 0 8px 30px rgba(0, 0, 0, .18); white-space: nowrap; pointer-events: none; animation: g-ban 1.7s ease both; }
+.g-banner.warn { color: #fffdf8; background: #e0543f; }
+@keyframes g-ban { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.8); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.05); } 25% { transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+.g-ov { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(43, 42, 51, .38); }
+.g-ov[hidden] { display: none; }
+.g-card { background: #fffdf8; color: #2b2a33; border-radius: 24px; padding: 22px 20px 16px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 14px 40px rgba(0, 0, 0, .25); animation: pop .3s cubic-bezier(.2, 1.4, .4, 1); }
+.g-title { font: 700 58px/1 Caveat, cursive; color: #e0543f; }
+.g-title.sm { font-size: 42px; }
+.g-card p { margin: 8px 0; color: #6b6676; font-size: 16px; }
+.g-how { list-style: none; padding: 0; margin: 12px 0 4px; display: grid; gap: 7px; text-align: left; font-size: 16px; }
+.g-how li { display: grid; grid-template-columns: 30px 1fr; align-items: center; }
+.g-btn { width: 100%; border: 0; border-radius: 16px; background: #e0543f; color: #fffdf8; font: 900 21px Nunito, sans-serif; padding: 15px; margin-top: 12px; box-shadow: 0 5px 0 #a83a2a; }
+.g-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #a83a2a; }
+.g-link { border: 0; background: none; color: #6b6676; font: 800 16px Nunito, sans-serif; padding: 12px; margin-top: 2px; }
+.g-best { font: 700 24px Caveat, cursive; color: #4f9a5b !important; }
+.g-perks { display: grid; gap: 10px; margin-top: 10px; }
+.g-pk { display: grid; grid-template-columns: 46px 1fr; gap: 8px; align-items: center; text-align: left; border: 2px solid #d3e3da; background: #eef5f1; border-radius: 16px; padding: 10px 12px; color: #2b2a33; font: 800 17px Nunito, sans-serif; }
+.g-pk span:first-child { font-size: 32px; text-align: center; }
+.g-pk small { display: block; font: 600 14px Nunito, sans-serif; color: #6b6676; }
+.g-pk:active { transform: scale(.98); }
+.g-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.g-stats div { background: #eef5f1; border-radius: 14px; padding: 10px 4px; }
+.g-stats b { display: block; font: 700 34px/1 Caveat, cursive; color: #e0543f; }
+.g-stats span { font: 800 12px Nunito, sans-serif; color: #6b6676; }
+.game button:focus-visible { outline: 3px solid #4f9a5b; outline-offset: 2px; }

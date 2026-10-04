@@ -4,8 +4,9 @@ import * as Sh from './shop.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
+import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-04.19';
+const VERSION = '2026-10-04.20';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1688,9 +1689,22 @@ function viewHome() {
     <button class="card hcard tr" data-a="go" data-tab="schaetze"><b>📖 ${pages ? 'Fotobuch' : 'Geheimes Buch'}</b><span class="muted">${pages} von ${C.BOOK_PAGES} Seiten</span><span class="bar"><i style="width:${pages / C.BOOK_PAGES * 100}%"></i></span></button>
     <button class="card hcard tr" data-a="go" data-tab="schaetze"><b>🌿 Pflanze</b><span class="muted">${esc(C.STAGES[Math.min(stage, C.STAGES.length - 1)])}</span><span class="bar"><i style="width:${Math.min(1, stage / (C.STAGES.length - 1)) * 100}%;background:var(--green)"></i></span></button></div>
     ${S.stars >= Math.min(C.pageCost(pages), C.STAGE_COST) ? `<button class="btn wide" data-a="go" data-tab="schaetze">⭐ ${S.stars} Sterne – genug für was Neues!</button>` : `<p class="hint" style="text-align:center">⭐ ${S.stars} Sterne zum Ausgeben</p>`}`;
+  const gb = (S.game && S.game.best) || 0;
+  h += `<div class="sec-title">Kleine Pause?</div><button class="card hcard gamecard" data-a="game"><span class="gc-pic" aria-hidden="true">🍝</span>
+    <span class="hc-txt"><b>Nudel-Rush</b><span class="muted">Führ deine Nudeln durch die Küche und putz das Chaos weg.${gb ? ' Dein Rekord: Küche ' + gb + '.' : ''}</span></span><span class="hc-go">›</span></button>`;
   return h;
 }
 A.splash = () => { pickSplash(); render(); };
+// Nudel-Rush (spiel.js): no stars, no comparison – just your own record on your own devices
+let game = null;
+A.game = () => {
+  if (game) return;
+  game = openGame({
+    best: (S.game && S.game.best) || 0,
+    onBest: b => { S.game = { ...(S.game || {}), best: b }; S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); },
+    onClose: () => { game = null; render(); },
+  });
+};
 
 // ---------- render ----------
 const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Liste']];
@@ -1718,6 +1732,7 @@ function render() {
 let guarded = false;
 function armBack() { if (!guarded) { try { history.pushState({ gn: 'guard' }, ''); guarded = true; } catch (e) {} } }
 function goBack() {
+  if (game) { game.back(); return; }
   if ($('#ov')) { closeModal(); return; }
   const v = $('.viewer'), st = $('#story');
   if (v) { v.remove(); return; }
@@ -1795,6 +1810,7 @@ function mergeStates(local, remote) {
   m.thanksSeen = [...new Set([].concat(newer.thanksSeen || [], older.thanksSeen || []))].slice(-200);
   m.cook = Object.assign({}, older.cook || {}, newer.cook || {});
   m.answered = Object.assign({}, older.answered || {}, newer.answered || {});
+  m.game = { best: Math.max((newer.game || {}).best || 0, (older.game || {}).best || 0) };
   m.book = { pages: Math.max((newer.book || {}).pages || 0, (older.book || {}).pages || 0) };
   m.updatedAt = Math.max(local.updatedAt || 0, remote.updatedAt || 0) + 1;
   return m;
