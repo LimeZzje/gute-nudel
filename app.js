@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.7';
+const VERSION = '2026-10-04.8';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -524,6 +524,8 @@ function weekStats(mon) {
     pages: log.filter(e => e.kind === 'unlock' && e.what === 'page').length,
     stages: log.filter(e => e.kind === 'unlock' && e.what === 'stage').length,
     treats: log.filter(e => e.kind === 'reward').length,
+    // handed-over tasks (older entries have no n: "3 Aufgaben an … abgegeben")
+    sent: log.filter(e => e.kind === 'delegate').reduce((a, e) => a + (e.n || parseInt(e.text) || 1), 0),
     moods: log.filter(e => e.mood),
   };
 }
@@ -539,7 +541,7 @@ function moodByTask(log) {
 function viewWoche() {
   const mon = monday(today()), w = weekStats(mon), max = Math.max(1, ...w.per.map(p => p.work + p.rest));
   let h = `<button class="card wide rankwrap" data-a="rank">${rankCard(false)}</button><div class="sec-title" style="margin-top:6px">Diese Woche</div>
-    <div class="stat-row"><button class="stat" data-a="weeklog" data-k="work" data-w="${mon}"><b>${w.work}</b><span>erledigt ›</span></button><button class="stat" data-a="weeklog" data-k="rest" data-w="${mon}"><b>${w.rest}</b><span>entspannt ›</span></button><div class="stat"><b>${w.stars}</b><span>Sterne</span></div></div>
+    <div class="stat-row"><button class="stat" data-a="weeklog" data-k="work" data-w="${mon}"><b>${w.work}</b><span>erledigt ›</span></button><button class="stat" data-a="weeklog" data-k="rest" data-w="${mon}"><b>${w.rest}</b><span>entspannt ›</span></button><button class="stat" data-a="weeksent" data-w="${mon}"><b>${w.sent}</b><span>abgegeben ›</span></button><div class="stat"><b>${w.stars}</b><span>Sterne</span></div></div>
     <div class="card" style="margin-top:14px"><div class="weekbars">${w.per.map(p => `<div><i style="height:${p.work / max * 100}%"></i>${p.rest ? `<i class="rest" style="height:${p.rest / max * 100}%"></i>` : ''}${C.DAYSHORT[parse(p.d).getDay()]}</div>`).join('')}</div>
     <p class="muted" style="text-align:center;margin:6px 0 0"><span style="color:var(--accent)">■</span> erledigt &nbsp; <span style="color:#7b62b8">■</span> entspannt</p></div>
     <button class="btn wide" data-a="story" data-w="${mon}">✨ Wochenrückblick ansehen</button>`;
@@ -555,7 +557,7 @@ function viewWoche() {
   const past = [];
   for (let i = 1; i <= 8; i++) { const m = addDays(mon, -7 * i); const s = weekStats(m); if (s.log.length) past.push(s); }
   if (past.length) {
-    h += `<div class="sec-title">Frühere Wochen</div>` + past.map(s => `<button class="card btn soft wide" data-a="story" data-w="${s.mon}" style="text-align:left;display:flex;justify-content:space-between"><span>${shortDate(s.mon)} – ${shortDate(addDays(s.mon, 6))}</span><span>${s.work} erledigt · ${s.rest} entspannt</span></button>`).join('');
+    h += `<div class="sec-title">Frühere Wochen</div>` + past.map(s => `<button class="card btn soft wide" data-a="story" data-w="${s.mon}" style="text-align:left;display:flex;justify-content:space-between"><span>${shortDate(s.mon)} – ${shortDate(addDays(s.mon, 6))}</span><span>${s.work} erledigt · ${s.rest} entspannt${s.sent ? ' · ' + s.sent + ' abgegeben' : ''}</span></button>`).join('');
   }
   return h;
 }
@@ -708,7 +710,7 @@ const A = {
     const listOf = i => { const c = i.chore && S.chores.find(x => x.id === i.chore); return c && (c.tools || []).includes('list') && S.shop.some(x => !x.done) ? S.shop.filter(x => !x.done).map(x => x.text) : (i.list ? i.list.filter(x => !x.done).map(x => x.text) : null); };
     picked.forEach(i => { const list = listOf(i); S.sent.push({ id: uid(), text: i.text, today: !!ui.dtoday, ts: Date.now(), status: 'wartet', ...(list ? { list } : {}) }); });
     picked.forEach(i => { const c = i.chore && S.chores.find(x => x.id === i.chore); if (c) c.last = today(); });   // handed over counts as handled
-    S.log.push({ id: uid(), text: picked.length + (picked.length === 1 ? ' Aufgabe' : ' Aufgaben') + ' an ' + pn() + ' abgegeben', kind: 'delegate', day: today(), ts: Date.now(), stars: 1 }); earn(1);
+    S.log.push({ id: uid(), text: picked.length + (picked.length === 1 ? ' Aufgabe' : ' Aufgaben') + ' an ' + pn() + ' abgegeben', kind: 'delegate', n: picked.length, day: today(), ts: Date.now(), stars: 1 }); earn(1);
     closeModal(); commit(true);
     modal(`<h2>Abgegeben!</h2><p>Nicht alles allein machen zu müssen, ist auch eine Stärke.</p><p>+1 gute Nudel Stern ⭐</p><p class="muted">${esc(pn())} sieht ${picked.length === 1 ? 'die Aufgabe' : 'die Aufgaben'} beim nächsten Öffnen der App.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
   },
@@ -1027,6 +1029,16 @@ const A = {
     commit(); weekLogModal(); toast('Entfernt');
   },
   weeklogback() { weekLogModal(); },
+  weeksent(el) { // this week's handed-over tasks and what became of them
+    const days = weekDays(el.dataset.w), from = parse(days[0]).getTime() + 3 * 3600e3, to = from + 7 * 864e5;
+    const list = S.sent.filter(x => x.ts >= from && x.ts < to).sort((a, b) => b.ts - a.ts), n = weekStats(el.dataset.w).sent;
+    const lbl = { wartet: ['wartet', ''], ok: ['übernommen 💛', ''], erledigt: ['erledigt 🎉', 'st-erledigt'], nein: ['zurück', 'st-nein'], weg: ['zurückgeholt', 'st-nein'] };
+    modal(`<div style="text-align:left"><h2 style="text-align:center">🤝 Abgegeben</h2>
+      <p class="muted" style="text-align:center">${n === 1 ? 'Eine Aufgabe' : n + ' Aufgaben'} diese Woche an ${esc(pn())} – du musst nicht alles allein machen.</p>
+      ${list.length ? `<ul class="list-plain">${list.map(x => `<li><span>${esc(x.text)}${x.status === 'nein' && x.reason ? `<br><span class="muted">„${esc(x.reason)}“</span>` : ''}${x.thanked ? ' ' + x.thanked : ''}</span><span class="st ${(lbl[x.status] || ['', ''])[1]}">${(lbl[x.status] || [x.status])[0]}</span></li>`).join('')}</ul>`
+        : `<p class="muted">Die Einzelheiten sind schon aufgeräumt – gezählt bleibt’s trotzdem.</p>`}
+      <div class="row"><button class="btn soft" data-a="close">Schließen</button></div></div>`);
+  },
   storyclose() { const s = $('#story'); if (s) s.remove(); render(); },
   settings, settingsclose() {
     const n = $('#s-name'), k = $('#s-nick');

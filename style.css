@@ -191,7 +191,8 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .list-plain li span { flex: 1; }
 
 /* ---------- week ---------- */
-.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+@media (max-width: 379px) { .stat span { font-size: 11.5px; } }
 .stat { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); padding: 12px 8px; text-align: center; border: 0; }
 .stat b { display: block; font: 700 40px/1 Caveat, cursive; color: var(--accent); }
 .stat span { font-size: 13px; color: var(--ink2); font-weight: 700; }
