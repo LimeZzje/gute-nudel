@@ -562,3 +562,6 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 
 .tm-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .tm-btns .au-btn { padding: 14px 6px; }
+
+.card.early { display: flex; flex-direction: column; gap: 4px; text-align: center; border: 2px dashed var(--green); }
+.card.early b { font: 700 30px/1.1 Caveat, cursive; color: var(--green); }

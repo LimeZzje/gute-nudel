@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.16';
+const VERSION = '2026-10-04.17';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -31,6 +31,11 @@ const isWork = e => e.kind === 'task' || e.kind === 'extra';
 const isRest = e => e.kind === 'rest';
 const dayLog = k => S.log.filter(e => e.day === k);
 const workToday = () => dayLog(today()).filter(isWork);
+// "Tag geschafft" only in the evening: before S.endTime (default 18:00) a ticked-off page is just "Alles abgehakt"
+const endTime = () => S.endTime || '18:00';
+const evening = () => { const n = new Date(), hm = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'); return n.getHours() < 3 || hm >= endTime(); };
+const allTicked = () => S.today.planned && !S.items.some(i => i.where === 'heute') && workToday().length > 0;
+const dayDone = () => S.today.planned && (S.today.closed || (allTicked() && evening()));
 
 // ---------- saving ----------
 function commit(post = false) {
@@ -260,7 +265,10 @@ function viewHeute() {
   if (!S.weeksSeen.includes(lastMon) && S.log.some(e => weekDays(lastMon).includes(e.day)))
     h += `<button class="card btn soft wide" data-a="story" data-w="${lastMon}" style="text-align:left">✨ <b>Dein Wochenrückblick ist da.</b><br><span class="muted">Schau dir an, was du letzte Woche alles geschafft hast.</span></button>`;
 
-  const finished = S.today.planned && (S.today.closed || (heute.length === 0 && done.length > 0));
+  const finished = dayDone(), early = !finished && allTicked();
+  if (early) {
+    h += `<div class="card early"><b>Alles abgehakt! 🎉</b><span class="muted">Hol dir noch was aus der Liste – oder genieß die Lücke. Ab ${esc(endTime())} ist offiziell Feierabend.</span></div>`;
+  }
   if (finished) {
     h += `<div class="celebrate"><div class="big">Tag geschafft!</div>
       <p>${done.length === 1 ? 'Eine Sache' : done.length + ' Sachen'} erledigt. Für heute ist Schluss – der Rest wartet bis morgen.</p>
@@ -274,7 +282,7 @@ function viewHeute() {
   const due = heute.filter(i => i.chore);
   if (!S.today.planned && heute.length === due.length && done.length === 0) {
     if (due.length) h += `<p class="sub" style="margin-bottom:4px">🔁 Heute fällig – steht schon drauf:</p>` + due.map(i => `<div class="item"><span class="txt"><span>${esc(i.text)}</span>${tags(i)}</span><button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht – morgen wieder">⏭</button></div>`).join('');
-    h += `<p class="sub">${S.name ? 'Hallo ' + esc(S.name) + '! ' : ''}Was kommt heute auf deine Seite? 3–5 Sachen reichen völlig – den Rest hebt die Liste für dich auf.</p>`;
+    h += `<p class="sub">${S.name ? 'Hallo ' + esc(S.name) + '! ' : ''}Was kommt heute auf deine Seite? Hol dir, was du angehen magst – den Rest hebt die Liste für dich auf.</p>`;
     if (liste.length) {
       h += liste.map(i => `<button class="pick ${ui.picks.has(i.id) ? 'on' : ''}" data-a="pickday" data-id="${i.id}"><span class="box">${ui.picks.has(i.id) ? '✓' : ''}</span><span>${esc(i.text)}${i.carried ? '<span class="tag">von gestern</span>' : ''}${tags(i).replace(/<button[^>]*toolbtn[\s\S]*?<\/button>/g, '')}</span></button>`).join('');
     }
@@ -288,7 +296,7 @@ function viewHeute() {
   h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i)}</div>${i.chore ? `<button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht – morgen wieder">⏭</button>` : `<button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button>`}</div>`).join('');
   if (!finished) {
     h += `<form class="add" data-f="addtoday"><input name="t" placeholder="Noch etwas für heute…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
-    h += `<div class="row" style="margin-top:12px">${liste.length ? '<button class="btn soft" data-a="fromlist">Aus der Liste holen</button>' : ''}${heute.length ? '<button class="btn soft" data-a="closeday">Für heute Schluss</button>' : ''}</div>`;
+    h += `<div class="row" style="margin-top:12px">${liste.length ? '<button class="btn soft" data-a="fromlist">Aus der Liste holen</button>' : ''}${heute.length || early ? '<button class="btn soft" data-a="closeday">Für heute Schluss</button>' : ''}</div>`;
     if (D.canPost() && S.items.length) h += `<button class="btn soft wide" data-a="delegate" style="margin-top:10px">🤝 An ${esc(pn())} abgeben</button>`;
   }
   if (done.length) {
@@ -362,10 +370,16 @@ function afterWork(count, post = false) {
       <div class="row"><button class="btn" data-a="go" data-tab="ruhe" data-q="gemuetlich">Gemütlich machen</button><button class="btn soft" data-a="close">Okay</button></div>`);
     return;
   }
-  const heute = S.items.filter(i => i.where === 'heute');
-  if (S.today.planned && heute.length === 0 && !S.today.celebrated && ui.tab === 'heute' && ui.htab === 'heute') {
-    S.today.celebrated = true; commit(); confetti();
+  if (allTicked() && ui.tab === 'heute' && ui.htab === 'heute') {
+    if (evening()) { if (!S.today.celebrated) { S.today.celebrated = true; commit(); confetti(); } }
+    else confetti(30);
   }
+}
+// the clock passes "Feierabend" while everything is already ticked: now it's really "Tag geschafft"
+function checkEvening() {
+  if (!allTicked() || !evening() || S.today.celebrated || S.today.closed) return;
+  S.today.celebrated = true; commit();
+  if (document.visibilityState === 'visible' && (ui.tab === 'heute' || ui.tab === 'home')) confetti();
 }
 
 // ---------- LISTE ----------
@@ -658,6 +672,7 @@ function settings() {
   modal(`<div style="text-align:left"><h2 style="text-align:center">Einstellungen</h2>
     <label class="field"><span>Wie soll dich die App nennen?</span><input id="s-name" value="${esc(S.name)}" placeholder="Dein Name (optional)"></label>
     <label class="field"><span>Wie heißt dein Partner hier? (Spitzname)</span><input id="s-nick" value="${esc(pn() === 'Partner' ? '' : pn())}" placeholder="${esc(S.partnerName || 'Name')}"></label>
+    <label class="field"><span>Feierabend ab (dann heißt es „Tag geschafft!“)</span><input id="s-end" type="time" value="${esc(endTime())}"></label>
     <h3 style="margin:18px 0 4px">☁ Sicherung</h3>
     <div class="status"><span class="dot ${dot}"></span>${esc(txt)}</div>
     ${days !== null && days < 21 ? `<div class="warn">Der Sicherungs-Schlüssel läuft in ${days} Tagen ab. Bitte einen neuen eintragen.</div>` : ''}
@@ -1082,6 +1097,7 @@ const A = {
     const n = $('#s-name'), k = $('#s-nick');
     if (n && n.value.trim() !== S.name) S.name = n.value.trim();
     if (k && k.value.trim() !== pn()) S.partnerNick = k.value.trim();   // empty = use the name they chose
+    const e = $('#s-end'); if (e && /^\d\d:\d\d$/.test(e.value)) S.endTime = e.value;
     commit(); closeModal();
   },
   cfgsave: saveCfgAndTest,
@@ -1615,13 +1631,13 @@ function viewHome() {
     <button class="splash" data-a="splash" aria-label="Neuer Spruch"><span class="${ui.splash.length > 26 ? 'long' : ''}">${esc(ui.splash)}</span></button></section>`;
   h += incomingCard() + giftCards();
   // today
-  const finished = S.today.planned && (S.today.closed || (heute.length === 0 && done.length > 0));
+  const finished = dayDone();
   const all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
   h += `<button class="card hcard today-card" data-a="go" data-tab="heute">
     <svg class="ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${R}" class="ring-bg"/><circle cx="42" cy="42" r="${R}" class="ring-fg" style="stroke-dasharray:${U};stroke-dashoffset:${U * (1 - p)}"/></svg>
     <span class="ring-n">${finished ? '🎉' : all ? done.length + '<small>/' + all + '</small>' : '–'}</span>
-    <span class="hc-txt"><b>${finished ? 'Tag geschafft!' : !S.today.planned && !done.length ? 'Noch nichts geplant' : heute.length === 0 ? 'Alles erledigt' : heute.length === 1 ? 'Noch eine Sache' : 'Noch ' + heute.length + ' Sachen'}</b>
-      <span class="muted">${finished ? 'Der Rest wartet bis morgen.' : !S.today.planned && !done.length ? '3–5 Sachen reichen völlig.' : done.length ? done.length + ' heute schon geschafft' : 'Du schaffst das.'}${heute.filter(i => i.chore).length ? ' · 🔁 ' + heute.filter(i => i.chore).length + ' fällig' : ''}</span></span><span class="hc-go">›</span></button>`;
+    <span class="hc-txt"><b>${finished ? 'Tag geschafft!' : !S.today.planned && !done.length ? 'Noch nichts geplant' : heute.length === 0 ? 'Alles abgehakt! 🎉' : heute.length === 1 ? 'Noch eine Sache' : 'Noch ' + heute.length + ' Sachen'}</b>
+      <span class="muted">${finished ? 'Der Rest wartet bis morgen.' : !S.today.planned && !done.length ? 'Hol dir was aus der Liste.' : done.length ? done.length + ' heute schon geschafft' : 'Du schaffst das.'}${heute.filter(i => i.chore).length ? ' · 🔁 ' + heute.filter(i => i.chore).length + ' fällig' : ''}</span></span><span class="hc-go">›</span></button>`;
   // next appointments (today + tomorrow) and the car
   const now = Car.localISO(new Date()), tm = addDays(t, 1);
   const soon = carAll(Car.live, false).filter(b => shared(b) && forMe(b) && carDay(b.start) <= tm && b.end > now).slice(0, 3);
@@ -1724,9 +1740,9 @@ function bind() {
   setInterval(() => { if (document.visibilityState === 'visible') syncPost(); }, 90000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') D.flushBackup();
-    else { if (rollover()) commit(); syncPost(); syncDevices(); }
+    else { if (rollover()) commit(); checkEvening(); syncPost(); syncDevices(); }
   });
-  setInterval(() => { if (rollover()) commit(); }, 60000);
+  setInterval(() => { if (rollover()) commit(); checkEvening(); }, 60000);
 }
 
 function welcome() {
