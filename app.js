@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.14';
+const VERSION = '2026-10-04.15';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1662,7 +1662,7 @@ function viewHome() {
   const ps = S.partnerStats && S.partnerStats.day === t ? S.partnerStats : null;
   const wk = weekDays(monday(t)), took = S.sent.filter(x => (x.status === 'ok' || x.status === 'erledigt') && wk.includes(key(new Date(x.ts - 3 * 3600e3)))).length;
   h += `<div class="sec-title">Ihr zwei</div><div class="card team">
-    ${ps ? `<div class="team-n"><b>${done.length + ps.done}</b><span>heute zusammen geschafft</span></div><div class="team-split"><span>${esc(S.name || 'Du')} <b>${done.length}</b></span><span>${esc(pn())} <b>${ps.done}</b></span></div>`
+    ${ps ? `<div class="team-n"><b>${done.length + ps.done}</b><span>heute zusammen geschafft</span></div>`
       : `<p class="muted" style="margin:0">Sobald ${esc(pn())} heute die App öffnet, steht hier, was ihr zusammen schafft.</p>`}
     ${took ? `<p class="team-l">🤝 ${esc(pn())} hat dir diese Woche ${took === 1 ? 'eine Aufgabe' : took + ' Aufgaben'} abgenommen.</p>` : ''}
     ${(S.thanksSeen || []).length ? `<p class="team-l">💛 ${(S.thanksSeen || []).length}× Danke von ${esc(pn())} bekommen.</p>` : ''}
