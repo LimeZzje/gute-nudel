@@ -306,10 +306,17 @@ textarea { width: 100%; border: 2px solid var(--line); border-radius: 12px; back
 
 /* ---------- week planner ---------- */
 .weekstrip { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; padding: 10px 6px; gap: 2px; }
-.weekstrip div { border-radius: 10px; padding: 4px 0; }
-.weekstrip div.today { background: var(--accent2); }
-.weekstrip b { display: block; font-size: 13px; color: var(--ink2); }
-.weekstrip span { display: block; font-size: 17px; line-height: 1.3; word-break: break-all; min-height: 22px; }
+.weekstrip > button { border: 2px solid transparent; background: none; border-radius: 10px; padding: 4px 0 6px; min-width: 0; color: inherit; font: inherit; }
+.weekstrip > button.today { background: var(--accent2); }
+.weekstrip > button.sel { border-color: var(--blue); }
+.weekstrip > button.past b, .weekstrip > button.past small { opacity: .55; }
+.weekstrip b { display: block; font-size: 13px; color: var(--ink2); line-height: 1.2; }
+.weekstrip small { display: block; font-size: 11px; color: var(--ink2); font-weight: 700; }
+.weekstrip span { display: flex; flex-direction: column; align-items: center; font-size: 17px; line-height: 1.3; min-height: 22px; margin-top: 2px; }
+.weekstrip i { font-style: normal; position: relative; }
+.weekstrip i.plan { opacity: .45; }
+.weekstrip i.done::after { content: '✓'; position: absolute; right: -7px; bottom: -2px; font-size: 11px; font-weight: 900; color: var(--green); }
+.wkdetail h3 { margin: 0 0 6px; }
 .list-plain.chores li .cw { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .cwtop { display: flex; align-items: center; justify-content: space-between; }
 .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
@@ -483,3 +490,9 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .au-custom input { width: 80px; flex: none; }
 .au-custom select { flex: 1; background: #17181b; color: #f2f2f2; border: 0; border-bottom: 1px solid #5a5d63; border-radius: 0; padding: 10px 8px; font: 16px inherit; font-family: inherit; color-scheme: dark; }
 .au-reps { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .au-reps .au-chip { margin-top: 0; }
+
+.wknav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px 4px 8px; font-size: 15px; color: var(--ink2); }
+.wknav b { color: var(--ink); }
+.wknav .mini-btn { font-size: 22px; }
+.wknav .mini-btn:disabled { opacity: .25; }
+.weekstrip { align-items: start; }
