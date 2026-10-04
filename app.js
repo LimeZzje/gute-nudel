@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.18';
+const VERSION = '2026-10-04.19';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1454,7 +1454,7 @@ function viewTermine() {
       <div class="au-trim">Was ihr zusammen vorhabt – und wer das Auto hat</div>
       <div class="au-status">${todays.length ? '<span class="au-dot busy"></span>' : '<span class="au-dot"></span>'}<span>${todays.length ? 'Heute ' + (todays.length === 1 ? 'ein Termin' : todays.length + ' Termine') : 'Heute nichts – herrlich'}${next ? ` · als Nächstes <b>${esc(next.note || 'Termin')}</b>, ${carDayLabel(carDay(next.start))} ${carTime(next.start)}` : ''}</span></div>
     </div>
-    <div class="tm-btns"><button class="au-btn" data-a="carnew" data-car="0">Termin eintragen</button><button class="au-btn ghost" data-a="carnew" data-car="1">🚗 Auto reservieren</button></div>
+    <button class="au-btn" data-a="carnew" data-car="0">Termin eintragen</button>
     ${carCalendar(false)}
     <div class="au-h">Alle kommenden Termine</div>
     ${termList(all, 'Nichts geplant. Genießt es.')}
@@ -1583,7 +1583,7 @@ Object.assign(A, {
     const dates = Car.live([{ id: 'neu', ...rule }]);
     f.err = !f.sd || !f.st || !f.ed || !f.et ? 'Bitte Datum und Uhrzeit ausfüllen.' : end <= start ? 'Das Ende muss nach dem Anfang liegen.'
       : f.rep && f.until && f.until < f.sd ? 'Das „Bis“ liegt vor dem ersten Termin.' : !dates.length ? 'Das liegt schon in der Vergangenheit.'
-      : f.from === 'termine' && !f.note ? 'Was ist es denn? Ein Wort reicht.' : '';
+      : !f.car && !f.note ? 'Was ist es denn? Ein Wort reicht.' : '';   // the car alone needs no title
     if (f.err) { carModal(true); return; }
     if (!el.dataset.force && f.car) {
       await syncPost();
