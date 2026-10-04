@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.1';
+const VERSION = '2026-10-04.2';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1293,8 +1293,8 @@ function viewAuto() {
     <div class="au-hero">
       <div class="au-kicker">Unser Auto</div>
       <div class="au-model">A1 Sportback</div>
-      <div class="au-trim">S line · Arrowgrau</div>
-      <div class="au-car">${Car.carSVG()}</div>
+      <div class="au-trim">S line · Chronosgrau</div>
+      <div class="au-car"><img id="a1img" alt="Unser A1" hidden></div>
       <div class="au-status">${using ? `<span class="au-dot busy"></span>Gerade unterwegs mit <b>${using.mine ? 'dir' : esc(pn())}</b> · bis ${carTime(using.end)}`
         : `<span class="au-dot"></span>Jetzt frei${next ? ` · als Nächstes ${next.mine ? 'du' : esc(pn())}, ${carDayLabel(carDay(next.start))} ${carTime(next.start)}` : ''}`}</div>
     </div>
@@ -1381,6 +1381,7 @@ function render() {
   $('#main').innerHTML = VIEWS[ui.tab]();
   renderTop();
   if (refocus) { const i = document.querySelector(`form[data-f="${refocus}"] input`); if (i) i.focus(); }
+  if (ui.tab === 'ruhe' && ui.qtab === 'auto' && !ui.sub) D.carURL().then(u => { const i = $('#a1img'); if (u && i) { i.src = u; i.hidden = false; } });
   if (ui.tab === 'schaetze') {
     hydratePhotos($('#main'));
     if (!ui.sub && S.book.pages) D.photoURL(1).then(u => { const t = $('#bookthumb'); if (u && t) t.innerHTML = `<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">`; });

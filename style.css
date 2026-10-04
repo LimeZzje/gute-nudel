@@ -372,11 +372,10 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .au-trim { font-size: 13px; color: var(--au-dim); letter-spacing: .06em; margin-top: 2px; }
 .au-car { margin: 6px -10px -4px; position: relative; }
 .au-car::after { content: ''; position: absolute; left: 12%; right: 12%; bottom: 8%; height: 1px; background: linear-gradient(90deg, transparent, rgba(245, 5, 55, .55), transparent); }
-.a1 { width: 100%; height: auto; display: block; }
-.a1 .a1drl { animation: drl 1.6s ease-out both; }
-.a1 .a1tail { filter: drop-shadow(0 0 3px #ff2a3a); }
-@keyframes drl { 0% { opacity: 0; } 30% { opacity: 1; stroke: #fff; } 45% { opacity: .35; } 100% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .a1 .a1drl { animation: none; } }
+.au-car { min-height: 120px; }
+.au-car img { width: 100%; height: auto; display: block; animation: au-in .9s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes au-in { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .au-car img { animation: none; } }
 .au-status { font-size: 14px; color: var(--au-txt); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--au-line); padding-top: 12px; margin-top: 4px; }
 .au-status b { font-weight: 600; }
 .au-dot { width: 8px; height: 8px; border-radius: 50%; background: #3ccf6e; box-shadow: 0 0 8px #3ccf6e; flex: none; }

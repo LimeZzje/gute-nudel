@@ -236,16 +236,18 @@ export const readPartnerPost = () => getJSON('post/' + partner() + '.json');
 // ---------- photos ----------
 const pad = n => String(n).padStart(2, '0');
 const urls = {};
-export async function photoURL(n) { // object URL of book photo n (1-based); cached on the phone after first load
-  if (urls[n]) return urls[n];
+async function privateURL(key, path, type) { // object URL of a picture in the private repo; cached on the phone after first load
+  if (urls[key]) return urls[key];
   let blob = null;
-  try { blob = await idb('photos', 'readonly', s => s.get(n)); } catch (e) {}
+  try { blob = await idb('photos', 'readonly', s => s.get(key)); } catch (e) {}
   if (!blob) {
     if (!configured(getCfg()) || !navigator.onLine) return null;
-    const r = await gh('fotos/' + pad(n) + '.jpg', { raw: true });
+    const r = await gh(path, { raw: true });
     if (!r.ok) return null;
-    blob = new Blob([await r.arrayBuffer()], { type: 'image/jpeg' });
-    try { await idb('photos', 'readwrite', s => s.put(blob, n)); } catch (e) {}
+    blob = new Blob([await r.arrayBuffer()], { type });
+    try { await idb('photos', 'readwrite', s => s.put(blob, key)); } catch (e) {}
   }
-  return (urls[n] = URL.createObjectURL(blob));
+  return (urls[key] = URL.createObjectURL(blob));
 }
+export const photoURL = n => privateURL(n, 'fotos/' + pad(n) + '.jpg', 'image/jpeg');   // book photo n (1-based)
+export const carURL = () => privateURL('auto-1', 'fotos/auto.webp', 'image/webp');      // their own A1 (shows the plate → private); new photo = new key
