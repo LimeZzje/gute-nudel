@@ -612,3 +612,25 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .g-buffs { display: flex; justify-content: center; gap: 6px; min-height: 20px; }
 .g-buffs span { background: #fffdf8; border-radius: 10px; padding: 1px 8px; font: 900 13px Nunito, sans-serif; color: #2b2a33; box-shadow: 0 2px 6px rgba(60, 45, 20, .15); }
 .g-banner { max-width: calc(100vw - 32px); white-space: normal; text-align: center; font-size: 34px; }
+
+/* Nudel-Rush Turbo */
+.g-card.wide { max-width: 420px; }
+.g-sub { font-weight: 800; color: #6b6676 !important; font-size: 15px !important; }
+.g-levels { display: grid; gap: 8px; margin: 12px 0 6px; }
+.g-lv { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "n p" "s s" "b b"; gap: 2px 10px; text-align: left; border: 2px solid #d3e3da; background: #eef5f1; border-radius: 14px; padding: 10px 12px; color: #2b2a33; font-family: Nunito, sans-serif; }
+.g-lv:active { transform: scale(.98); }
+.g-lv.done { border-color: #5aa866; }
+.g-lv.endless { background: #2b2a33; color: #fffdf8; border-color: #2b2a33; }
+.g-lvn { grid-area: n; font-weight: 900; font-size: 18px; }
+.g-lvp { grid-area: p; font-weight: 900; font-size: 15px; font-variant-numeric: tabular-nums; align-self: center; }
+.g-lvs { grid-area: s; color: #e3a92b; font-size: 13px; letter-spacing: 1px; }
+.g-lvs i { color: #c9d3cd; font-style: normal; }
+.g-lv.endless .g-lvs { color: #c9c4d4; letter-spacing: 0; font-weight: 700; }
+.g-lvb { grid-area: b; height: 6px; border-radius: 3px; background: rgba(43, 42, 51, .12); position: relative; overflow: hidden; }
+.g-lvb i { position: absolute; left: 0; top: 0; bottom: 0; background: #5aa866; border-radius: 3px; }
+.g-lv.endless .g-lvb { display: none; }
+.g-practice { display: flex; gap: 8px; align-items: center; justify-content: center; font: 700 14px Nunito, sans-serif; color: #6b6676; margin-top: 8px; }
+.g-practice input { width: 20px; height: 20px; accent-color: #5bb6e8; }
+.g-pct { font: 900 20px/1 Nunito, sans-serif; color: #2b2a33; text-align: center; font-variant-numeric: tabular-nums; }
+.g-attempt { position: absolute; left: 0; right: 0; top: 34%; text-align: center; font: 700 52px/1 Caveat, cursive; color: rgba(43, 42, 51, .75); pointer-events: none; animation: g-att 1.6s ease both; }
+@keyframes g-att { 0% { opacity: 0; transform: scale(.9); } 15% { opacity: 1; transform: scale(1); } 70% { opacity: 1; } 100% { opacity: 0; } }
