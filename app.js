@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.17';
+const VERSION = '2026-10-04.18';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -157,6 +157,17 @@ function choreWhen(c) { // "heute", "morgen", "in 3 Tagen", "Mo"
     if (choreDue(x, k)) return n === 1 ? 'morgen' : c.week && c.week.length ? C.DOW[parse(k).getDay()] + ', ' + shortDate(k) : 'in ' + n + ' Tagen';
   }
   return '–';
+}
+function choreNext(c) { // the next day it is due (today, if it still is)
+  const d = today(), doneToday = S.log.some(e => e.day === d && e.chore === c.id);
+  for (let n = doneToday ? 1 : 0; n <= 400; n++) { const k = addDays(d, n); if (choreDue(c, k)) return k; }
+  return addDays(d, c.every || 7);
+}
+// "alle N Tage" from a chosen day: due on that day, then every N days (as if it was last done N days before)
+function setChoreNext(c, k) {
+  c.last = addDays(k, -(c.every || 7)); c.skip = null;
+  if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
+  scheduleChores();
 }
 const choreRhythm = c => c.week && c.week.length ? 'jeden ' + c.week.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(x => C.DOW[x]).join(' & ') : c.every === 1 ? 'jeden Tag' : 'alle ' + c.every + ' Tage';
 // a changed plan never touches today's page: not there yet → from tomorrow; there but today no longer chosen → off again
@@ -466,9 +477,10 @@ function weekPlanner() {
       : `<p class="muted" style="margin:0">${sel < t ? 'Nichts aus Nestpflege erledigt.' : 'Nichts geplant – frei. 🛋️'}</p>`}
       <p class="hint">✓ = erledigt · durchsichtig = kommt noch. Tipp auf einen Tag zeigt, was dran ist.</p></div>`;
     h += `<div class="sec-title" style="font-size:24px">Deine Aufgaben & ihre Tage</div><div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span class="cw"><span class="cwtop"><b>${esc(c.icon)} ${esc(c.name)}</b><span><button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></span></span>
-      <span class="days">${C.WEEK_ORDER.map(d => `<button class="dayt ${c.week && c.week.includes(d) ? 'on' : ''} ${d === tdow ? 'today' : ''}" data-a="cday" data-id="${c.id}" data-v="${d}">${C.DOW[d]}</button>`).join('')}</span>
-      <span class="muted">${c.week && c.week.length ? '' : esc(choreRhythm(c)) + ' · '}${esc(choreWhen(c))}${c.reward ? ' · 🎁 ' + esc(c.reward) : ''}</span>${(c.tools || []).length ? '<span>' + toolBtns(c) + '</span>' : ''}</span></li>`).join('')}</ul>
-      <p class="hint">Hier stellst du ein, an welchen Wochentagen etwas dran ist: Tipp auf einen Tag legt die Aufgabe dorthin (oder nimmt sie weg). Änderungen gelten ab morgen.</p></div>`;
+      ${c.week && c.week.length ? `<span class="days">${C.WEEK_ORDER.map(d => `<button class="dayt ${c.week.includes(d) ? 'on' : ''} ${d === tdow ? 'today' : ''}" data-a="cday" data-id="${c.id}" data-v="${d}">${C.DOW[d]}</button>`).join('')}</span>`
+        : `<label class="nextrow"><span>Nächstes Mal</span><input type="date" class="nextdate" data-ch="chorenext" data-id="${c.id}" min="${today()}" value="${choreNext(c)}"></label>`}
+      <span class="muted">${c.week && c.week.length ? esc(choreWhen(c)) : esc(choreRhythm(c)) + ' ab da'}${c.reward ? ' · 🎁 ' + esc(c.reward) : ''}</span>${(c.tools || []).length ? '<span>' + toolBtns(c) + '</span>' : ''}</span></li>`).join('')}</ul>
+      <p class="hint">Wochentags-Aufgaben: Tipp auf einen Tag legt sie dorthin (oder nimmt sie weg), gilt ab morgen. „Alle paar Tage“: Datum antippen – dann ist sie an dem Tag dran und läuft von da an weiter.</p></div>`;
   }
   const ex = C.EXAMPLE_WEEK.filter(e => C.CHORE_TEMPLATES.some(t => t.name === e.name));
   h += `<div class="card"><h3>✨ Eine typische Woche</h3><p class="muted" style="margin-top:0">${C.WEEK_ORDER.map(d => `<b>${C.DOW[d]}</b> ${ex.filter(e => e.week && e.week.includes(d)).map(e => C.CHORE_TEMPLATES.find(t => t.name === e.name).icon).join('') || '🛋️ frei'}`).join(' · ')} · 🛏️ alle 14 Tage</p>
@@ -834,14 +846,16 @@ const A = {
   choredelyes(el) { S.chores = S.chores.filter(x => x.id !== el.dataset.id); S.items = S.items.filter(i => i.chore !== el.dataset.id); closeModal(); commit(); },
   choreedit(el) {
     const c = el.dataset.id && S.chores.find(x => x.id === el.dataset.id);
-    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, week: (c.week || []).slice(), reward: c.reward || '', start: 'morgen', tools: (c.tools || []).slice(), music: c.music || '' }
+    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, next: c.week && c.week.length ? null : choreNext(c), nextTouched: true, week: (c.week || []).slice(), reward: c.reward || '', start: 'morgen', tools: (c.tools || []).slice(), music: c.music || '' }
       : { id: null, icon: '🔁', name: '', mode: 'week', every: 7, week: [], reward: '', start: 'morgen', tools: [], music: '' };
     choreModal();
   },
-  cemode(el) {   // a new "alle paar Tage" chore first comes up after its rhythm (alle 7 Tage → in 7 Tagen)
-    ceRead(); ui.ce.mode = el.dataset.v;
-    if (!ui.ce.id) ui.ce.start = ui.ce.mode === 'days' ? 'spaeter' : ui.ce.start === 'spaeter' ? 'morgen' : ui.ce.start;
-    choreModal();
+  cemode(el) { ceRead(); ui.ce.mode = el.dataset.v; choreModal(); },   // "alle paar Tage" brings its own start date
+  cenext(el) { ceRead(); const v = el.dataset.v; ui.ce.next = addDays(today(), v === 'every' ? (+ui.ce.every || 7) : +v); ui.ce.nextTouched = true; choreModal(); },
+  chorenext(el) {
+    const c = S.chores.find(x => x.id === el.dataset.id), k = el.value; if (!c) return;
+    if (!k || k < today()) { render(); return; }
+    setChoreNext(c, k); commit(); toast('🔁 ' + c.name + ': nächstes Mal ' + longDate(k));
   },
   ceday(el) { ceRead(); const d = +el.dataset.v, w = ui.ce.week; w.includes(d) ? w.splice(w.indexOf(d), 1) : w.push(d); choreModal(); },
   cerew(el) { ceRead(); ui.ce.reward = ui.ce.reward === el.dataset.v ? '' : el.dataset.v; ui.ce.own = false; choreModal(); },
@@ -855,16 +869,17 @@ const A = {
     const e = ui.ce, msg = $('#ce-msg');
     if (!e.name) { msg.textContent = 'Wie heißt die Aufgabe?'; return; }
     if (e.mode === 'week' && !e.week.length) { msg.textContent = 'Mindestens einen Wochentag wählen.'; return; }
-    if (!e.id && e.start === 'datum' && (!e.startDate || e.startDate < today())) { msg.textContent = 'Bitte ein Datum ab heute wählen.'; return; }
+    if (!e.id && e.mode === 'week' && e.start === 'datum' && (!e.startDate || e.startDate < today())) { msg.textContent = 'Bitte ein Datum ab heute wählen.'; return; }
+    if (e.mode === 'days' && (!e.next || e.next < today())) { msg.textContent = 'Bitte ein Datum ab heute wählen.'; return; }
     const every = Math.max(1, Math.min(90, Math.round(+e.every) || 7));
     let c = e.id && S.chores.find(x => x.id === e.id);
     if (!c) {
       c = { id: uid(), icon: '🔁', last: null }; S.chores.push(c);
       if (e.start === 'morgen') c.skip = addDays(today(), 1);
-      if (e.start === 'spaeter' && e.mode === 'days') c.skip = addDays(today(), every);
-      if (e.start === 'datum' && e.startDate > today()) c.skip = e.startDate;   // nothing before that day
+      if (e.mode === 'week' && e.start === 'datum' && e.startDate > today()) c.skip = e.startDate;   // nothing before that day
     }
     Object.assign(c, { name: e.name, reward: e.reward || null, tools: e.tools.slice(), music: e.music || '', ...(e.mode === 'week' ? { week: e.week.slice(), every: undefined } : { every, week: undefined }) });
+    if (e.mode === 'days') setChoreNext(c, e.next);
     S.items.filter(i => i.chore === c.id).forEach(i => { i.text = c.name; });
     if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
     scheduleChores(); closeModal(); commit(); toast('Gespeichert 🔁');
@@ -1284,6 +1299,7 @@ function ceRead() {
   if (r && ui.ce.own) ui.ce.reward = r.value.trim();
   const m = $('#ce-music'); if (m) ui.ce.music = m.value.trim();
   const dt = document.getElementById('ce-date'); if (dt) ui.ce.startDate = dt.value;
+  const nx = document.getElementById('ce-next'); if (nx) { ui.ce.next = nx.value; if (nx.dataset.auto === '0') ui.ce.nextTouched = true; }
 }
 function choreModal() {
   const e = ui.ce;
@@ -1292,9 +1308,12 @@ function choreModal() {
     <label class="field"><span>Was ist dran?</span><input id="ce-name" value="${esc(e.name)}" placeholder="z.B. Wäsche waschen" autocomplete="off"></label>
     <p class="muted" style="font-weight:800;margin:12px 0 4px">Wie oft?</p>
     <div class="chips"><button class="chip ${e.mode === 'days' ? 'on' : ''}" data-a="cemode" data-v="days">Alle paar Tage</button><button class="chip ${e.mode === 'week' ? 'on' : ''}" data-a="cemode" data-v="week">An Wochentagen</button></div>
-    ${e.mode === 'days' ? `<label class="field"><span>Alle wie viele Tage?</span><input id="ce-every" type="number" min="1" max="90" inputmode="numeric" value="${esc(e.every)}" oninput="const l=document.getElementById('ce-later'); if(l) l.textContent='In '+(this.value||7)+' Tagen'"></label>`
+    ${e.mode === 'days' ? `<label class="field"><span>Alle wie viele Tage?</span><input id="ce-every" type="number" min="1" max="90" inputmode="numeric" value="${esc(e.every)}" oninput="const l=document.getElementById('ce-later'); if(l) l.textContent='In '+(this.value||7)+' Tagen'; const f=document.getElementById('ce-from'); if(f) f.textContent='Von diesem Tag an alle '+(this.value||7)+' Tage.'; const d=new Date(Date.now()-3*3600e3); d.setDate(d.getDate()+(+this.value||7)); const t=document.getElementById('ce-next'); if(t&&t.dataset.auto==='1') t.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');"></label>
+      <label class="field"><span>${e.id ? 'Nächstes Mal am' : 'Beginnt am'}</span><input type="date" id="ce-next" min="${today()}" value="${esc(e.next || addDays(today(), +e.every || 7))}" data-auto="${e.nextTouched ? 0 : 1}" oninput="this.dataset.auto='0'"></label>
+      <div class="chips">${[[0, 'Heute'], [1, 'Morgen']].map(([n, l]) => `<button class="chip" data-a="cenext" data-v="${n}">${l}</button>`).join('')}<button class="chip" data-a="cenext" data-v="every" id="ce-later">In ${esc(e.every)} Tagen</button></div>
+      <p class="hint" id="ce-from">Von diesem Tag an alle ${esc(e.every)} Tage.</p>`
       : `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(d => `<button class="chip ${e.week.includes(d) ? 'on' : ''}" data-a="ceday" data-v="${d}">${C.DOW[d]}</button>`).join('')}</div>`}
-    ${e.id ? '' : `<p class="muted" style="font-weight:800;margin:12px 0 4px">Ab wann?</p><div class="chips"><button class="chip ${e.start === 'heute' ? 'on' : ''}" data-a="cestart" data-v="heute">Ab heute</button><button class="chip ${e.start === 'morgen' ? 'on' : ''}" data-a="cestart" data-v="morgen">Ab morgen</button>${e.mode === 'days' ? `<button class="chip ${e.start === 'spaeter' ? 'on' : ''}" data-a="cestart" data-v="spaeter" id="ce-later">In ${esc(e.every)} Tagen</button>` : ''}<button class="chip ${e.start === 'datum' ? 'on' : ''}" data-a="cestart" data-v="datum">📅 Datum wählen</button></div>
+    ${e.id || e.mode === 'days' ? '' : `<p class="muted" style="font-weight:800;margin:12px 0 4px">Ab wann?</p><div class="chips"><button class="chip ${e.start === 'heute' ? 'on' : ''}" data-a="cestart" data-v="heute">Ab heute</button><button class="chip ${e.start === 'morgen' ? 'on' : ''}" data-a="cestart" data-v="morgen">Ab morgen</button><button class="chip ${e.start === 'datum' ? 'on' : ''}" data-a="cestart" data-v="datum">📅 Datum wählen</button></div>
       ${e.start === 'datum' ? `<label class="field"><span>Beginnt am</span><input type="date" id="ce-date" min="${today()}" value="${e.startDate || addDays(today(), 1)}" oninput="const h=document.getElementById('ce-datehint'); if(h) h.textContent=''"></label><p class="hint" id="ce-datehint">${e.startDate ? 'beginnt ' + esc(C.DAYNAMES[parse(e.startDate).getDay()]) + ', ' + esc(shortDate(e.startDate)) : ''}</p>` : ''}`}
     <p class="muted" style="font-weight:800;margin:12px 0 4px">🎁 Belohnung danach (am selben Tag)</p>
     <div class="chips">${opts.map(r => `<button class="chip ${e.reward === r && !e.own ? 'on' : ''}" data-a="cerew" data-v="${esc(r)}">${esc(r)}</button>`).join('')}<button class="chip ${e.own ? 'on' : ''}" data-a="ceown">✏️ Eigene…</button></div>
@@ -1724,6 +1743,7 @@ function bind() {
     const el = e.target.closest('[data-a]'); if (!el) return;
     const f = A[el.dataset.a]; if (f) { e.preventDefault(); f(el, e); }
   });
+  document.addEventListener('change', e => { const el = e.target.closest('[data-ch]'); if (el && A[el.dataset.ch]) A[el.dataset.ch](el); });
   document.addEventListener('submit', e => {
     const form = e.target.closest('form[data-f]'); if (!form) return;
     e.preventDefault();
