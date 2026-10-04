@@ -460,7 +460,7 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 
 /* repeating bookings */
 .au-lbl { font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--au-dim); margin: 14px 0 0; }
-.au-reps { display: flex; gap: 6px; flex-wrap: wrap; }
+.au-reps { margin-top: 6px; }
 .au-reps .au-chip { margin-top: 6px; min-height: 38px; }
 .au-chip.on { background: #fff; color: #000; border-color: #fff; }
 .au-rep { display: inline-block; font-size: 12px; color: var(--au-txt); border: 1px solid var(--au-line); padding: 0 6px; margin-left: 4px; white-space: nowrap; }
@@ -476,3 +476,9 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 @keyframes fly-up { 0% { transform: translate(0, 0) rotate(0); opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translate(var(--dx), -115vh) rotate(var(--r)); opacity: 0; } }
 .fly-msg { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); background: var(--card); color: var(--ink); border-radius: 18px; padding: 14px 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, .3); font-weight: 800; font-size: 19px; text-align: center; white-space: pre-line; width: max-content; max-width: 86vw; animation: pop .35s cubic-bezier(.2, 1.4, .4, 1), fade-out .5s 3.9s both; z-index: 1; }
 @keyframes fade-out { to { opacity: 0; } }
+
+/* custom repeat: "Alle [3] [Wochen]" */
+.au-custom { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 15px; }
+.au-custom input { width: 80px; flex: none; }
+.au-custom select { flex: 1; background: #17181b; color: #f2f2f2; border: 0; border-bottom: 1px solid #5a5d63; border-radius: 0; padding: 10px 8px; font: 16px inherit; font-family: inherit; color-scheme: dark; }
+.au-reps { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .au-reps .au-chip { margin-top: 0; }
