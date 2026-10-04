@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.2';
+const VERSION = '2026-10-04.3';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -51,7 +51,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     me: D.me(), name: S.name, ts: Date.now(),
     out: S.sent.filter(x => x.status !== 'weg' && Date.now() - x.ts < MONTH).map(({ id, text, today, ts, list }) => ({ id, text, today, ts, ...(list ? { list } : {}) })),
     withdrawn: S.sent.filter(x => x.status === 'weg').map(x => x.id),
-    car: Car.live(S.car).map(({ id, start, end, note }) => ({ id, start, end, note })),
+    car: Car.recent(S.car).map(({ id, start, end, note }) => ({ id, start, end, note })),
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
 }
@@ -65,8 +65,8 @@ async function syncPost() {
     if (p.me && p.me === D.me()) return;              // never treat my own mailbox as the partner's
     let changed = false; const back = [], took = [], done = [];
     if (p.name && p.name !== S.partnerName) { S.partnerName = p.name; changed = true; }
-    const pc = Car.live(p.car);
-    if (JSON.stringify(pc) !== JSON.stringify(Car.live(S.partnerCar))) { S.partnerCar = pc; changed = true; }
+    const pc = Car.recent(p.car);
+    if (JSON.stringify(pc) !== JSON.stringify(Car.recent(S.partnerCar))) { S.partnerCar = pc; changed = true; }
     const gone = new Set(p.withdrawn || []), pulled = S.items.filter(i => i.did && gone.has(i.did));
     if (pulled.length) { S.items = S.items.filter(i => !pulled.includes(i)); pulled.forEach(i => { S.answered[i.did] = { status: 'weg', ts: Date.now() }; }); changed = true; }
     const inc = (p.out || []).filter(x => !S.answered[x.id] && !gone.has(x.id));
@@ -1274,8 +1274,10 @@ function carRange(b) { // "09:00 – 12:00" or "09:00 – Sa, 6. Okt 18:00"
   if (carTime(b.start) === '00:00' && carTime(b.end) === '23:59' && carDay(b.start) === carDay(b.end)) return 'Ganzer Tag';
   return carTime(b.start) + ' – ' + (carDay(b.end) !== carDay(b.start) ? carDayLabel(carDay(b.end)) + ' ' : '') + carTime(b.end);
 }
-function carAll() { // everyone's upcoming bookings, sorted, with clashes marked
-  const all = Car.live(S.car).map(b => ({ ...b, mine: true })).concat(Car.live(S.partnerCar).map(b => ({ ...b, mine: false })));
+const carColor = mine => Car.COLORS[mine ? D.me() : D.partner()] || (mine ? '#ffb020' : '#3fb6ff');
+const carWho = mine => mine ? (S.name || 'Du') : pn();
+function carAll(pick = Car.live) { // everyone's bookings (upcoming, or with Car.recent also the last weeks), sorted, clashes marked
+  const all = pick(S.car).map(b => ({ ...b, mine: true, color: carColor(true) })).concat(pick(S.partnerCar).map(b => ({ ...b, mine: false, color: carColor(false) })));
   all.forEach(b => { b.clash = all.some(o => o.mine !== b.mine && Car.overlaps(o, b)); });
   return all.sort((a, b) => a.start < b.start ? -1 : 1);
 }
@@ -1299,21 +1301,72 @@ function viewAuto() {
         : `<span class="au-dot"></span>Jetzt frei${next ? ` · als Nächstes ${next.mine ? 'du' : esc(pn())}, ${carDayLabel(carDay(next.start))} ${carTime(next.start)}` : ''}`}</div>
     </div>
     <button class="au-btn" data-a="carnew">Auto reservieren</button>
-    <div class="au-h">Reservierungen</div>`;
+    ${carCalendar()}
+    <div class="au-h">Alle kommenden Reservierungen</div>`;
   if (!all.length) h += `<p class="au-empty">Noch nichts eingetragen. Das Auto gehört gerade allen.</p>`;
   let day = '';
   for (const b of all) {
     const d = carDay(b.start) < now.slice(0, 10) ? now.slice(0, 10) : carDay(b.start);
     if (d !== day) { day = d; h += `<div class="au-day">${esc(carDayLabel(d))}</div>`; }
-    h += `<div class="au-row${b.clash ? ' clash' : ''}${b.mine ? ' mine' : ''}">
+    h += `<div class="au-row${b.clash ? ' clash' : ''}${b.mine ? ' mine' : ''}" style="--who:${b.color}">
       <div class="au-time">${esc(carRange(b))}</div>
-      <div class="au-who"><b>${b.mine ? 'Du' : esc(pn())}</b>${b.note ? ' · ' + esc(b.note) : ''}${b.clash ? `<div class="au-warn">Überschneidung – kurz absprechen</div>` : ''}</div>
+      <div class="au-who">${Car.icon(b.color, 22)} <b>${b.mine ? 'Du' : esc(pn())}</b>${b.note ? ' · ' + esc(b.note) : ''}${b.clash ? `<div class="au-warn">Überschneidung – kurz absprechen</div>` : ''}</div>
       ${b.mine ? `<button class="au-x" data-a="cardel" data-id="${b.id}" aria-label="Reservierung löschen">✕</button>` : ''}
     </div>`;
   }
   h += `<p class="au-note">${esc(pn())} sieht deine Reservierungen, sobald die App bei ${esc(pn())} offen ist.</p></section>`;
   return h;
 }
+// ---------- the car calendar: a month, a car per booking in the booker's colour, a 24 h strip per day ----------
+function carCalendar() {
+  const todayK = Car.localISO(new Date()).slice(0, 10);
+  const mon = ui.carMonth || todayK.slice(0, 7), sel = ui.carDay || todayK;
+  const [y, m] = mon.split('-').map(Number), first = new Date(y, m - 1, 1);
+  const startK = key(new Date(y, m - 1, 1 - (first.getDay() + 6) % 7));
+  const all = carAll(Car.recent);
+  const dayOf = k => all.map(b => ({ b, span: Car.onDay(b, k) })).filter(x => x.span);
+  const strip = list => list.map(({ b, span }) => `<i style="left:${span[0] / 14.4}%;width:${Math.max(3, (span[1] - span[0]) / 14.4)}%;background:${b.color}"></i>`).join('');
+  let h = `<div class="au-h">Kalender</div>
+    <div class="cal-head"><button class="cal-nav" data-a="carmonth" data-d="-1" aria-label="Vorheriger Monat">‹</button>
+      <div class="cal-title">${C.MONTHS[m - 1]} ${y}</div>
+      <button class="cal-nav" data-a="carmonth" data-d="1" aria-label="Nächster Monat">›</button></div>
+    <div class="cal-legend"><span>${Car.icon(carColor(true), 22)} ${esc(carWho(true))}</span><span>${Car.icon(carColor(false), 22)} ${esc(carWho(false))}</span></div>
+    <div class="cal">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => `<div class="cal-wd">${d}</div>`).join('')}`;
+  for (let i = 0; i < 42; i++) {
+    const k = addDays(startK, i);
+    if (i === 35 && k.slice(0, 7) !== mon) break;          // no empty 6th row
+    const list = dayOf(k), out = k.slice(0, 7) !== mon;
+    const cars = list.length <= 3 ? list.map(x => Car.icon(x.b.color, 17)).join('')
+      : list.slice(0, 2).map(x => Car.icon(x.b.color, 17)).join('') + `<span class="cal-more">+${list.length - 2}</span>`;
+    const clash = list.some(x => x.b.clash);
+    h += `<button class="cal-d${out ? ' out' : ''}${k < todayK ? ' past' : ''}${k === todayK ? ' today' : ''}${k === sel ? ' sel' : ''}" data-a="carday" data-k="${k}" aria-label="${longDate(k)}${list.length ? ', ' + list.length + ' Reservierung' + (list.length > 1 ? 'en' : '') : ', frei'}">
+      <span class="cal-n">${parse(k).getDate()}</span>${clash ? '<span class="cal-clash"></span>' : ''}
+      <span class="cal-cars">${cars}</span><span class="cal-strip">${strip(list)}</span></button>`;
+  }
+  h += `</div>`;
+  // the chosen day in detail
+  const list = dayOf(sel);
+  h += `<div class="cal-detail"><div class="cal-dt">${esc(longDate(sel))}</div>
+    <div class="cal-bar">${strip(list)}<b style="left:25%"></b><b style="left:50%"></b><b style="left:75%"></b></div>
+    <div class="cal-ticks"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>`;
+  h += list.length ? list.map(({ b }) => `<div class="cal-bk${b.clash ? ' clash' : ''}" style="--who:${b.color}">${Car.icon(b.color, 26)}
+      <div><div class="au-time sm">${esc(carRange(b))}${carDay(b.start) !== carDay(b.end) ? ` <span class="cal-span">${esc(carDayLabel(carDay(b.start)))} → ${esc(carDayLabel(carDay(b.end)))}</span>` : ''}</div>
+      <div class="au-who"><b>${b.mine ? 'Du' : esc(pn())}</b>${b.note ? ' · ' + esc(b.note) : ''}${b.clash ? '<div class="au-warn">Überschneidung – kurz absprechen</div>' : ''}</div></div>
+      ${b.mine && b.end > Car.localISO(new Date()) ? `<button class="au-x" data-a="cardel" data-id="${b.id}" aria-label="Reservierung löschen">✕</button>` : ''}</div>`).join('')
+    : `<p class="au-empty">${sel < todayK ? 'Da war das Auto frei.' : 'Den ganzen Tag frei.'}</p>`;
+  if (sel >= todayK) h += `<button class="au-btn ghost" data-a="carnew" data-k="${sel}">An diesem Tag reservieren</button>`;
+  return h + `</div>`;
+}
+Object.assign(A, {
+  carmonth(el) {
+    const [y, m] = (ui.carMonth || Car.localISO(new Date()).slice(0, 7)).split('-').map(Number);
+    const d = new Date(y, m - 1 + +el.dataset.d, 1); ui.carMonth = key(d).slice(0, 7); render();
+  },
+  carday(el) {
+    ui.carDay = el.dataset.k; if (el.dataset.k.slice(0, 7) !== (ui.carMonth || Car.localISO(new Date()).slice(0, 7))) ui.carMonth = el.dataset.k.slice(0, 7);
+    render(); const d = $('.cal-detail'); if (d) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  },
+});
 function carModal(keep = false) {
   const f = ui.carForm;
   const clash = f.clash ? `<div class="au-clash"><b>${esc(pn())} hat das Auto da schon</b>${f.clash.map(b => `<div>${esc(carDayLabel(carDay(b.start)))} · ${esc(carRange(b))}${b.note ? ' · ' + esc(b.note) : ''}</div>`).join('')}
@@ -1336,8 +1389,10 @@ function carRead() {
   Object.assign(ui.carForm, { sd: v('c-sd'), st: v('c-st'), ed: v('c-ed'), et: v('c-et'), note: v('c-note').trim() });
 }
 Object.assign(A, {
-  carnew() {
+  carnew(el) {
     const d = new Date(); d.setMinutes(0, 0, 0); d.setHours(d.getHours() + 1);
+    const k = el && el.dataset.k;
+    if (k && k > Car.localISO(d).slice(0, 10)) { const [y, m, dd] = k.split('-').map(Number); d.setFullYear(y, m - 1, dd); d.setHours(9); }
     const e = new Date(d); e.setHours(e.getHours() + 2);
     const a = Car.localISO(d), b = Car.localISO(e);
     ui.carForm = { sd: a.slice(0, 10), st: a.slice(11), ed: b.slice(0, 10), et: b.slice(11), note: '' };
@@ -1357,7 +1412,7 @@ Object.assign(A, {
     const old = Date.now() - 30 * 864e5;
     S.car = S.car.filter(b => !(b.end < Car.localISO(new Date(old))));        // forget long-past ones
     S.car.push({ id: uid(), start, end, note: f.note, ts: Date.now() });
-    ui.carForm = null; closeModal(); commit(true);
+    ui.carForm = null; ui.carDay = f.sd; ui.carMonth = f.sd.slice(0, 7); closeModal(); commit(true);
     toast('🚗 Reserviert: ' + carDayLabel(f.sd) + ' ' + carRange({ start, end }));
   },
   cardel(el) {

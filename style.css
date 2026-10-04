@@ -371,7 +371,6 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .au-model.sm { font-size: 26px; margin-bottom: 14px; }
 .au-trim { font-size: 13px; color: var(--au-dim); letter-spacing: .06em; margin-top: 2px; }
 .au-car { margin: 6px -10px -4px; position: relative; }
-.au-car::after { content: ''; position: absolute; left: 12%; right: 12%; bottom: 8%; height: 1px; background: linear-gradient(90deg, transparent, rgba(245, 5, 55, .55), transparent); }
 .au-car { min-height: 120px; }
 .au-car img { width: 100%; height: auto; display: block; animation: au-in .9s cubic-bezier(.2, .8, .2, 1) both; }
 @keyframes au-in { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
@@ -418,3 +417,38 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .cartoday .ct-r.clash { color: #ff6b85; }
 .cartoday .ct-go { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 20px; color: #9a9ea5; }
 @media (max-width: 379px) { .qtabs:has(> :nth-child(4)) { gap: 4px; } .qtabs:has(> :nth-child(4)) .chip { font-size: 12.5px; padding: 8px 4px; } }
+
+/* ---------- car calendar ---------- */
+.mcar { display: inline-block; vertical-align: middle; flex: none; }
+.au-row { border-left-color: var(--who, #5a5d63) !important; }
+.au-row.clash { border-left-color: var(--au-red) !important; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 4px; }
+.cal-title { font-size: 20px; font-weight: 300; letter-spacing: .03em; }
+.cal-nav { background: none; border: 1px solid var(--au-line); color: var(--au-txt); width: 44px; height: 44px; border-radius: 0; font-size: 22px; line-height: 1; }
+.cal-legend { display: flex; gap: 18px; font-size: 13px; color: var(--au-dim); margin: 4px 0 10px; }
+.cal-legend span { display: flex; align-items: center; gap: 6px; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-wd { font-size: 10px; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; color: var(--au-dim); text-align: center; padding: 4px 0; }
+.cal-d { position: relative; background: var(--au-card); border: 1px solid transparent; border-radius: 0; color: var(--au-txt); min-height: 58px; padding: 4px 2px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-family: inherit; min-width: 0; }
+.cal-d.out { opacity: .35; }
+.cal-d.past .cal-n { color: var(--au-dim); }
+.cal-d.today { border-color: #fff; }
+.cal-d.sel { background: #2a2c31; border-color: var(--au-dim); }
+.cal-d.today.sel { border-color: #fff; }
+.cal-n { font-size: 13px; line-height: 1.2; align-self: flex-start; padding-left: 3px; }
+.cal-cars { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 1px 2px; max-width: 100%; }
+.cal-more { font-size: 11px; font-weight: 600; color: var(--au-txt); line-height: 1; }
+.cal-strip { position: absolute; left: 3px; right: 3px; bottom: 3px; height: 3px; background: #26282c; }
+.cal-strip i, .cal-bar i { position: absolute; top: 0; bottom: 0; }
+.cal-clash { position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--au-red); box-shadow: 0 0 6px var(--au-red); }
+.cal-detail { margin-top: 14px; padding: 14px 12px; background: var(--au-card); border-top: 2px solid #fff; }
+.cal-dt { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+.cal-bar { position: relative; height: 12px; background: #26282c; }
+.cal-bar b { position: absolute; top: 0; bottom: 0; width: 1px; background: #0d0e10; }
+.cal-ticks { display: flex; justify-content: space-between; font-size: 10px; color: var(--au-dim); margin: 3px 0 6px; }
+.cal-bk { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 0 10px 10px; border-left: 2px solid var(--who); border-bottom: 1px solid var(--au-line); }
+.cal-bk.clash { border-left-color: var(--au-red); }
+.au-time.sm { font-size: 18px; }
+.cal-span { font-size: 12px; color: var(--au-dim); letter-spacing: 0; }
+.cal-detail .au-btn { margin-top: 14px; }
+.cal-bk .au-x { grid-column: 3; grid-row: auto; }

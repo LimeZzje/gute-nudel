@@ -250,4 +250,4 @@ async function privateURL(key, path, type) { // object URL of a picture in the p
   return (urls[key] = URL.createObjectURL(blob));
 }
 export const photoURL = n => privateURL(n, 'fotos/' + pad(n) + '.jpg', 'image/jpeg');   // book photo n (1-based)
-export const carURL = () => privateURL('auto-1', 'fotos/auto.webp', 'image/webp');      // their own A1 (shows the plate → private); new photo = new key
+export const carURL = () => privateURL('auto-2', 'fotos/auto.webp', 'image/webp');      // their own A1 (shows the plate → private); new photo = new key
