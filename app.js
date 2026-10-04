@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.5';
+const VERSION = '2026-10-04.6';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'heute', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -52,6 +52,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     out: S.sent.filter(x => x.status !== 'weg' && Date.now() - x.ts < MONTH).map(({ id, text, today, ts, list }) => ({ id, text, today, ts, ...(list ? { list } : {}) })),
     withdrawn: S.sent.filter(x => x.status === 'weg').map(x => x.id),
     car: Car.raw(S.car),
+    thanks: (S.thanks || []).filter(t => Date.now() - t.ts < MONTH),
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
 }
@@ -65,6 +66,8 @@ async function syncPost() {
     if (p.me && p.me === D.me()) return;              // never treat my own mailbox as the partner's
     let changed = false; const back = [], took = [], done = [];
     if (p.name && p.name !== S.partnerName) { S.partnerName = p.name; changed = true; }
+    const thx = (p.thanks || []).filter(t => t && t.id && !(S.thanksSeen || []).includes(t.id));
+    if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
     const pc = Car.raw(p.car);
     if (JSON.stringify(pc) !== JSON.stringify(Car.raw(S.partnerCar))) { S.partnerCar = pc; changed = true; }
     const gone = new Set(p.withdrawn || []), pulled = S.items.filter(i => i.did && gone.has(i.did));
@@ -84,8 +87,9 @@ async function syncPost() {
     if (changed) commit();
     if (pulled.length) toast(pn() + ' hat zurückgenommen: ' + pulled.map(i => i.text).join(', '));
     if (back.length) modal(`<h2>Kommt zurück</h2><p>${esc(pn())} kann das gerade nicht übernehmen:</p><div style="text-align:left">${back.map(x => `<p><b>${esc(x.text)}</b><br><span class="muted">„${esc(x.reason)}“</span></p>`).join('')}</div><p class="muted">${back.length > 1 ? 'Die Aufgaben sind' : 'Die Aufgabe ist'} wieder auf deiner Liste.</p><div class="row"><button class="btn" data-a="close">Okay</button></div>`);
-    else if (done.length) toast(pn() + ' hat erledigt: ' + done.map(x => x.text).join(', ') + ' 🎉');
+    else if (done.length) doneModal(done);
     else if (took.length) toast(pn() + ' übernimmt ' + (took.length === 1 ? '„' + took[0].text + '“' : took.length + ' Aufgaben') + ' 💛');
+    thx.forEach((t, i) => setTimeout(() => flyEmoji(t.e, 26, pn() + ' sagt danke ' + t.e + (t.text ? '\nfür „' + t.text + '“' : '')), i * 4200));
   } catch (e) { console.warn('post', e); }
   finally { syncing = false; }
 }
@@ -367,7 +371,7 @@ function viewListe() {
   h += `<form class="add" data-f="addlist"><input name="t" placeholder="Neue Aufgabe…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
   if (D.canPost() && S.items.length) h += `<button class="btn soft wide" data-a="delegate" style="margin-top:12px">🤝 An ${esc(pn())} abgeben</button>`;
   h += `<p class="hint">Tipp: Mit ☀ kommt eine Aufgabe auf die Seite von heute.</p></section>`;
-  const sent = S.sent.filter(x => x.status !== 'nein' && x.status !== 'weg');
+  const sent = S.sent.filter(x => x.status === 'wartet' || x.status === 'ok');
   if (sent.length) {
     const lbl = { wartet: 'wartet auf Antwort', ok: 'übernommen 💛', erledigt: 'erledigt 🎉' };
     h += `<div class="card"><h3>🤝 Abgegeben an ${esc(pn())}</h3><ul class="list-plain">${sent.slice().reverse().map(x => `<li><span>${esc(x.text)}${x.today ? ' <span class="tag hot">heute</span>' : ''}</span><span class="st st-${x.status}">${lbl[x.status]}</span>${x.status !== 'erledigt' ? `<button class="mini-btn" data-a="withdraw" data-id="${x.id}" aria-label="Zurückholen" title="Zurückholen">↩</button>` : ''}</li>`).join('')}</ul><p class="hint">Mit ↩ holst du eine Aufgabe zurück, solange sie noch nicht erledigt ist.</p></div>`;
@@ -783,7 +787,11 @@ const A = {
       : { id: null, icon: '🔁', name: '', mode: 'week', every: 7, week: [], reward: '', start: 'morgen', tools: [], music: '' };
     choreModal();
   },
-  cemode(el) { ceRead(); ui.ce.mode = el.dataset.v; choreModal(); },
+  cemode(el) {   // a new "alle paar Tage" chore first comes up after its rhythm (alle 7 Tage → in 7 Tagen)
+    ceRead(); ui.ce.mode = el.dataset.v;
+    if (!ui.ce.id) ui.ce.start = ui.ce.mode === 'days' ? 'spaeter' : ui.ce.start === 'spaeter' ? 'morgen' : ui.ce.start;
+    choreModal();
+  },
   ceday(el) { ceRead(); const d = +el.dataset.v, w = ui.ce.week; w.includes(d) ? w.splice(w.indexOf(d), 1) : w.push(d); choreModal(); },
   cerew(el) { ceRead(); ui.ce.reward = ui.ce.reward === el.dataset.v ? '' : el.dataset.v; ui.ce.own = false; choreModal(); },
   ceown() { ceRead(); ui.ce.own = true; ui.ce.reward = ''; choreModal(); },
@@ -796,7 +804,11 @@ const A = {
     if (e.mode === 'week' && !e.week.length) { msg.textContent = 'Mindestens einen Wochentag wählen.'; return; }
     const every = Math.max(1, Math.min(90, Math.round(+e.every) || 7));
     let c = e.id && S.chores.find(x => x.id === e.id);
-    if (!c) { c = { id: uid(), icon: '🔁', last: null }; S.chores.push(c); if (e.start === 'morgen') c.skip = addDays(today(), 1); }
+    if (!c) {
+      c = { id: uid(), icon: '🔁', last: null }; S.chores.push(c);
+      if (e.start === 'morgen') c.skip = addDays(today(), 1);
+      if (e.start === 'spaeter' && e.mode === 'days') c.skip = addDays(today(), every);
+    }
     Object.assign(c, { name: e.name, reward: e.reward || null, tools: e.tools.slice(), music: e.music || '', ...(e.mode === 'week' ? { week: e.week.slice(), every: undefined } : { every, week: undefined }) });
     S.items.filter(i => i.chore === c.id).forEach(i => { i.text = c.name; });
     if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
@@ -1213,9 +1225,9 @@ function choreModal() {
     <label class="field"><span>Was ist dran?</span><input id="ce-name" value="${esc(e.name)}" placeholder="z.B. Wäsche waschen" autocomplete="off"></label>
     <p class="muted" style="font-weight:800;margin:12px 0 4px">Wie oft?</p>
     <div class="chips"><button class="chip ${e.mode === 'days' ? 'on' : ''}" data-a="cemode" data-v="days">Alle paar Tage</button><button class="chip ${e.mode === 'week' ? 'on' : ''}" data-a="cemode" data-v="week">An Wochentagen</button></div>
-    ${e.mode === 'days' ? `<label class="field"><span>Alle wie viele Tage?</span><input id="ce-every" type="number" min="1" max="90" inputmode="numeric" value="${esc(e.every)}"></label>`
+    ${e.mode === 'days' ? `<label class="field"><span>Alle wie viele Tage?</span><input id="ce-every" type="number" min="1" max="90" inputmode="numeric" value="${esc(e.every)}" oninput="const l=document.getElementById('ce-later'); if(l) l.textContent='In '+(this.value||7)+' Tagen'"></label>`
       : `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(d => `<button class="chip ${e.week.includes(d) ? 'on' : ''}" data-a="ceday" data-v="${d}">${C.DOW[d]}</button>`).join('')}</div>`}
-    ${e.id ? '' : `<p class="muted" style="font-weight:800;margin:12px 0 4px">Ab wann?</p><div class="chips"><button class="chip ${e.start === 'heute' ? 'on' : ''}" data-a="cestart" data-v="heute">Ab heute</button><button class="chip ${e.start === 'morgen' ? 'on' : ''}" data-a="cestart" data-v="morgen">Ab morgen</button></div>`}
+    ${e.id ? '' : `<p class="muted" style="font-weight:800;margin:12px 0 4px">Ab wann?</p><div class="chips"><button class="chip ${e.start === 'heute' ? 'on' : ''}" data-a="cestart" data-v="heute">Ab heute</button><button class="chip ${e.start === 'morgen' ? 'on' : ''}" data-a="cestart" data-v="morgen">Ab morgen</button>${e.mode === 'days' ? `<button class="chip ${e.start === 'spaeter' ? 'on' : ''}" data-a="cestart" data-v="spaeter" id="ce-later">In ${esc(e.every)} Tagen</button>` : ''}</div>`}
     <p class="muted" style="font-weight:800;margin:12px 0 4px">🎁 Belohnung danach (am selben Tag)</p>
     <div class="chips">${opts.map(r => `<button class="chip ${e.reward === r && !e.own ? 'on' : ''}" data-a="cerew" data-v="${esc(r)}">${esc(r)}</button>`).join('')}<button class="chip ${e.own ? 'on' : ''}" data-a="ceown">✏️ Eigene…</button></div>
     ${e.own ? `<label class="field"><span>Deine Belohnung</span><input id="ce-own" value="${esc(e.reward)}" placeholder="Was gönnst du dir?" autocomplete="off"></label>` : ''}
@@ -1256,6 +1268,34 @@ const FORMS = {
     askMood(S.log[S.log.length - 1]);
   },
   wish(t) { S.wishes.push({ id: uid(), text: t }); commit(); toast('Gemerkt 💛 – taucht jetzt auch bei den Belohnungen auf.'); },
+};
+
+// ---------- the partner finished a task I handed over: celebrate, and say thanks with flying emojis ----------
+const THX = [['🥳', 'Party'], ['🔥', 'Feuer'], ['😌', 'Entspannt'], ['😊', 'Freu mich']];
+function doneModal(list) {
+  confetti(90);
+  modal(`<h2>${esc(pn())} hat’s erledigt! 🎉</h2>
+    <div class="done-list">${list.map(x => `<p>✓ <b>${esc(x.text)}</b></p>`).join('')}</div>
+    <p class="muted">Ein Ding weniger für dich. Sag danke:</p>
+    <div class="thx">${THX.map(([e, l]) => `<button class="thx-b" data-a="thank" data-e="${e}" data-ids="${list.map(x => x.id).join(',')}" aria-label="${l}">${e}</button>`).join('')}</div>
+    <div class="row"><button class="btn soft" data-a="close">Später</button></div>`, 'done-modal');
+}
+function flyEmoji(e, n = 26, msg = '') { // emojis float up across the whole screen (with a message on top), then vanish
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { if (msg) toast(msg); return; }
+  const box = document.createElement('div'); box.className = 'fly';
+  if (msg) { const m = document.createElement('div'); m.className = 'fly-msg'; m.textContent = msg; box.appendChild(m); }
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('span'); s.textContent = e;
+    s.style.cssText = `left:${Math.random() * 92}%;font-size:${28 + Math.random() * 34}px;animation-duration:${2.2 + Math.random() * 1.6}s;animation-delay:${Math.random() * .9}s;--dx:${(Math.random() - .5) * 140}px;--r:${(Math.random() - .5) * 80}deg`;
+    box.appendChild(s);
+  }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 4800);
+}
+A.thank = el => {
+  const ids = el.dataset.ids.split(','), e = el.dataset.e, tasks = S.sent.filter(x => ids.includes(x.id));
+  S.thanks = S.thanks || [];
+  tasks.forEach(x => { S.thanks.push({ id: uid(), task: x.id, text: x.text, e, ts: Date.now() }); x.thanked = e; });
+  closeModal(); commit(true); flyEmoji(e, 12); toast('Danke geschickt ' + e);
 };
 
 // ---------- AUTO: one car, two people ----------
@@ -1497,6 +1537,9 @@ function goBack() {
 addEventListener('popstate', () => { guarded = false; goBack(); armBack(); });
 
 function bind() {
+  // sticky sub-tab chips sit exactly under the header, whatever its real height (iPhone notch, font size)
+  const topH = () => document.documentElement.style.setProperty('--top-h', $('#top').getBoundingClientRect().height + 'px');
+  topH(); if ('ResizeObserver' in window) new ResizeObserver(topH).observe($('#top')); else addEventListener('resize', topH);
   document.addEventListener('pointerdown', armBack, true);
   document.addEventListener('click', e => {
     const el = e.target.closest('[data-a]'); if (!el) return;
@@ -1545,10 +1588,11 @@ function mergeStates(local, remote) {
   m.earned = (newer.earned || 0) + extra.reduce((a, e) => a + Math.max(0, e.stars || 0), 0);
   // lists: joined by id, the newer version of an entry wins
   const join = (a = [], b = []) => { const seen = new Set(a.map(x => x.id)); return a.concat(b.filter(x => x && !seen.has(x.id))); };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car'].forEach(k => { m[k] = join(newer[k], older[k]); });
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks'].forEach(k => { m[k] = join(newer[k], older[k]); });
   m.recipes = newer.recipes || older.recipes;
   m.fixes = [...new Set([].concat(newer.fixes || [], older.fixes || []))];
   m.favs = [...new Set([].concat(newer.favs || [], older.favs || []))];
+  m.thanksSeen = [...new Set([].concat(newer.thanksSeen || [], older.thanksSeen || []))].slice(-200);
   m.cook = Object.assign({}, older.cook || {}, newer.cook || {});
   m.answered = Object.assign({}, older.answered || {}, newer.answered || {});
   m.book = { pages: Math.max((newer.book || {}).pages || 0, (older.book || {}).pages || 0) };

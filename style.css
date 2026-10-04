@@ -255,7 +255,7 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .warn { background: #fff3d6; color: #6b4a00; border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 15px; margin: 8px 0; }
 
 /* ---------- Quests sub-tabs, chores ---------- */
-.qtabs { position: sticky; top: 64px; z-index: 5; background: var(--paper); padding: 6px 0 8px; margin: 0 0 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.qtabs { position: sticky; top: var(--top-h, 64px); z-index: 5; background: var(--paper); padding: 6px 16px 8px; margin: -12px -16px 4px; box-shadow: 0 6px 8px -6px rgba(0, 0, 0, .12); display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .qtabs .chip { padding: 8px 2px; font-size: 14px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .list-plain.chores li { align-items: flex-start; padding: 10px 0; }
 .list-plain.chores li > span { line-height: 1.35; }
@@ -465,3 +465,14 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .au-chip.on { background: #fff; color: #000; border-color: #fff; }
 .au-rep { display: inline-block; font-size: 12px; color: var(--au-txt); border: 1px solid var(--au-line); padding: 0 6px; margin-left: 4px; white-space: nowrap; }
 .au-modal > .au-btn { margin-top: 10px; }
+
+/* partner finished a task: celebration + thank-you emojis */
+.done-list p { margin: 4px 0; font-size: 19px; }
+.thx { display: flex; justify-content: center; gap: 10px; margin: 10px 0 2px; }
+.thx-b { border: 0; background: var(--paper2); border-radius: 50%; width: 62px; height: 62px; font-size: 32px; line-height: 1; transition: transform .15s; }
+.thx-b:active { transform: scale(1.25); }
+.fly { position: fixed; inset: 0; pointer-events: none; z-index: 90; overflow: hidden; }
+.fly span { position: absolute; bottom: -80px; animation: fly-up linear both; will-change: transform; }
+@keyframes fly-up { 0% { transform: translate(0, 0) rotate(0); opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translate(var(--dx), -115vh) rotate(var(--r)); opacity: 0; } }
+.fly-msg { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); background: var(--card); color: var(--ink); border-radius: 18px; padding: 14px 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, .3); font-weight: 800; font-size: 19px; text-align: center; white-space: pre-line; width: max-content; max-width: 86vw; animation: pop .35s cubic-bezier(.2, 1.4, .4, 1), fade-out .5s 3.9s both; z-index: 1; }
+@keyframes fade-out { to { opacity: 0; } }
