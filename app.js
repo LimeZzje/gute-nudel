@@ -5,9 +5,9 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.10';
+const VERSION = '2026-10-04.11';
 let S = null;                                   // the state (see data.js freshState)
-const ui = { tab: 'heute', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
+const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
 const tags = i => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
 const choreTag = i => { const c = S.chores.find(x => x.id === i.chore); return c ? `<span class="tag">🔁${c.reward ? ' 🎁' : ''}</span>` + toolBtns(c, i) : ''; };
@@ -38,7 +38,8 @@ function commit(post = false) {
   S.updatedAt = Date.now();
   D.saveLocal(S);
   D.scheduleBackup(S);
-  if (post || S.postedName !== S.name) { S.postedName = S.name; D.schedulePost(postObj()); }
+  const stats = JSON.stringify(myStats());
+  if (post || S.postedName !== S.name || S.postedStats !== stats) { S.postedName = S.name; S.postedStats = stats; D.schedulePost(postObj()); }
   render();
 }
 
@@ -53,6 +54,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     withdrawn: S.sent.filter(x => x.status === 'weg').map(x => x.id),
     car: Car.raw(S.car),
     thanks: (S.thanks || []).filter(t => Date.now() - t.ts < MONTH),
+    stats: myStats(),
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
 }
@@ -68,6 +70,7 @@ async function syncPost() {
     if (p.name && p.name !== S.partnerName) { S.partnerName = p.name; changed = true; }
     const thx = (p.thanks || []).filter(t => t && t.id && !(S.thanksSeen || []).includes(t.id));
     if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
+    if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
     const pc = Car.raw(p.car);
     if (JSON.stringify(pc) !== JSON.stringify(Car.raw(S.partnerCar))) { S.partnerCar = pc; changed = true; }
     const fresh = newForMe(); if (fresh.length) changed = true;
@@ -240,8 +243,9 @@ function renderTop() {
   const c = $('#cloud'), st = D.backup.status;
   c.className = st === 'ok' ? 'ok' : st === 'wait' ? 'wait' : st === 'bad' ? 'bad' : '';
   c.title = { ok: 'Gesichert', wait: 'Wird gleich gesichert', bad: 'Sicherung hat nicht geklappt', none: 'Sicherung nicht eingerichtet' }[st] || '';
-  document.querySelectorAll('nav#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  document.querySelectorAll('nav#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === (ui.tab === 'schaetze' ? 'home' : ui.tab)));
   $('#tabs [data-tab="heute"]').classList.toggle('dot', S.incoming.length > 0);
+  $('#tabs [data-tab="home"]').classList.toggle('dot', S.incoming.length > 0 && ui.tab !== 'home');
 }
 
 // ---------- HEUTE ----------
@@ -1612,13 +1616,78 @@ function newForMe() {
   return fresh;
 }
 
+// ---------- HOME: the start screen – what's going on today, a few numbers, the two of you ----------
+function daySlot() { const h = new Date().getHours(); return h < 5 ? 'nacht' : h < 11 ? 'morgen' : h < 14 ? 'mittag' : h < 18 ? 'nachmittag' : h < 23 ? 'abend' : 'nacht'; }
+const GREET = { morgen: 'Guten Morgen', mittag: 'Mahlzeit', nachmittag: 'Hallo', abend: 'Guten Abend', nacht: 'Noch wach' };
+function pickSplash() { const t = C.SPLASH_TIME[daySlot()] || []; const all = C.SPLASHES.concat(t, t); let n; do { n = pick(all); } while (n === ui.splash && all.length > 1); ui.splash = n; }
+function myStats() { // the numbers that travel to the partner (counts only)
+  return { day: today(), done: workToday().length, total: S.log.filter(isWork).length };
+}
+function homeStats() {
+  const work = S.log.filter(isWork), counts = {};
+  for (const e of work) { const c = e.chore && S.chores.find(x => x.id === e.chore); const k = c ? c.icon + ' ' + c.name : e.text; counts[k] = (counts[k] || 0) + 1; }
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  const laundry = work.filter(e => /wäsche/i.test(e.text)).length;
+  return { total: work.length, rest: S.log.filter(isRest).length, earned: S.earned, laundry, top: top && top[1] >= 2 ? top : null,
+    sent: S.log.filter(e => e.kind === 'delegate').reduce((a, e) => a + (e.n || parseInt(e.text) || 1), 0) };
+}
+function viewHome() {
+  if (!ui.splash) pickSplash();
+  const t = today(), slot = daySlot(), st = homeStats();
+  const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
+  let h = `<section class="hello"><div class="hello-g">${GREET[slot]}${slot === 'nacht' ? '?' : ','}</div><div class="hello-n">${esc(S.name || 'gute Nudel')}</div>
+    <button class="splash" data-a="splash" aria-label="Neuer Spruch"><span class="${ui.splash.length > 26 ? 'long' : ''}">${esc(ui.splash)}</span></button></section>`;
+  h += incomingCard() + giftCards();
+  // today
+  const finished = S.today.planned && (S.today.closed || (heute.length === 0 && done.length > 0));
+  const all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
+  h += `<button class="card hcard today-card" data-a="go" data-tab="heute">
+    <svg class="ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${R}" class="ring-bg"/><circle cx="42" cy="42" r="${R}" class="ring-fg" style="stroke-dasharray:${U};stroke-dashoffset:${U * (1 - p)}"/></svg>
+    <span class="ring-n">${finished ? '🎉' : all ? done.length + '<small>/' + all + '</small>' : '–'}</span>
+    <span class="hc-txt"><b>${finished ? 'Tag geschafft!' : !S.today.planned && !done.length ? 'Noch nichts geplant' : heute.length === 0 ? 'Alles erledigt' : heute.length === 1 ? 'Noch eine Sache' : 'Noch ' + heute.length + ' Sachen'}</b>
+      <span class="muted">${finished ? 'Der Rest wartet bis morgen.' : !S.today.planned && !done.length ? '3–5 Sachen reichen völlig.' : done.length ? done.length + ' heute schon geschafft' : 'Du schaffst das.'}${heute.filter(i => i.chore).length ? ' · 🔁 ' + heute.filter(i => i.chore).length + ' fällig' : ''}</span></span><span class="hc-go">›</span></button>`;
+  // next appointments (today + tomorrow) and the car
+  const now = Car.localISO(new Date()), tm = addDays(t, 1);
+  const soon = carAll(Car.live, false).filter(b => carDay(b.start) <= tm && b.end > now).slice(0, 3);
+  h += `<button class="card hcard" data-a="go" data-tab="termine"><span class="hc-txt"><b>📅 Als Nächstes</b>${soon.length
+      ? soon.map(b => `<span class="hc-term"><i class="tdot" style="background:${b.color}"></i> ${esc(carDayLabel(carDay(b.start) < t ? t : carDay(b.start)))} ${esc(carTime(b.start))} · <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b> <span class="muted">· ${esc(whoName(b.who))}${isCar(b) ? ' · 🚗' : ''}</span></span>`).join('')
+      : '<span class="muted">Heute und morgen keine Termine. Der Kalender gähnt.</span>'}</span><span class="hc-go">›</span></button>`;
+  // the headline number
+  const facts = C.FUN_FACTS.filter(([c]) => c(st)), fact = facts.length ? facts[dayIndex() % facts.length][1](st) : 'Die erste Nudel ist die schwerste.';
+  h += `<div class="card headline"><div class="hl-n">${st.total}</div><div class="hl-l">Sachen erledigt – insgesamt</div><div class="hl-f">${esc(fact)}</div></div>`;
+  // numbers
+  h += `<div class="sec-title">In Zahlen</div><div class="nums">
+    <div class="num"><b>${S.earned}</b><span>⭐ gesammelt</span></div>
+    <div class="num"><b>${st.rest}</b><span>🛋️ entspannt</span></div>
+    <div class="num"><b>${st.sent}</b><span>🤝 abgegeben</span></div>
+    ${st.top ? `<div class="num wide"><span>Am häufigsten erledigt</span><b class="top">${esc(st.top[0])} <em>${st.top[1]}×</em></b></div>` : ''}</div>`;
+  h += `<button class="card wide rankwrap" data-a="rank">${rankCard(false)}</button>`;
+  // the two of you
+  const ps = S.partnerStats && S.partnerStats.day === t ? S.partnerStats : null;
+  const wk = weekDays(monday(t)), took = S.sent.filter(x => (x.status === 'ok' || x.status === 'erledigt') && wk.includes(key(new Date(x.ts - 3 * 3600e3)))).length;
+  h += `<div class="sec-title">Ihr zwei</div><div class="card team">
+    ${ps ? `<div class="team-n"><b>${done.length + ps.done}</b><span>heute zusammen geschafft</span></div><div class="team-split"><span>${esc(S.name || 'Du')} <b>${done.length}</b></span><span>${esc(pn())} <b>${ps.done}</b></span></div>`
+      : `<p class="muted" style="margin:0">Sobald ${esc(pn())} heute die App öffnet, steht hier, was ihr zusammen schafft.</p>`}
+    ${took ? `<p class="team-l">🤝 ${esc(pn())} hat dir diese Woche ${took === 1 ? 'eine Aufgabe' : took + ' Aufgaben'} abgenommen.</p>` : ''}
+    ${(S.thanksSeen || []).length ? `<p class="team-l">💛 ${(S.thanksSeen || []).length}× Danke von ${esc(pn())} bekommen.</p>` : ''}
+    ${S.partnerStats && S.partnerStats.total ? `<p class="team-l">🍝 Zusammen schon ${st.total + S.partnerStats.total} Sachen erledigt.</p>` : ''}</div>`;
+  // treasures
+  const pages = S.book.pages, stage = (S.plant && S.plant.stage) || 0;
+  h += `<div class="sec-title">Deine Schätze</div><div class="treas">
+    <button class="card hcard tr" data-a="go" data-tab="schaetze"><b>📖 ${pages ? 'Fotobuch' : 'Geheimes Buch'}</b><span class="muted">${pages} von ${C.BOOK_PAGES} Seiten</span><span class="bar"><i style="width:${pages / C.BOOK_PAGES * 100}%"></i></span></button>
+    <button class="card hcard tr" data-a="go" data-tab="schaetze"><b>🌿 Pflanze</b><span class="muted">${esc(C.STAGES[Math.min(stage, C.STAGES.length - 1)])}</span><span class="bar"><i style="width:${Math.min(1, stage / (C.STAGES.length - 1)) * 100}%;background:var(--green)"></i></span></button></div>
+    ${S.stars >= Math.min(C.pageCost(pages), C.STAGE_COST) ? `<button class="btn wide" data-a="go" data-tab="schaetze">⭐ ${S.stars} Sterne – genug für was Neues!</button>` : `<p class="hint" style="text-align:center">⭐ ${S.stars} Sterne zum Ausgeben</p>`}`;
+  return h;
+}
+A.splash = () => { pickSplash(); render(); };
+
 // ---------- render ----------
 const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Liste']];
 function viewHeuteTab() {
   const n = S.items.filter(i => i.where === 'liste').length;
   return `<div class="chips qtabs two">${HTABS.map(([k, l]) => `<button class="chip ${ui.htab === k ? 'on' : ''}" data-a="htab" data-v="${k}">${l}${k === 'liste' && n ? ' <span class="cnt">' + n + '</span>' : ''}</button>`).join('')}</div>` + incomingCard() + (ui.htab === 'liste' ? viewListe() : viewHeute());
 }
-const VIEWS = { heute: viewHeuteTab, termine: viewTermine, ruhe: viewRuhe, schaetze: viewSchaetze, woche: viewWoche };
+const VIEWS = { home: viewHome, heute: viewHeuteTab, termine: viewTermine, ruhe: viewRuhe, schaetze: viewSchaetze, woche: viewWoche };
 function render() {
   const focused = document.activeElement && document.activeElement.closest('form[data-f]');
   const refocus = focused && focused.dataset.f;
@@ -1650,8 +1719,8 @@ function goBack() {
   }
   if (ui.sub) { ui.sub = null; render(); scrollTo(0, 0); return; }
   if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
-  if (ui.tab !== 'heute') { ui.tab = 'heute'; render(); scrollTo(0, 0); return; }
-  toast('Du bist auf Heute 🙂');
+  if (ui.tab !== 'home') { ui.tab = 'home'; render(); scrollTo(0, 0); return; }
+  toast('Du bist zu Hause 🙂');
 }
 addEventListener('popstate', () => { guarded = false; goBack(); armBack(); });
 

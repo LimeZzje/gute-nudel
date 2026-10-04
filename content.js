@@ -182,3 +182,30 @@ export function rankOf(total) { // → {t (tier index), tier, div, step (0… ov
 }
 
 export const PRAISE = ['Gut gemacht!', 'Erledigt!', 'Abgehakt!', 'Stark!', 'Weg damit!', 'Eins weniger!', 'Läuft!'];
+
+// ---------- Home: Minecraft-style splash lines (one per app start, tap for another) ----------
+export const SPLASHES = [
+  'Jetzt mit 20 % mehr Nudel!', 'Garantiert Creeper-frei!', 'Al dente!', 'Kann Spuren von Motivation enthalten!',
+  'Sofa-zertifiziert!', 'Funktioniert sogar montags!', 'Ohne Zusatzstoffe!', 'Bitte nicht füttern!',
+  'Nudeln sind Spaghetti mit Ambitionen!', 'Kein Bug, ein Feature!', 'Liebe ist: Spülmaschine ausräumen!',
+  'Achievement: App geöffnet!', 'Kostet 0 Smaragde!', 'Wäscheberg? Welcher Wäscheberg?', 'Handy weg, Füße hoch!',
+  'Mit Liebe kompiliert!', 'Jetzt mit Auto!', 'Hase approved!', 'Pausen zählen auch!', 'Nudel des Tages: du!',
+  'Unverbindlich gut gelaunt!', 'Auch in Farbe erhältlich!', '100 % handgemacht!', 'Besser als Bügeln!',
+  'Spoiler: Du schaffst das!', 'Weniger ist mehr. Außer Sterne!', 'Läuft bei dir!', 'Heute schon gelobt worden?',
+  'Kaffee zählt als Frühstück!', 'Socken haben Gefühle!', 'Nicht im Nether verwenden!', 'Mit extra Soße!',
+  'Mehr Sterne als die Milchstraße! (Fast.)', 'Bestnote in Gemütlichkeit!', 'Staubsauger hat Angst vor dir!',
+  'Jetzt neu: Wochenende!', 'Auch ohne Diamanten wertvoll!', 'Stressfrei seit heute!', 'Kuscheln zählt als Cardio!',
+];
+export const SPLASH_TIME = { // a few that only make sense at that time of day
+  morgen: ['Erst Kaffee, dann Weltherrschaft!', 'Bett war gestern!', 'Guten Morgen, Sonnenschein!'],
+  abend: ['Feierabend ist auch ein Erfolg!', 'Jetzt: Füße hoch!', 'Abends sind alle Nudeln weich!'],
+  nacht: ['Schlaf ist auch eine Quest!', 'Die Mobs spawnen schon!', 'Morgen ist auch noch ein Tag!'],
+};
+// fun numbers for the headline: [condition(stats), text(stats)]
+export const FUN_FACTS = [
+  [s => s.laundry >= 2, s => `${s.laundry}× Wäsche ≈ ${s.laundry * 28} Socken gerettet 🧦`],
+  [s => s.total >= 10, s => `Als Nudeln wären das ${Math.max(1, Math.round(s.total / 12))} Teller Spaghetti 🍝`],
+  [s => s.earned >= 10, s => `${s.earned} Sterne – fast schon ein eigenes Sternbild ✨`],
+  [s => s.rest >= 3, s => `${s.rest}× entspannt. Das ist Leistungssport für die Seele 🛋️`],
+  [s => s.total >= 1, s => `Jede davon war eine gute Nudel 💛`],
+];

@@ -510,3 +510,49 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .au-cartgl { display: block; width: 100%; margin: 12px 0 14px; padding: 10px 12px; text-align: left; }
 .au-cartgl.on { background: #fff; color: #000; }
 .au-by { font-size: 12px; color: var(--au-dim); }
+
+/* ---------- Home ---------- */
+@font-face { font-family: 'Pixel'; src: url(fonts/pixel.woff2) format('woff2'); font-weight: 600; font-display: swap; }
+.hello { position: relative; padding: 8px 4px 18px; min-height: 120px; }
+.hello-g { font-size: 18px; color: var(--ink2); font-weight: 700; }
+.hello-n { font: 700 clamp(44px, 14vw, 60px)/1.05 Caveat, cursive; color: var(--accent); max-width: 62%; overflow-wrap: anywhere; }
+/* the Minecraft title-screen splash: yellow, tilted, pulsing */
+.splash { position: absolute; right: 0; top: 30px; max-width: 58%; border: 0; background: none; padding: 6px; transform: rotate(-17deg); cursor: pointer; }
+.splash span { display: block; font: 600 17px/1.15 Pixel, monospace; color: #ffff55; text-shadow: 2px 2px 0 #3f3f15; text-align: center; animation: splash .55s ease-in-out infinite alternate; transform-origin: center; }
+.splash span.long { font-size: 14px; }
+:root:not([data-theme="dark"]) .splash span { color: #f5e100; text-shadow: 2px 2px 0 #3f3a00, 0 0 1px #3f3a00; }
+@keyframes splash { from { transform: scale(1); } to { transform: scale(1.09); } }
+@media (prefers-reduced-motion: reduce) { .splash span { animation: none; } }
+.hcard { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; border: 0; color: inherit; font: inherit; margin-bottom: 12px; position: relative; }
+.hc-txt { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.hc-txt > b { font-size: 19px; }
+.hc-go { font-size: 26px; color: var(--ink2); }
+.hc-term { font-size: 15px; display: block; }
+.hc-term .tdot { width: 9px; height: 9px; }
+.today-card { padding-left: 14px; }
+.ring { width: 76px; height: 76px; flex: none; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 9; }
+.ring-bg { stroke: var(--paper2); }
+.ring-fg { stroke: var(--green); stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.2, .8, .2, 1); }
+.ring-n { position: absolute; left: 14px; width: 76px; text-align: center; font: 700 30px/1 Caveat, cursive; color: var(--ink); }
+.ring-n small { font-size: 18px; color: var(--ink2); }
+.headline { text-align: center; padding: 18px 14px; }
+.hl-n { font: 700 72px/1 Caveat, cursive; color: var(--accent); }
+.hl-l { font-weight: 800; color: var(--ink2); }
+.hl-f { margin-top: 8px; font-size: 16px; }
+.nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.num { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); padding: 12px 6px; text-align: center; }
+.num b { display: block; font: 700 36px/1 Caveat, cursive; color: var(--accent); }
+.num span { font-size: 13px; color: var(--ink2); font-weight: 700; }
+.num.wide { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; text-align: left; }
+.num .top { font: 800 17px Nunito, sans-serif; color: var(--ink); }
+.num .top em { font: 700 30px/1 Caveat, cursive; color: var(--accent); font-style: normal; margin-left: 6px; }
+.team-n { text-align: center; }
+.team-n b { display: block; font: 700 60px/1 Caveat, cursive; color: var(--green); }
+.team-n span { font-weight: 800; color: var(--ink2); }
+.team-split { display: flex; justify-content: center; gap: 22px; margin: 6px 0 4px; font-weight: 700; }
+.team-split b { font: 700 26px Caveat, cursive; color: var(--accent); margin-left: 4px; }
+.team-l { margin: 8px 0 0; font-size: 16px; }
+.treas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tr { flex-direction: column; align-items: stretch; gap: 4px; }
+.tr .bar { display: block; }
