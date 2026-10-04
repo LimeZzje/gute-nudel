@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.11';
+const VERSION = '2026-10-04.12';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1370,6 +1370,7 @@ function carRange(b) { // "09:00 – 12:00" or "09:00 – Sa, 6. Okt 18:00"
   return carTime(b.start) + ' – ' + (carDay(b.end) !== carDay(b.start) ? carDayLabel(carDay(b.end)) + ' ' : '') + carTime(b.end);
 }
 const isCar = b => b.car !== false;
+const shared = b => b.who === 'both' || isCar(b);   // Termine only holds shared appointments and car entries (own ones go in your own calendar)
 const whoColor = w => Car.COLORS[w] || '#4fd1a5';
 const whoName = (w, du = 'Du') => w === 'both' ? 'Ihr beide' : w === D.me() ? du : pn();
 const repTag = b => Car.isSeries(b) ? ` <span class="au-rep">🔁 ${Car.repLabel(b)}${b.until ? ' bis ' + esc(carDayLabel(b.until)) : ''}</span>` : '';
@@ -1427,19 +1428,19 @@ function viewAuto() {
     ${termList(all, 'Noch nichts eingetragen. Das Auto gehört gerade allen.')}
     <p class="au-note">Termine mit 🚗 aus dem Kalender stehen hier automatisch mit drin. ${esc(pn())} sieht alles, sobald die App bei ${esc(pn())} offen ist.</p></section>`;
 }
-const TFILTER = [['all', 'Alle'], ['me', 'Du'], ['partner', null], ['both', 'Beide'], ['car', '🚗 Auto']];
+const TFILTER = [['all', 'Alle'], ['both', 'Beide'], ['car', '🚗 Auto']];
 function termFilter(b) {
   const f = ui.tFilter || 'all';
-  return f === 'all' || (f === 'car' ? isCar(b) : f === 'me' ? b.who === D.me() : f === 'partner' ? b.who === D.partner() : b.who === 'both');
+  return shared(b) && (f === 'all' || (f === 'car' ? isCar(b) : b.who === 'both'));
 }
 function viewTermine() {
-  const all = carAll(Car.live, false), t = Car.localISO(new Date()).slice(0, 10);
+  const all = carAll(Car.live, false).filter(shared), t = Car.localISO(new Date()).slice(0, 10);
   const todays = all.filter(b => carDay(b.start) <= t && carDay(b.end) >= t), next = all.find(b => b.start > Car.localISO(new Date()));
   return `<section class="audi termine">
     <div class="au-hero tm-hero">
       <div class="au-kicker">Unser Kalender</div>
       <div class="au-model">Termine</div>
-      <div class="au-trim">${esc(S.name || 'Du')} · ${esc(pn())} · ihr beide</div>
+      <div class="au-trim">Was ihr zusammen vorhabt – und wer das Auto hat</div>
       <div class="au-status">${todays.length ? '<span class="au-dot busy"></span>' : '<span class="au-dot"></span>'}<span>${todays.length ? 'Heute ' + (todays.length === 1 ? 'ein Termin' : todays.length + ' Termine') : 'Heute nichts – herrlich'}${next ? ` · als Nächstes <b>${esc(next.note || 'Termin')}</b>, ${carDayLabel(carDay(next.start))} ${carTime(next.start)}` : ''}</span></div>
     </div>
     <button class="au-btn" data-a="carnew" data-car="0">Termin eintragen</button>
@@ -1447,7 +1448,7 @@ function viewTermine() {
     ${carCalendar(false)}
     <div class="au-h">Alle kommenden Termine</div>
     ${termList(all.filter(termFilter), 'Nichts geplant. Genießt es.')}
-    <p class="au-note">Ändern und löschen kann nur, wer den Termin eingetragen hat. Mit 🚗 steht er auch beim Auto.</p></section>`;
+    <p class="au-note">Hier stehen gemeinsame Termine und alles mit Auto. Eigene Termine ohne Auto gehören in euren eigenen Kalender. Ändern und löschen kann nur, wer eingetragen hat.</p></section>`;
 }
 // ---------- the calendar: a month, a mark per entry in its person's colour, a 24 h strip per day ----------
 function carCalendar(onlyCar) {
@@ -1510,7 +1511,8 @@ function carModal(keep = false) {
     <label class="au-full"><span>${auto ? 'Wofür? (optional)' : 'Was?'}</span><input id="c-note" maxlength="40" placeholder="${auto ? 'z.B. Arzt, Einkaufen, Training' : 'z.B. Zahnarzt, Elternabend, Kino'}" value="${esc(f.note)}"></label>
     <div class="au-lbl">Für wen?</div>
     <div class="au-reps three">${whoChips.map(([v, l]) => `<button class="au-chip${f.who === v ? ' on' : ''}" type="button" data-a="termwho" data-v="${v}" style="--who:${whoColor(v)}"><i class="tdot" style="background:${whoColor(v)}"></i> ${esc(l)}</button>`).join('')}</div>
-    <button class="au-chip au-cartgl${f.car ? ' on' : ''}" type="button" data-a="termcar">🚗 ${f.car ? 'Braucht das Auto ✓' : 'Braucht das Auto?'}</button>
+    <button class="au-chip au-cartgl${f.car ? ' on' : ''}" type="button" data-a="termcar"${f.who !== 'both' ? ' disabled' : ''}>🚗 ${f.car ? 'Braucht das Auto ✓' : 'Braucht das Auto?'}</button>
+    ${f.who !== 'both' ? '<p class="au-hint">Für eine Person allein geht es hier nur ums Auto – eigene Termine kommen in euren eigenen Kalender.</p>' : ''}
     <div class="au-grid">
       <label><span>Von</span><input type="date" id="c-sd" value="${f.sd}" oninput="const e=document.getElementById('c-ed'); if(e.value<this.value) e.value=this.value"></label>
       <label><span>&nbsp;</span><input type="time" id="c-st" value="${f.st}"></label>
@@ -1551,7 +1553,7 @@ Object.assign(A, {
     if (k && k > Car.localISO(d).slice(0, 10)) { const [y, m, dd] = k.split('-').map(Number); d.setFullYear(y, m - 1, dd); d.setHours(9); }
     const e = new Date(d); e.setHours(e.getHours() + (car ? 2 : 1));
     const a = Car.localISO(d), b = Car.localISO(e);
-    ui.carForm = { sd: a.slice(0, 10), st: a.slice(11), ed: b.slice(0, 10), et: b.slice(11), note: '', who: D.me(), car, from: car ? 'auto' : 'termine' };
+    ui.carForm = { sd: a.slice(0, 10), st: a.slice(11), ed: b.slice(0, 10), et: b.slice(11), note: '', who: car ? D.me() : 'both', car, from: car ? 'auto' : 'termine' };
     carModal(); syncPost();           // fresh partner entries while she fills it in
   },
   caredit(el) {
@@ -1560,8 +1562,8 @@ Object.assign(A, {
     carModal(); syncPost();
   },
   carrep(el) { carRead(); const v = el.dataset.v; ui.carForm.rep = v === 'c' ? 'c' : +v; ui.carForm.clash = null; carModal(true); },
-  termwho(el) { carRead(); ui.carForm.who = el.dataset.v; carModal(true); },
-  termcar() { carRead(); ui.carForm.car = !ui.carForm.car; ui.carForm.clash = null; carModal(true); },
+  termwho(el) { carRead(); ui.carForm.who = el.dataset.v; if (el.dataset.v !== 'both') ui.carForm.car = true; ui.carForm.clash = null; carModal(true); },
+  termcar() { carRead(); if (ui.carForm.who !== 'both') return; ui.carForm.car = !ui.carForm.car; ui.carForm.clash = null; carModal(true); },
   carclash() { carRead(); ui.carForm.clash = null; carModal(true); },
   async carsave(el) {
     if (!el.dataset.force) carRead();
@@ -1648,7 +1650,7 @@ function viewHome() {
       <span class="muted">${finished ? 'Der Rest wartet bis morgen.' : !S.today.planned && !done.length ? '3–5 Sachen reichen völlig.' : done.length ? done.length + ' heute schon geschafft' : 'Du schaffst das.'}${heute.filter(i => i.chore).length ? ' · 🔁 ' + heute.filter(i => i.chore).length + ' fällig' : ''}</span></span><span class="hc-go">›</span></button>`;
   // next appointments (today + tomorrow) and the car
   const now = Car.localISO(new Date()), tm = addDays(t, 1);
-  const soon = carAll(Car.live, false).filter(b => carDay(b.start) <= tm && b.end > now).slice(0, 3);
+  const soon = carAll(Car.live, false).filter(b => shared(b) && carDay(b.start) <= tm && b.end > now).slice(0, 3);
   h += `<button class="card hcard" data-a="go" data-tab="termine"><span class="hc-txt"><b>📅 Als Nächstes</b>${soon.length
       ? soon.map(b => `<span class="hc-term"><i class="tdot" style="background:${b.color}"></i> ${esc(carDayLabel(carDay(b.start) < t ? t : carDay(b.start)))} ${esc(carTime(b.start))} · <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b> <span class="muted">· ${esc(whoName(b.who))}${isCar(b) ? ' · 🚗' : ''}</span></span>`).join('')
       : '<span class="muted">Heute und morgen keine Termine. Der Kalender gähnt.</span>'}</span><span class="hc-go">›</span></button>`;

@@ -207,5 +207,5 @@ export const FUN_FACTS = [
   [s => s.total >= 10, s => `Als Nudeln wären das ${Math.max(1, Math.round(s.total / 12))} Teller Spaghetti 🍝`],
   [s => s.earned >= 10, s => `${s.earned} Sterne – fast schon ein eigenes Sternbild ✨`],
   [s => s.rest >= 3, s => `${s.rest}× entspannt. Das ist Leistungssport für die Seele 🛋️`],
-  [s => s.total >= 1, s => `Jede davon war eine gute Nudel 💛`],
+  [s => s.total >= 1, s => `${s.total} Häkchen – dein Stift ist stolz auf dich ✍️`],
 ];
