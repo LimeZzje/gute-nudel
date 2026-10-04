@@ -351,3 +351,71 @@ textarea { width: 100%; border: 2px solid var(--line); border-radius: 12px; back
 .list-plain .st-ok { color: var(--accent); } .list-plain .st-erledigt { color: var(--green); }
 nav#tabs button { position: relative; }
 nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: calc(50% + 10px); width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+
+/* ---------- Heute | Liste chips, 4 Daheim chips ---------- */
+.qtabs.two { grid-template-columns: 1fr 1fr; }
+.qtabs:has(> :nth-child(4)) { display: flex; }
+.qtabs:has(> :nth-child(4)) .chip { flex: 1 1 auto; font-size: 13.5px; padding: 8px 6px; }
+.chip .cnt { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 99px; font-size: 12px; line-height: 20px; background: var(--paper); color: var(--ink2); margin-left: 2px; }
+.chip.on .cnt { background: rgba(255, 255, 255, .25); color: inherit; }
+
+/* ---------- Auto: deliberately Audi, not notepad ---------- */
+.audi {
+  --au-bg: #0d0e10; --au-card: #17181b; --au-line: #2c2e33; --au-txt: #f2f2f2; --au-dim: #9a9ea5; --au-red: #f50537;
+  font-family: "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif; color: var(--au-txt); background: var(--au-bg);
+  margin: 4px -16px 0; padding: 0 16px 22px; letter-spacing: .01em;
+}
+.au-hero { margin: 0 -16px; padding: 22px 16px 14px; background: radial-gradient(ellipse 70% 55% at 50% 78%, #3a3e44 0%, #16171a 55%, #0d0e10 100%); overflow: hidden; }
+.au-kicker { font-size: 11px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase; color: var(--au-dim); }
+.au-model { font-size: 34px; font-weight: 300; line-height: 1.1; letter-spacing: .02em; margin-top: 2px; }
+.au-model.sm { font-size: 26px; margin-bottom: 14px; }
+.au-trim { font-size: 13px; color: var(--au-dim); letter-spacing: .06em; margin-top: 2px; }
+.au-car { margin: 6px -10px -4px; position: relative; }
+.au-car::after { content: ''; position: absolute; left: 12%; right: 12%; bottom: 8%; height: 1px; background: linear-gradient(90deg, transparent, rgba(245, 5, 55, .55), transparent); }
+.a1 { width: 100%; height: auto; display: block; }
+.a1 .a1drl { animation: drl 1.6s ease-out both; }
+.a1 .a1tail { filter: drop-shadow(0 0 3px #ff2a3a); }
+@keyframes drl { 0% { opacity: 0; } 30% { opacity: 1; stroke: #fff; } 45% { opacity: .35; } 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .a1 .a1drl { animation: none; } }
+.au-status { font-size: 14px; color: var(--au-txt); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--au-line); padding-top: 12px; margin-top: 4px; }
+.au-status b { font-weight: 600; }
+.au-dot { width: 8px; height: 8px; border-radius: 50%; background: #3ccf6e; box-shadow: 0 0 8px #3ccf6e; flex: none; }
+.au-dot.busy { background: var(--au-red); box-shadow: 0 0 8px var(--au-red); }
+.au-btn { display: block; width: 100%; border: 1px solid #fff; background: #fff; color: #000; border-radius: 0; padding: 14px 18px; font: 600 15px/1.2 inherit; font-family: inherit; letter-spacing: .04em; margin: 18px 0 0; min-height: 50px; }
+.au-btn:active { background: #d9d9d9; }
+.au-btn.ghost { background: transparent; color: #fff; border-color: #5a5d63; }
+.au-btn.red { background: var(--au-red); border-color: var(--au-red); color: #fff; }
+.au-h { font-size: 11px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase; color: var(--au-dim); margin: 28px 0 4px; }
+.au-day { font-size: 13px; font-weight: 600; color: var(--au-txt); margin: 16px 0 0; padding-bottom: 6px; border-bottom: 1px solid var(--au-line); }
+.au-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 0 12px 12px; border-bottom: 1px solid var(--au-line); border-left: 2px solid #5a5d63; }
+.au-row.mine { border-left-color: #fff; }
+.au-row.clash { border-left-color: var(--au-red); }
+.au-time { font-size: 20px; font-weight: 300; letter-spacing: .02em; grid-column: 1; }
+.au-who { font-size: 14px; color: var(--au-dim); grid-column: 1; }
+.au-who b { color: var(--au-txt); font-weight: 600; }
+.au-warn { color: var(--au-red); font-size: 13px; font-weight: 600; margin-top: 2px; }
+.au-x { grid-column: 2; grid-row: 1 / span 2; align-self: center; background: none; border: 1px solid var(--au-line); color: var(--au-dim); width: 40px; height: 40px; border-radius: 0; font-size: 15px; }
+.au-empty, .au-note { font-size: 14px; color: var(--au-dim); margin: 12px 0 0; }
+.au-note { font-size: 12px; margin-top: 18px; }
+
+.modal.au-wrap { background: #0d0e10; border-radius: 0; padding: 0; text-align: left; border-top: 2px solid #f50537; }
+.au-modal { margin: 0; padding: 20px 18px 20px; }
+.au-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+.au-modal label { display: block; }
+.au-modal label span { display: block; font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--au-dim); margin-bottom: 4px; }
+.au-modal input { width: 100%; min-width: 0; background: #17181b; color: #f2f2f2; border: 0; border-bottom: 1px solid #5a5d63; border-radius: 0; padding: 10px 8px; font: 16px inherit; font-family: inherit; color-scheme: dark; }
+.au-modal input:focus { outline: none; border-bottom-color: #fff; }
+.au-full { margin-top: 14px; }
+.au-chip { background: none; border: 1px solid #3a3d42; color: #f2f2f2; border-radius: 0; padding: 6px 12px; font-size: 13px; margin-top: 10px; font-family: inherit; }
+.au-err { color: #f50537; font-size: 14px; margin-top: 12px; font-weight: 600; }
+.au-clash { border-left: 2px solid #f50537; background: #1c0b10; padding: 12px; margin-top: 16px; font-size: 14px; color: #dcdcdc; }
+.au-clash b { color: #fff; display: block; margin-bottom: 4px; }
+.au-modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.au-modal .row .au-btn { margin-top: 12px; padding: 12px 8px; }
+
+.cartoday { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; width: 100%; text-align: left; border: 0; border-left: 2px solid #f50537; background: #0d0e10; color: #f2f2f2; padding: 10px 34px 10px 12px; margin: 6px 0 10px; position: relative; font: 14px/1.35 "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif; }
+.cartoday .ct-k { font-size: 10px; font-weight: 600; letter-spacing: .25em; color: #9a9ea5; width: 100%; }
+.cartoday .ct-r b { font-weight: 600; }
+.cartoday .ct-r.clash { color: #ff6b85; }
+.cartoday .ct-go { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 20px; color: #9a9ea5; }
+@media (max-width: 379px) { .qtabs:has(> :nth-child(4)) { gap: 4px; } .qtabs:has(> :nth-child(4)) .chip { font-size: 12.5px; padding: 8px 4px; } }

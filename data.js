@@ -48,6 +48,8 @@ export function freshState() {
     sent: [],              // tasks I handed to the partner: {id, text, today, ts, status: wartet|ok|nein|erledigt, reason}
     answered: {},          // my answers to the partner's tasks: id -> {status: ok|nein|erledigt, reason, ts}
     incoming: [],          // partner's tasks waiting for my answer: {id, text, today, ts}
+    car: [],               // my car bookings: {id, start, end ('YYYY-MM-DDTHH:MM'), note, ts, del?}
+    partnerCar: [],        // the partner's upcoming bookings (from their post)
     partnerName: '', postedName: null,
   };
 }

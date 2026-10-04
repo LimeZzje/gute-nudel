@@ -3,10 +3,11 @@ import * as K from './cookbook.js';
 import * as Sh from './shop.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
+import * as Car from './car.js';
 
-const VERSION = '2026-10-03.34';
+const VERSION = '2026-10-04.1';
 let S = null;                                   // the state (see data.js freshState)
-const ui = { tab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
+const ui = { tab: 'heute', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
 const tags = i => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
 const choreTag = i => { const c = S.chores.find(x => x.id === i.chore); return c ? `<span class="tag">🔁${c.reward ? ' 🎁' : ''}</span>` + toolBtns(c, i) : ''; };
@@ -50,6 +51,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     me: D.me(), name: S.name, ts: Date.now(),
     out: S.sent.filter(x => x.status !== 'weg' && Date.now() - x.ts < MONTH).map(({ id, text, today, ts, list }) => ({ id, text, today, ts, ...(list ? { list } : {}) })),
     withdrawn: S.sent.filter(x => x.status === 'weg').map(x => x.id),
+    car: Car.live(S.car).map(({ id, start, end, note }) => ({ id, start, end, note })),
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
 }
@@ -63,6 +65,8 @@ async function syncPost() {
     if (p.me && p.me === D.me()) return;              // never treat my own mailbox as the partner's
     let changed = false; const back = [], took = [], done = [];
     if (p.name && p.name !== S.partnerName) { S.partnerName = p.name; changed = true; }
+    const pc = Car.live(p.car);
+    if (JSON.stringify(pc) !== JSON.stringify(Car.live(S.partnerCar))) { S.partnerCar = pc; changed = true; }
     const gone = new Set(p.withdrawn || []), pulled = S.items.filter(i => i.did && gone.has(i.did));
     if (pulled.length) { S.items = S.items.filter(i => !pulled.includes(i)); pulled.forEach(i => { S.answered[i.did] = { status: 'weg', ts: Date.now() }; }); changed = true; }
     const inc = (p.out || []).filter(x => !S.answered[x.id] && !gone.has(x.id));
@@ -241,7 +245,7 @@ function viewHeute() {
   const capped = done.length >= C.CAP;
   let h = '';
 
-  h += incomingCard() + comboCard(true) + giftCards();
+  h += carToday() + comboCard(true) + giftCards();
   const lastMon = addDays(monday(d), -7);
   if (!S.weeksSeen.includes(lastMon) && S.log.some(e => weekDays(lastMon).includes(e.day)))
     h += `<button class="card btn soft wide" data-a="story" data-w="${lastMon}" style="text-align:left">✨ <b>Dein Wochenrückblick ist da.</b><br><span class="muted">Schau dir an, was du letzte Woche alles geschafft hast.</span></button>`;
@@ -349,7 +353,7 @@ function afterWork(count, post = false) {
     return;
   }
   const heute = S.items.filter(i => i.where === 'heute');
-  if (S.today.planned && heute.length === 0 && !S.today.celebrated && ui.tab === 'heute') {
+  if (S.today.planned && heute.length === 0 && !S.today.celebrated && ui.tab === 'heute' && ui.htab === 'heute') {
     S.today.celebrated = true; commit(); confetti();
   }
 }
@@ -380,13 +384,14 @@ function questCard(q, active) {
     ${active ? `<div class="row"><button class="btn" data-a="questdone">Überlebt! +${C.REST_STARS} ⭐</button><button class="btn soft" data-a="questquit">Später</button></div>`
       : `<button class="btn wide" data-a="queststart" data-id="${q.id}">Quest annehmen</button>`}</div>`;
 }
-const QTABS = [['haushalt', '🪴 Nestpflege'], ['gemuetlich', '🫖 Gemütlich'], ['goenn', '💝 Gönn dir']];
+const QTABS = [['haushalt', '🪴 Nestpflege'], ['gemuetlich', '🫖 Gemütlich'], ['goenn', '💝 Gönn dir'], ['auto', '🚗 Auto']];
 function viewRuhe() {
   if (ui.sub === 'cook') return viewCook();
   if (!QTABS.some(([k]) => k === ui.qtab)) ui.qtab = 'haushalt';
   const h = `<div class="chips qtabs">${QTABS.map(([k, l]) => `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}">${l}</button>`).join('')}</div>`;
   if (ui.qtab === 'gemuetlich') return h + viewGemuetlich();
   if (ui.qtab === 'goenn') return h + viewGoenn();
+  if (ui.qtab === 'auto') return h + viewAuto();
   return h + viewHaushalt();
 }
 function viewHaushalt() {
@@ -737,7 +742,8 @@ const A = {
     modal(`<h2>Doppel-Quest bestanden!</h2><p><b>${esc(c.title)}</b> – Arbeit erledigt <i>und</i> genossen.</p><p>+${C.COMBO_REWARD_STARS} gute Nudel Sterne ⭐</p><p class="muted">Das ist die hohe Kunst.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
   },
   allcombos() { ui.showAllCombos = !ui.showAllCombos; render(); },
-  qtab(el) { ui.qtab = el.dataset.v; render(); scrollTo(0, 0); },
+  qtab(el) { ui.qtab = el.dataset.v; render(); scrollTo(0, 0); if (ui.qtab === 'auto') syncPost(); },
+  htab(el) { ui.htab = el.dataset.v; render(); scrollTo(0, 0); },
   choretpl(el) {
     const t = C.CHORE_TEMPLATES.find(x => x.name === el.dataset.v); if (!t) return;
     const c = { id: uid(), icon: t.icon, name: t.name, ...(t.week ? { week: t.week.slice() } : { every: t.every }), reward: t.reward || null, last: null, tools: (t.tools || []).slice(), music: '', skip: addDays(today(), 1) };
@@ -1252,11 +1258,126 @@ const FORMS = {
   wish(t) { S.wishes.push({ id: uid(), text: t }); commit(); toast('Gemerkt 💛 – taucht jetzt auch bei den Belohnungen auf.'); },
 };
 
+// ---------- AUTO: one car, two people ----------
+// Each phone keeps its own bookings (S.car) and posts the upcoming ones; the partner's come in via post (S.partnerCar).
+// No approval step: you just book, and an overlap with the partner shows a warning first.
+const carDay = iso => iso.slice(0, 10);
+const carTime = iso => iso.slice(11, 16);
+function carDayLabel(k) {
+  const now = new Date(), t = Car.localISO(now).slice(0, 10), d = parse(k);
+  const tm = new Date(now); tm.setDate(tm.getDate() + 1);
+  if (k === t) return 'Heute';
+  if (k === Car.localISO(tm).slice(0, 10)) return 'Morgen';
+  return C.DAYNAMES[d.getDay()].slice(0, 2) + ', ' + d.getDate() + '. ' + C.MONTHS[d.getMonth()].slice(0, 3);
+}
+function carRange(b) { // "09:00 – 12:00" or "09:00 – Sa, 6. Okt 18:00"
+  if (carTime(b.start) === '00:00' && carTime(b.end) === '23:59' && carDay(b.start) === carDay(b.end)) return 'Ganzer Tag';
+  return carTime(b.start) + ' – ' + (carDay(b.end) !== carDay(b.start) ? carDayLabel(carDay(b.end)) + ' ' : '') + carTime(b.end);
+}
+function carAll() { // everyone's upcoming bookings, sorted, with clashes marked
+  const all = Car.live(S.car).map(b => ({ ...b, mine: true })).concat(Car.live(S.partnerCar).map(b => ({ ...b, mine: false })));
+  all.forEach(b => { b.clash = all.some(o => o.mine !== b.mine && Car.overlaps(o, b)); });
+  return all.sort((a, b) => a.start < b.start ? -1 : 1);
+}
+function carToday() { // a slim line on Heute when the car is booked today
+  const t = Car.localISO(new Date()).slice(0, 10);
+  const list = carAll().filter(b => carDay(b.start) <= t && carDay(b.end) >= t);
+  if (!list.length) return '';
+  return `<button class="cartoday" data-a="go" data-tab="ruhe" data-q="auto"><span class="ct-k">A1 HEUTE</span>${list.map(b => `<span class="ct-r${b.clash ? ' clash' : ''}"><b>${b.mine ? 'Du' : esc(pn())}</b> ${esc(carRange(b))}${b.note ? ' · ' + esc(b.note) : ''}</span>`).join('')}<span class="ct-go">›</span></button>`;
+}
+function viewAuto() {
+  const all = carAll(), now = Car.localISO(new Date());
+  const using = all.find(b => b.start <= now && b.end > now);
+  const next = all.find(b => b.start > now);
+  let h = `<section class="audi">
+    <div class="au-hero">
+      <div class="au-kicker">Unser Auto</div>
+      <div class="au-model">A1 Sportback</div>
+      <div class="au-trim">S line · Arrowgrau</div>
+      <div class="au-car">${Car.carSVG()}</div>
+      <div class="au-status">${using ? `<span class="au-dot busy"></span>Gerade unterwegs mit <b>${using.mine ? 'dir' : esc(pn())}</b> · bis ${carTime(using.end)}`
+        : `<span class="au-dot"></span>Jetzt frei${next ? ` · als Nächstes ${next.mine ? 'du' : esc(pn())}, ${carDayLabel(carDay(next.start))} ${carTime(next.start)}` : ''}`}</div>
+    </div>
+    <button class="au-btn" data-a="carnew">Auto reservieren</button>
+    <div class="au-h">Reservierungen</div>`;
+  if (!all.length) h += `<p class="au-empty">Noch nichts eingetragen. Das Auto gehört gerade allen.</p>`;
+  let day = '';
+  for (const b of all) {
+    const d = carDay(b.start) < now.slice(0, 10) ? now.slice(0, 10) : carDay(b.start);
+    if (d !== day) { day = d; h += `<div class="au-day">${esc(carDayLabel(d))}</div>`; }
+    h += `<div class="au-row${b.clash ? ' clash' : ''}${b.mine ? ' mine' : ''}">
+      <div class="au-time">${esc(carRange(b))}</div>
+      <div class="au-who"><b>${b.mine ? 'Du' : esc(pn())}</b>${b.note ? ' · ' + esc(b.note) : ''}${b.clash ? `<div class="au-warn">Überschneidung – kurz absprechen</div>` : ''}</div>
+      ${b.mine ? `<button class="au-x" data-a="cardel" data-id="${b.id}" aria-label="Reservierung löschen">✕</button>` : ''}
+    </div>`;
+  }
+  h += `<p class="au-note">${esc(pn())} sieht deine Reservierungen, sobald die App bei ${esc(pn())} offen ist.</p></section>`;
+  return h;
+}
+function carModal(keep = false) {
+  const f = ui.carForm;
+  const clash = f.clash ? `<div class="au-clash"><b>${esc(pn())} hat das Auto da schon</b>${f.clash.map(b => `<div>${esc(carDayLabel(carDay(b.start)))} · ${esc(carRange(b))}${b.note ? ' · ' + esc(b.note) : ''}</div>`).join('')}
+      <div class="row"><button class="au-btn red" data-a="carsave" data-force="1">Trotzdem eintragen</button><button class="au-btn ghost" data-a="carclash">Andere Zeit</button></div></div>` : '';
+  modal(`<div class="audi au-modal"><div class="au-kicker">A1 Sportback</div><div class="au-model sm">Reservieren</div>
+    <div class="au-grid">
+      <label><span>Von</span><input type="date" id="c-sd" value="${f.sd}" oninput="const e=document.getElementById('c-ed'); if(e.value<this.value) e.value=this.value"></label>
+      <label><span>&nbsp;</span><input type="time" id="c-st" value="${f.st}"></label>
+      <label><span>Bis</span><input type="date" id="c-ed" value="${f.ed}"></label>
+      <label><span>&nbsp;</span><input type="time" id="c-et" value="${f.et}"></label>
+    </div>
+    <button class="au-chip" type="button" onclick="document.getElementById('c-st').value='00:00';document.getElementById('c-et').value='23:59';document.getElementById('c-ed').value=document.getElementById('c-sd').value">Ganzer Tag</button>
+    <label class="au-full"><span>Wofür? (optional)</span><input id="c-note" maxlength="40" placeholder="z.B. Arzt, Einkaufen, Training" value="${esc(f.note)}"></label>
+    ${f.err ? `<div class="au-err">${esc(f.err)}</div>` : ''}
+    ${clash || `<div class="row"><button class="au-btn" data-a="carsave">Eintragen</button><button class="au-btn ghost" data-a="close">Abbrechen</button></div>`}
+  </div>`, 'au-wrap', keep);
+}
+function carRead() {
+  const v = id => (document.getElementById(id) || {}).value || '';
+  Object.assign(ui.carForm, { sd: v('c-sd'), st: v('c-st'), ed: v('c-ed'), et: v('c-et'), note: v('c-note').trim() });
+}
+Object.assign(A, {
+  carnew() {
+    const d = new Date(); d.setMinutes(0, 0, 0); d.setHours(d.getHours() + 1);
+    const e = new Date(d); e.setHours(e.getHours() + 2);
+    const a = Car.localISO(d), b = Car.localISO(e);
+    ui.carForm = { sd: a.slice(0, 10), st: a.slice(11), ed: b.slice(0, 10), et: b.slice(11), note: '' };
+    carModal(); syncPost();           // fresh partner bookings while she fills it in
+  },
+  carclash() { carRead(); ui.carForm.clash = null; carModal(true); },
+  async carsave(el) {
+    if (!el.dataset.force) carRead();
+    const f = ui.carForm, start = f.sd + 'T' + f.st, end = f.ed + 'T' + f.et;
+    f.err = !f.sd || !f.st || !f.ed || !f.et ? 'Bitte Datum und Uhrzeit ausfüllen.' : end <= start ? 'Das Ende muss nach dem Anfang liegen.' : end <= Car.localISO(new Date()) ? 'Das liegt schon in der Vergangenheit.' : '';
+    if (f.err) { carModal(true); return; }
+    if (!el.dataset.force) {
+      await syncPost();
+      const clash = Car.live(S.partnerCar).filter(b => Car.overlaps(b, { start, end }));
+      if (clash.length) { f.clash = clash; carModal(true); return; }
+    }
+    const old = Date.now() - 30 * 864e5;
+    S.car = S.car.filter(b => !(b.end < Car.localISO(new Date(old))));        // forget long-past ones
+    S.car.push({ id: uid(), start, end, note: f.note, ts: Date.now() });
+    ui.carForm = null; closeModal(); commit(true);
+    toast('🚗 Reserviert: ' + carDayLabel(f.sd) + ' ' + carRange({ start, end }));
+  },
+  cardel(el) {
+    const b = S.car.find(x => x.id === el.dataset.id); if (!b) return;
+    b.del = true; b.ts = Date.now();   // kept as deleted, so another device of mine can't bring it back
+    commit(true); toast('Reservierung gelöscht');
+  },
+});
+
 // ---------- render ----------
-const VIEWS = { heute: viewHeute, liste: viewListe, ruhe: viewRuhe, schaetze: viewSchaetze, woche: viewWoche };
+const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Liste']];
+function viewHeuteTab() {
+  const n = S.items.filter(i => i.where === 'liste').length;
+  return `<div class="chips qtabs two">${HTABS.map(([k, l]) => `<button class="chip ${ui.htab === k ? 'on' : ''}" data-a="htab" data-v="${k}">${l}${k === 'liste' && n ? ' <span class="cnt">' + n + '</span>' : ''}</button>`).join('')}</div>` + incomingCard() + (ui.htab === 'liste' ? viewListe() : viewHeute());
+}
+const VIEWS = { heute: viewHeuteTab, ruhe: viewRuhe, schaetze: viewSchaetze, woche: viewWoche };
 function render() {
   const focused = document.activeElement && document.activeElement.closest('form[data-f]');
   const refocus = focused && focused.dataset.f;
+  if (ui.tab === 'liste') { ui.tab = 'heute'; ui.htab = 'liste'; }   // old links to the Liste tab
   $('#main').innerHTML = VIEWS[ui.tab]();
   renderTop();
   if (refocus) { const i = document.querySelector(`form[data-f="${refocus}"] input`); if (i) i.focus(); }
@@ -1282,6 +1403,7 @@ function goBack() {
     ui.sub = null; render(); return;
   }
   if (ui.sub) { ui.sub = null; render(); scrollTo(0, 0); return; }
+  if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
   if (ui.tab !== 'heute') { ui.tab = 'heute'; render(); scrollTo(0, 0); return; }
   toast('Du bist auf Heute 🙂');
 }
@@ -1299,7 +1421,7 @@ function bind() {
     const inp = form.querySelector('input'), t = inp.value.trim(); if (!t) return;
     inp.value = ''; FORMS[form.dataset.f](t, form);
   });
-  $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ui.tab = b.dataset.tab; ui.sub = null; render(); scrollTo(0, 0); });
+  $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.tab === 'heute') ui.htab = 'heute'; ui.tab = b.dataset.tab; ui.sub = null; render(); scrollTo(0, 0); });
   $('#cloud').addEventListener('click', settings);
   $('#stars').addEventListener('click', A.stars);
   $('#rankbtn').addEventListener('click', rankModal);
@@ -1336,7 +1458,7 @@ function mergeStates(local, remote) {
   m.earned = (newer.earned || 0) + extra.reduce((a, e) => a + Math.max(0, e.stars || 0), 0);
   // lists: joined by id, the newer version of an entry wins
   const join = (a = [], b = []) => { const seen = new Set(a.map(x => x.id)); return a.concat(b.filter(x => x && !seen.has(x.id))); };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers'].forEach(k => { m[k] = join(newer[k], older[k]); });
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car'].forEach(k => { m[k] = join(newer[k], older[k]); });
   m.recipes = newer.recipes || older.recipes;
   m.fixes = [...new Set([].concat(newer.fixes || [], older.fixes || []))];
   m.favs = [...new Set([].concat(newer.favs || [], older.favs || []))];
