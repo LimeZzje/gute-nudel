@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.12';
+const VERSION = '2026-10-04.14';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1370,7 +1370,8 @@ function carRange(b) { // "09:00 – 12:00" or "09:00 – Sa, 6. Okt 18:00"
   return carTime(b.start) + ' – ' + (carDay(b.end) !== carDay(b.start) ? carDayLabel(carDay(b.end)) + ' ' : '') + carTime(b.end);
 }
 const isCar = b => b.car !== false;
-const shared = b => b.who === 'both' || isCar(b);   // Termine only holds shared appointments and car entries (own ones go in your own calendar)
+const shared = b => b.who === 'both' || isCar(b);
+const forMe = b => b.who === 'both' || b.who === D.me();   // "Heute … / als Nächstes …": only what concerns me (not the partner's car trips)   // Termine only holds shared appointments and car entries (own ones go in your own calendar)
 const whoColor = w => Car.COLORS[w] || '#4fd1a5';
 const whoName = (w, du = 'Du') => w === 'both' ? 'Ihr beide' : w === D.me() ? du : pn();
 const repTag = b => Car.isSeries(b) ? ` <span class="au-rep">🔁 ${Car.repLabel(b)}${b.until ? ' bis ' + esc(carDayLabel(b.until)) : ''}</span>` : '';
@@ -1428,14 +1429,9 @@ function viewAuto() {
     ${termList(all, 'Noch nichts eingetragen. Das Auto gehört gerade allen.')}
     <p class="au-note">Termine mit 🚗 aus dem Kalender stehen hier automatisch mit drin. ${esc(pn())} sieht alles, sobald die App bei ${esc(pn())} offen ist.</p></section>`;
 }
-const TFILTER = [['all', 'Alle'], ['both', 'Beide'], ['car', '🚗 Auto']];
-function termFilter(b) {
-  const f = ui.tFilter || 'all';
-  return shared(b) && (f === 'all' || (f === 'car' ? isCar(b) : b.who === 'both'));
-}
 function viewTermine() {
   const all = carAll(Car.live, false).filter(shared), t = Car.localISO(new Date()).slice(0, 10);
-  const todays = all.filter(b => carDay(b.start) <= t && carDay(b.end) >= t), next = all.find(b => b.start > Car.localISO(new Date()));
+  const mine = all.filter(forMe), todays = mine.filter(b => carDay(b.start) <= t && carDay(b.end) >= t), next = mine.find(b => b.start > Car.localISO(new Date()));
   return `<section class="audi termine">
     <div class="au-hero tm-hero">
       <div class="au-kicker">Unser Kalender</div>
@@ -1444,10 +1440,9 @@ function viewTermine() {
       <div class="au-status">${todays.length ? '<span class="au-dot busy"></span>' : '<span class="au-dot"></span>'}<span>${todays.length ? 'Heute ' + (todays.length === 1 ? 'ein Termin' : todays.length + ' Termine') : 'Heute nichts – herrlich'}${next ? ` · als Nächstes <b>${esc(next.note || 'Termin')}</b>, ${carDayLabel(carDay(next.start))} ${carTime(next.start)}` : ''}</span></div>
     </div>
     <button class="au-btn" data-a="carnew" data-car="0">Termin eintragen</button>
-    <div class="tm-filter">${TFILTER.map(([k, l]) => `<button class="au-chip${(ui.tFilter || 'all') === k ? ' on' : ''}" data-a="tfilter" data-v="${k}">${esc(l || pn())}</button>`).join('')}</div>
     ${carCalendar(false)}
     <div class="au-h">Alle kommenden Termine</div>
-    ${termList(all.filter(termFilter), 'Nichts geplant. Genießt es.')}
+    ${termList(all, 'Nichts geplant. Genießt es.')}
     <p class="au-note">Hier stehen gemeinsame Termine und alles mit Auto. Eigene Termine ohne Auto gehören in euren eigenen Kalender. Ändern und löschen kann nur, wer eingetragen hat.</p></section>`;
 }
 // ---------- the calendar: a month, a mark per entry in its person's colour, a 24 h strip per day ----------
@@ -1456,7 +1451,7 @@ function carCalendar(onlyCar) {
   const mon = ui.carMonth || todayK.slice(0, 7), sel = ui.carDay || todayK;
   const [y, m] = mon.split('-').map(Number), first = new Date(y, m - 1, 1);
   const startK = key(new Date(y, m - 1, 1 - (first.getDay() + 6) % 7));
-  const all = carAll(Car.recent, onlyCar).filter(b => onlyCar || termFilter(b));
+  const all = carAll(Car.recent, onlyCar).filter(b => onlyCar || shared(b));
   const dayOf = k => all.map(b => ({ b, span: Car.onDay(b, k) })).filter(x => x.span);
   const strip = list => list.map(({ b, span }) => `<i style="left:${span[0] / 14.4}%;width:${Math.max(3, (span[1] - span[0]) / 14.4)}%;background:${b.color}"></i>`).join('');
   const legend = [D.me(), D.partner(), 'both'].map(w => `<span>${onlyCar ? Car.icon(whoColor(w), 22) : `<i class="tdot" style="background:${whoColor(w)}"></i>`} ${esc(w === D.me() ? (S.name || 'Du') : whoName(w))}</span>`).join('');
@@ -1500,7 +1495,6 @@ Object.assign(A, {
     ui.carDay = el.dataset.k; if (el.dataset.k.slice(0, 7) !== (ui.carMonth || Car.localISO(new Date()).slice(0, 7))) ui.carMonth = el.dataset.k.slice(0, 7);
     render(); const d = $('.cal-detail'); if (d) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   },
-  tfilter(el) { ui.tFilter = el.dataset.v; render(); },
 });
 function carModal(keep = false) {
   const f = ui.carForm, auto = f.from === 'auto';
@@ -1650,7 +1644,7 @@ function viewHome() {
       <span class="muted">${finished ? 'Der Rest wartet bis morgen.' : !S.today.planned && !done.length ? '3–5 Sachen reichen völlig.' : done.length ? done.length + ' heute schon geschafft' : 'Du schaffst das.'}${heute.filter(i => i.chore).length ? ' · 🔁 ' + heute.filter(i => i.chore).length + ' fällig' : ''}</span></span><span class="hc-go">›</span></button>`;
   // next appointments (today + tomorrow) and the car
   const now = Car.localISO(new Date()), tm = addDays(t, 1);
-  const soon = carAll(Car.live, false).filter(b => shared(b) && carDay(b.start) <= tm && b.end > now).slice(0, 3);
+  const soon = carAll(Car.live, false).filter(b => shared(b) && forMe(b) && carDay(b.start) <= tm && b.end > now).slice(0, 3);
   h += `<button class="card hcard" data-a="go" data-tab="termine"><span class="hc-txt"><b>📅 Als Nächstes</b>${soon.length
       ? soon.map(b => `<span class="hc-term"><i class="tdot" style="background:${b.color}"></i> ${esc(carDayLabel(carDay(b.start) < t ? t : carDay(b.start)))} ${esc(carTime(b.start))} · <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b> <span class="muted">· ${esc(whoName(b.who))}${isCar(b) ? ' · 🚗' : ''}</span></span>`).join('')
       : '<span class="muted">Heute und morgen keine Termine. Der Kalender gähnt.</span>'}</span><span class="hc-go">›</span></button>`;
