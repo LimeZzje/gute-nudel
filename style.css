@@ -559,3 +559,6 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 
 .au-cartgl:disabled { opacity: 1; cursor: default; }
 .au-hint { font-size: 13px; color: var(--au-dim); margin: -6px 0 12px; }
+
+.tm-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tm-btns .au-btn { padding: 14px 6px; }

@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 
-const VERSION = '2026-10-04.15';
+const VERSION = '2026-10-04.16';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -394,14 +394,13 @@ function questCard(q, active) {
     ${active ? `<div class="row"><button class="btn" data-a="questdone">Überlebt! +${C.REST_STARS} ⭐</button><button class="btn soft" data-a="questquit">Später</button></div>`
       : `<button class="btn wide" data-a="queststart" data-id="${q.id}">Quest annehmen</button>`}</div>`;
 }
-const QTABS = [['haushalt', '🪴 Nestpflege'], ['gemuetlich', '🫖 Gemütlich'], ['goenn', '💝 Gönn dir'], ['auto', '🚗 Auto']];
+const QTABS = [['haushalt', '🪴 Nestpflege'], ['gemuetlich', '🫖 Gemütlich'], ['goenn', '💝 Gönn dir']];
 function viewRuhe() {
   if (ui.sub === 'cook') return viewCook();
   if (!QTABS.some(([k]) => k === ui.qtab)) ui.qtab = 'haushalt';
   const h = `<div class="chips qtabs">${QTABS.map(([k, l]) => `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}">${l}</button>`).join('')}</div>`;
   if (ui.qtab === 'gemuetlich') return h + viewGemuetlich();
   if (ui.qtab === 'goenn') return h + viewGoenn();
-  if (ui.qtab === 'auto') return h + viewAuto();
   return h + viewHaushalt();
 }
 function viewHaushalt() {
@@ -783,7 +782,7 @@ const A = {
     modal(`<h2>Doppel-Quest bestanden!</h2><p><b>${esc(c.title)}</b> – Arbeit erledigt <i>und</i> genossen.</p><p>+${C.COMBO_REWARD_STARS} gute Nudel Sterne ⭐</p><p class="muted">Das ist die hohe Kunst.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
   },
   allcombos() { ui.showAllCombos = !ui.showAllCombos; render(); },
-  qtab(el) { ui.qtab = el.dataset.v; render(); scrollTo(0, 0); if (ui.qtab === 'auto') syncPost(); },
+  qtab(el) { ui.qtab = el.dataset.v; render(); scrollTo(0, 0); },
   htab(el) { ui.htab = el.dataset.v; render(); scrollTo(0, 0); },
   choretpl(el) {
     const t = C.CHORE_TEMPLATES.find(x => x.name === el.dataset.v); if (!t) return;
@@ -1387,7 +1386,7 @@ function carToday() { // a slim line on To-Dos when the car is booked today
   const t = Car.localISO(new Date()).slice(0, 10);
   const list = carAll().filter(b => carDay(b.start) <= t && carDay(b.end) >= t);
   if (!list.length) return '';
-  return `<button class="cartoday" data-a="go" data-tab="ruhe" data-q="auto"><span class="ct-k">A1 HEUTE</span>${list.map(b => `<span class="ct-r${b.clash ? ' clash' : ''}"><b>${esc(whoName(b.who))}</b> ${esc(carRange(b))}${b.note ? ' · ' + esc(b.note) : ''}</span>`).join('')}<span class="ct-go">›</span></button>`;
+  return `<button class="cartoday" data-a="go" data-tab="termine"><span class="ct-k">A1 HEUTE</span>${list.map(b => `<span class="ct-r${b.clash ? ' clash' : ''}"><b>${esc(whoName(b.who))}</b> ${esc(carRange(b))}${b.note ? ' · ' + esc(b.note) : ''}</span>`).join('')}<span class="ct-go">›</span></button>`;
 }
 const mark = (b, size) => isCar(b) ? Car.icon(b.color, size) : `<i class="tdot" style="background:${b.color};width:${size * .5}px;height:${size * .5}px"></i>`;
 function termRow(b) { // one entry in a list (the next date of a series)
@@ -1410,25 +1409,6 @@ function termList(all, empty) {
   }
   return h;
 }
-function viewAuto() {
-  const all = carAll(), now = Car.localISO(new Date());
-  const using = all.find(b => b.start <= now && b.end > now);
-  const next = all.find(b => b.start > now);
-  return `<section class="audi">
-    <div class="au-hero">
-      <div class="au-kicker">Unser Auto</div>
-      <div class="au-model">A1 Sportback</div>
-      <div class="au-trim">S line · Chronosgrau</div>
-      <div class="au-car"><img id="a1img" alt="Unser A1" hidden></div>
-      <div class="au-status">${using ? `<span class="au-dot busy"></span><span>Gerade unterwegs: <b>${esc(whoName(using.who, 'du'))}</b> · bis ${carTime(using.end)}</span>`
-        : `<span class="au-dot"></span><span>Jetzt frei${next ? ` · als Nächstes ${esc(whoName(next.who, 'du'))}, ${carDayLabel(carDay(next.start))} ${carTime(next.start)}` : ''}</span>`}</div>
-    </div>
-    <button class="au-btn" data-a="carnew" data-car="1">Auto reservieren</button>
-    ${carCalendar(true)}
-    <div class="au-h">Alle kommenden Reservierungen</div>
-    ${termList(all, 'Noch nichts eingetragen. Das Auto gehört gerade allen.')}
-    <p class="au-note">Termine mit 🚗 aus dem Kalender stehen hier automatisch mit drin. ${esc(pn())} sieht alles, sobald die App bei ${esc(pn())} offen ist.</p></section>`;
-}
 function viewTermine() {
   const all = carAll(Car.live, false).filter(shared), t = Car.localISO(new Date()).slice(0, 10);
   const mine = all.filter(forMe), todays = mine.filter(b => carDay(b.start) <= t && carDay(b.end) >= t), next = mine.find(b => b.start > Car.localISO(new Date()));
@@ -1439,7 +1419,7 @@ function viewTermine() {
       <div class="au-trim">Was ihr zusammen vorhabt – und wer das Auto hat</div>
       <div class="au-status">${todays.length ? '<span class="au-dot busy"></span>' : '<span class="au-dot"></span>'}<span>${todays.length ? 'Heute ' + (todays.length === 1 ? 'ein Termin' : todays.length + ' Termine') : 'Heute nichts – herrlich'}${next ? ` · als Nächstes <b>${esc(next.note || 'Termin')}</b>, ${carDayLabel(carDay(next.start))} ${carTime(next.start)}` : ''}</span></div>
     </div>
-    <button class="au-btn" data-a="carnew" data-car="0">Termin eintragen</button>
+    <div class="tm-btns"><button class="au-btn" data-a="carnew" data-car="0">Termin eintragen</button><button class="au-btn ghost" data-a="carnew" data-car="1">🚗 Auto reservieren</button></div>
     ${carCalendar(false)}
     <div class="au-h">Alle kommenden Termine</div>
     ${termList(all, 'Nichts geplant. Genießt es.')}
@@ -1552,7 +1532,7 @@ Object.assign(A, {
   },
   caredit(el) {
     const b = S.car.find(x => x.id === el.dataset.id && !x.del); if (!b) return;   // only what I entered lives in S.car
-    ui.carForm = { id: b.id, sd: carDay(b.start), st: carTime(b.start), ed: carDay(b.end), et: carTime(b.end), note: b.note || '', until: b.until || '', who: b.who || D.me(), car: isCar(b), from: ui.tab === 'termine' ? 'termine' : 'auto', ...repForm(b) };
+    ui.carForm = { id: b.id, sd: carDay(b.start), st: carTime(b.start), ed: carDay(b.end), et: carTime(b.end), note: b.note || '', until: b.until || '', who: b.who || D.me(), car: isCar(b), from: isCar(b) && b.who !== 'both' ? 'auto' : 'termine', ...repForm(b) };
     carModal(); syncPost();
   },
   carrep(el) { carRead(); const v = el.dataset.v; ui.carForm.rep = v === 'c' ? 'c' : +v; ui.carForm.clash = null; carModal(true); },
@@ -1691,7 +1671,6 @@ function render() {
   $('#main').innerHTML = VIEWS[ui.tab]();
   renderTop();
   if (refocus) { const i = document.querySelector(`form[data-f="${refocus}"] input`); if (i) i.focus(); }
-  if (ui.tab === 'ruhe' && ui.qtab === 'auto' && !ui.sub) D.carURL().then(u => { const i = $('#a1img'); if (u && i) { i.src = u; i.hidden = false; } });
   if (ui.tab === 'schaetze') {
     hydratePhotos($('#main'));
     if (!ui.sub && S.book.pages) D.photoURL(1).then(u => { const t = $('#bookthumb'); if (u && t) t.innerHTML = `<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">`; });
