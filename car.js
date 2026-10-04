@@ -38,9 +38,9 @@ export const live = list => expand(list, localISO(new Date()), until());   // up
 export const recent = list => expand(list, past(), until());               // what the calendar shows: also the last ~5 weeks
 // what travels in the post: the bookings themselves (a series as one entry), without long-finished ones
 export const raw = list => (list || []).filter(b => !b.del && (isSeries(b) ? !b.until || b.until >= past().slice(0, 10) : b.end > past()))
-  .map(({ id, start, end, note, every, everyM, until: u, skip }) => ({ id, start, end, note, ...(every ? { every } : {}), ...(everyM ? { everyM } : {}), ...(u ? { until: u } : {}), ...(skip && skip.length ? { skip } : {}) }));
+  .map(({ id, start, end, note, who, car, every, everyM, until: u, skip }) => ({ id, start, end, note, ...(who ? { who } : {}), ...(car === false ? { car } : {}), ...(every ? { every } : {}), ...(everyM ? { everyM } : {}), ...(u ? { until: u } : {}), ...(skip && skip.length ? { skip } : {}) }));
 // each person has a colour; the car icon in the calendar is painted with it
-export const COLORS = { stand: '#ffb020', stefan: '#3fb6ff' };
+export const COLORS = { stand: '#ffb020', stefan: '#3fb6ff', both: '#4fd1a5' };
 export const icon = (color, size = 18) => `<svg class="mcar" viewBox="0 0 24 12" width="${size}" height="${size / 2}" aria-hidden="true"><path d="M1.6,9.2 L1.6,7 Q1.6,5.6 3,5.3 L6,4.7 L8.7,2.3 Q9.3,1.8 10.2,1.8 L15.4,1.8 Q16.3,1.8 16.9,2.4 L19.4,4.9 L21.2,5.3 Q22.6,5.7 22.6,7.1 L22.6,9.2 Z" fill="${color}"/><path d="M9.6,3 L15.2,3 L17.4,5 L7.6,5 Z" fill="#0d0e10" opacity=".55"/><circle cx="6.4" cy="9.3" r="2" fill="#0d0e10" stroke="${color}" stroke-width="1"/><circle cx="17.8" cy="9.3" r="2" fill="#0d0e10" stroke="${color}" stroke-width="1"/></svg>`;
 // minutes of day k (YYYY-MM-DD) covered by booking b: [from, to] in 0..1440, or null
 export function onDay(b, k) {

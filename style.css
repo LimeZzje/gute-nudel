@@ -496,3 +496,17 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .wknav .mini-btn { font-size: 22px; }
 .wknav .mini-btn:disabled { opacity: .25; }
 .weekstrip { align-items: start; }
+
+/* Termine: same Audi look, dots for appointments, cars for car entries */
+.tdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle; flex: none; font-style: normal; }
+.cal-cars .tdot { margin: 2px; }
+.tm-hero { padding-bottom: 16px; }
+.tm-hero .au-status { margin-top: 14px; }
+.termine { margin-top: -12px; }
+.tm-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+.tm-filter .au-chip { margin-top: 0; }
+.au-reps.three { grid-template-columns: 1fr 1fr 1fr; }
+.au-reps.three .au-chip { padding: 6px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.au-cartgl { display: block; width: 100%; margin: 12px 0 14px; padding: 10px 12px; text-align: left; }
+.au-cartgl.on { background: #fff; color: #000; }
+.au-by { font-size: 12px; color: var(--au-dim); }
