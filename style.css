@@ -609,3 +609,6 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .g-stats b { display: block; font: 700 34px/1 Caveat, cursive; color: #e0543f; }
 .g-stats span { font: 800 12px Nunito, sans-serif; color: #6b6676; }
 .game button:focus-visible { outline: 3px solid #4f9a5b; outline-offset: 2px; }
+.g-buffs { display: flex; justify-content: center; gap: 6px; min-height: 20px; }
+.g-buffs span { background: #fffdf8; border-radius: 10px; padding: 1px 8px; font: 900 13px Nunito, sans-serif; color: #2b2a33; box-shadow: 0 2px 6px rgba(60, 45, 20, .15); }
+.g-banner { max-width: calc(100vw - 32px); white-space: normal; text-align: center; font-size: 34px; }
