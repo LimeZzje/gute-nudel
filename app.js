@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-04.23';
+const VERSION = '2026-10-05.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1633,7 +1633,7 @@ function daySlot() { const h = new Date().getHours(); return h < 5 ? 'nacht' : h
 const GREET = { morgen: 'Guten Morgen', mittag: 'Mahlzeit', nachmittag: 'Hallo', abend: 'Guten Abend', nacht: 'Noch wach' };
 function pickSplash() { const t = C.SPLASH_TIME[daySlot()] || []; const all = C.SPLASHES.concat(t, t); let n; do { n = pick(all); } while (n === ui.splash && all.length > 1); ui.splash = n; }
 function myStats() { // the numbers that travel to the partner (counts only)
-  return { day: today(), done: workToday().length, total: S.log.filter(isWork).length };
+  return { day: today(), done: workToday().length, total: S.log.filter(isWork).length, earned: S.earned };
 }
 function homeStats() {
   const work = S.log.filter(isWork), counts = {};
@@ -1682,6 +1682,7 @@ function viewHome() {
       : `<p class="muted" style="margin:0">Sobald ${esc(pn())} heute die App öffnet, steht hier, was ihr zusammen schafft.</p>`}
     ${took ? `<p class="team-l">🤝 ${esc(pn())} hat dir diese Woche ${took === 1 ? 'eine Aufgabe' : took + ' Aufgaben'} abgenommen.</p>` : ''}
     ${(S.thanksSeen || []).length ? `<p class="team-l">💛 ${(S.thanksSeen || []).length}× Danke von ${esc(pn())} bekommen.</p>` : ''}
+    ${S.partnerStats && S.partnerStats.earned != null ? (pr => `<div class="team-rank">${emblem(pr.t, 40, pr.div)}<span>${esc(pn())} ist gerade <b style="color:${pr.tier.dark}">${esc(pr.name)}</b></span></div>`)(C.rankOf(S.partnerStats.earned)) : ''}
     ${S.partnerStats && S.partnerStats.total ? `<p class="team-l">🍝 Zusammen schon ${st.total + S.partnerStats.total} Sachen erledigt.</p>` : ''}</div>`;
   // treasures
   const pages = S.book.pages, stage = (S.plant && S.plant.stage) || 0;
