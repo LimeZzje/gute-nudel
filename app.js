@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-09.1';
+const VERSION = '2026-10-08.4';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -291,8 +291,7 @@ function viewHeute() {
   if (finished) {
     h += `<div class="celebrate"><div class="big">Tag geschafft!</div>
       <p>${done.length === 1 ? 'Eine Sache' : done.length + ' Sachen'} erledigt. Für heute ist Schluss – der Rest wartet bis morgen.</p>
-      <p class="muted">Und jetzt? Das Schwierigste kommt noch:</p>
-      <div class="row"><button class="btn" data-a="go" data-tab="ruhe" data-q="gemuetlich">Gemütlich machen</button><button class="btn soft" data-a="go" data-tab="ruhe" data-q="goenn">Gönn dir was</button></div></div>`;
+      <p class="muted">Und jetzt: Füße hoch. Das hast du dir verdient. 😌</p></div>`;
   } else if (capped) {
     h += `<div class="card warn" style="text-align:center">🌙 Genug für heute! Ab jetzt gibt es nur noch Sterne fürs Entspannen.</div>`;
   }
@@ -385,8 +384,8 @@ function afterWork(count, post = false) {
   if (count === C.CAP && !S.today.capShown) {
     S.today.capShown = true; commit();
     modal(`<h2>Genug für heute!</h2><p>Du hast heute <b>${C.CAP} Sachen</b> geschafft. Das ist richtig viel.</p>
-      <p>Du kannst weiter abhaken – aber Sterne gibt es heute nur noch fürs <b>Entspannen</b>. 😌</p>
-      <div class="row"><button class="btn" data-a="go" data-tab="ruhe" data-q="gemuetlich">Gemütlich machen</button><button class="btn soft" data-a="close">Okay</button></div>`);
+      <p>Du kannst weiter abhaken – Sterne gibt es dafür heute aber keine mehr. Gönn dir eine Pause. 😌</p>
+      <div class="row"><button class="btn" data-a="close">Okay</button></div>`);
     return;
   }
   if (allTicked() && ui.tab === 'heute' && ui.htab === 'heute') {
@@ -427,20 +426,20 @@ function questCard(q, active) {
     ${active ? `<div class="row"><button class="btn" data-a="questdone">Überlebt! +${C.REST_STARS} ⭐</button><button class="btn soft" data-a="questquit">Später</button></div>`
       : `<button class="btn wide" data-a="queststart" data-id="${q.id}">Quest annehmen</button>`}</div>`;
 }
-const QTABS = [['haushalt', '🪴 Nestpflege'], ['gemuetlich', '🫖 Gemütlich'], ['goenn', '💝 Gönn dir']];
+const QTABS = [['haushalt', '🔁 Routinen'], ['einkauf', '🛒 Einkaufsliste'], ['kochbuch', '📖 Kochbuch']];
 function viewRuhe() {
-  if (ui.sub === 'cook') return viewCook();
+  if (ui.sub === 'cook') { ui.sub = null; ui.qtab = 'kochbuch'; }   // old way in: the cookbook was a sub-page
   if (!QTABS.some(([k]) => k === ui.qtab)) ui.qtab = 'haushalt';
+  if (ui.qtab === 'kochbuch' && ui.rid) return viewCook();          // a recipe / cooking mode: full page, no chips
   const h = `<div class="chips qtabs">${QTABS.map(([k, l]) => `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}">${l}</button>`).join('')}</div>`;
-  if (ui.qtab === 'gemuetlich') return h + viewGemuetlich();
-  if (ui.qtab === 'goenn') return h + viewGoenn();
+  if (ui.qtab === 'einkauf') return h + `<div class="card shoptab">${shopBody(null, true)}</div>`;
+  if (ui.qtab === 'kochbuch') return h + viewCook();
   return h + viewHaushalt();
 }
 function viewHaushalt() {
-  let h = `<div class="sec-title" style="margin-top:6px">Nestpflege – läuft von allein</div>
+  let h = `<div class="sec-title" style="margin-top:6px">Routinen – laufen von allein</div>
     <p class="muted" style="margin:0 4px 14px">Was regelmäßig dran ist, kommt von selbst auf deine Seite, wenn es Zeit ist – du musst nicht dran denken. Und wenn du magst, wartet danach am selben Tag etwas Schönes auf dich.</p>`;
   h += giftCards();
-  h += `<div class="toolrow"><button class="btn soft" data-a="tool" data-t="list">🛒 Einkaufsliste${S.shop.filter(x => !x.done).length ? ' (' + S.shop.filter(x => !x.done).length + ')' : ''}</button><button class="btn soft" data-a="tool" data-t="recipes">📖 Kochbuch</button></div>`;
   h += weekPlanner();
   h += `<button class="btn wide" data-a="choreedit">+ Etwas Eigenes</button>`;
   const free = C.CHORE_TEMPLATES.filter(t => !S.chores.some(c => c.name === t.name));
@@ -482,7 +481,7 @@ function weekPlanner() {
     const list = out[sel], lbl = { done: '✓ erledigt', due: 'heute dran', plan: 'geplant' };
     h += `<div class="card wkdetail"><h3>${sel === t ? 'Heute' : esc(longDate(sel))}</h3>${list.length
       ? `<ul class="list-plain">${list.map(x => `<li><span>${esc(x.c.icon)} ${esc(x.c.name)}</span><span class="st ${x.st === 'done' ? 'st-erledigt' : ''}">${lbl[x.st]}</span></li>`).join('')}</ul>`
-      : `<p class="muted" style="margin:0">${sel < t ? 'Nichts aus Nestpflege erledigt.' : 'Nichts geplant – frei. 🛋️'}</p>`}
+      : `<p class="muted" style="margin:0">${sel < t ? 'Nichts aus den Routinen erledigt.' : 'Nichts geplant – frei. 🛋️'}</p>`}
       <p class="hint">✓ = erledigt · durchsichtig = kommt noch. Tipp auf einen Tag zeigt, was dran ist.</p></div>`;
     h += `<div class="sec-title" style="font-size:24px">Deine Aufgaben & ihre Tage</div><div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span class="cw"><span class="cwtop"><b>${esc(c.icon)} ${esc(c.name)}</b><span><button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></span></span>
       ${c.week && c.week.length ? `<span class="days">${C.WEEK_ORDER.map(d => `<button class="dayt ${c.week.includes(d) ? 'on' : ''} ${d === tdow ? 'today' : ''}" data-a="cday" data-id="${c.id}" data-v="${d}">${C.DOW[d]}</button>`).join('')}</span>`
@@ -817,7 +816,7 @@ const A = {
     modal(`<h2>Doppel-Quest bestanden!</h2><p><b>${esc(c.title)}</b> – Arbeit erledigt <i>und</i> genossen.</p><p>+${C.COMBO_REWARD_STARS} gute Nudel Sterne ⭐</p><p class="muted">Das ist die hohe Kunst.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
   },
   allcombos() { ui.showAllCombos = !ui.showAllCombos; render(); },
-  qtab(el) { ui.qtab = el.dataset.v; render(); scrollTo(0, 0); },
+  qtab(el) { ui.qtab = el.dataset.v; ui.rid = null; ui.cstep = null; ui.shopEdit = false; ui.tagId = null; render(); scrollTo(0, 0); },
   htab(el) { ui.htab = el.dataset.v; render(); scrollTo(0, 0); },
   choretpl(el) {
     const t = C.CHORE_TEMPLATES.find(x => x.name === el.dataset.v); if (!t) return;
@@ -893,11 +892,11 @@ const A = {
     if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
     scheduleChores(); closeModal(); commit(); toast('Gespeichert 🔁');
   },
-  cookback() { ui.sub = null; ui.qtab = 'haushalt'; render(); scrollTo(0, 0); },
+  cookback() { ui.sub = null; ui.qtab = 'kochbuch'; ui.rid = null; render(); scrollTo(0, 0); },
   cookhome() { endCookMode(); ui.rid = null; ui.sides = []; render(); scrollTo(0, 0); },
   cookreroll() { ui.sugSeed = (ui.sugSeed || 1) + 1; render(); },
   ccat(el) { ui.ccat = el.dataset.v; render(); },
-  recipe(el) { if (el.dataset.go) { closeModal(); ui.tab = 'ruhe'; ui.sub = 'cook'; } ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; render(); scrollTo(0, 0); },
+  recipe(el) { if (el.dataset.go || ui.tab !== 'ruhe') { closeModal(); ui.tab = 'ruhe'; ui.sub = null; ui.qtab = 'kochbuch'; } ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; render(); scrollTo(0, 0); },
   ingextradel(el) { ui.ingExtra.splice(+el.dataset.i, 1); render(); },
   ingtoggle(el) { const t = el.dataset.v; ui.ingPick = ui.ingPick || {}; ui.ingPick[ingKey(t)] = !ingWanted(t); render(); },
   side(el) { const id = el.dataset.id, a = ui.sides || (ui.sides = []); a.includes(id) ? a.splice(a.indexOf(id), 1) : a.push(id); render(); },
@@ -933,8 +932,8 @@ const A = {
   },
   tool(el) {
     const t = el.dataset.t, c = el.dataset.c && S.chores.find(x => x.id === el.dataset.c);
-    if (t === 'list') return shopModal();
-    if (t === 'recipes') { closeModal(); ui.tab = 'ruhe'; ui.sub = 'cook'; ui.rid = null; ui.cstep = null; render(); scrollTo(0, 0); return; }
+    if (t === 'list') { closeModal(); ui.tab = 'ruhe'; ui.sub = null; ui.qtab = 'einkauf'; ui.rid = null; render(); scrollTo(0, 0); return; }
+    if (t === 'recipes') { closeModal(); ui.tab = 'ruhe'; ui.sub = null; ui.qtab = 'kochbuch'; ui.rid = null; ui.cstep = null; render(); scrollTo(0, 0); return; }
     if (t === 'music') {
       if (c && c.music) { window.open(c.music, '_blank', 'noopener'); return; }
       ui.ce = null; if (c) A.choreedit({ dataset: { id: c.id } });
@@ -1162,7 +1161,11 @@ function phoneTimer(mins) {
 const secOf = x => x.sec || Sh.classify(x.text, S.shopLearn || {});
 const shopOrder = () => { const st = Sh.STORES[S.shopStore] ? S.shopStore : 'standard'; return ((S.shopOrder || {})[st] || Sh.STORES[st][1]).slice(); };
 function shopModal(item, keep) { // her list — or a handed-over one (item.list) on the partner's phone; keep = update in place
+  if (!item && !$('#ov') && ui.tab === 'ruhe' && ui.qtab === 'einkauf') { ui.shopItemId = null; render(); return; }   // the list is open as a tab: just redraw it
   ui.shopItemId = item ? item.id : null;
+  modal(`<div style="text-align:left">${shopBody(item, false)}</div>`, '', keep);
+}
+function shopBody(item, inTab) {
   const L = item ? item.list : S.shop, open = L.filter(x => !x.done), done = L.filter(x => x.done), di = item ? ` data-item="${item.id}"` : '';
   const row = x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(x.text)}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}</span></button>`
     + (!x.done && (ui.shopEdit || secOf(x) === 'sonst') ? `<button class="mini-btn" data-a="shoptag" data-id="${x.id}"${di} aria-label="Abteilung wählen">🏷️</button>` : '')
@@ -1175,18 +1178,19 @@ function shopModal(item, keep) { // her list — or a handed-over one (item.list
     const [ic, l] = Sh.SECTIONS[sec];
     return `<div class="shopsec"><div class="sechead"><span>${ic} ${l}${xs.length ? ' <span class="muted">(' + xs.length + ')</span>' : ''}</span>${ui.shopEdit ? `<span><button class="mini-btn" data-a="shopmove" data-v="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Nach oben">↑</button><button class="mini-btn" data-a="shopmove" data-v="${i}" data-d="1" ${i < order.length - 1 ? '' : 'disabled'} aria-label="Nach unten">↓</button></span>` : ''}</div>${xs.map(row).join('')}</div>`;
   }).join('');
-  modal(`<div style="text-align:left"><h2 style="text-align:center">🛒 ${item ? esc(item.text) : 'Einkaufsliste'}</h2>
+  return `${inTab ? '' : `<h2 style="text-align:center">🛒 ${item ? esc(item.text) : 'Einkaufsliste'}</h2>`}
     ${item ? `<p class="muted">von ${esc(item.from || '')}</p>` : ''}
     <div class="chips stores">${Object.entries(Sh.STORES).map(([k, [l]]) => `<button class="chip ${(S.shopStore || 'standard') === k ? 'on' : ''}" data-a="shopstore" data-v="${k}">${l}</button>`).join('')}<button class="chip ${ui.shopEdit ? 'on' : ''}" data-a="shopedit">↕ Reihenfolge anpassen</button></div>
     ${ui.shopEdit ? `<p class="hint" style="margin:0 0 6px">So wie in deiner ${esc(Sh.STORES[S.shopStore] ? Sh.STORES[S.shopStore][0] : 'Filiale')}-Filiale: ↑↓ verschiebt Abteilungen, 🏷️ ändert die Abteilung eines Artikels.</p>` : ''}
     <div class="steps">${groups || (open.length ? '' : '<p class="muted">Noch leer.</p>')}
     ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
-    <div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}<button class="btn" data-a="close">Fertig</button></div>
+    ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
     ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
-      : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}</div>`, '', keep);
+      : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}`;
 }
 const shopAgain = () => shopModal(ui.shopItemId ? S.items.find(i => i.id === ui.shopItemId) : null, true);
+// cookbook "auf die Liste" while the list isn't open: show it as a pop-over as before
 function cookModal(rid) {
   if (!S.recipes) S.recipes = C.EXAMPLE_RECIPES.map(r => ({ id: uid(), ...r, ingredients: r.ingredients.slice() }));
   const r = rid && S.recipes.find(x => x.id === rid);
@@ -1259,7 +1263,7 @@ const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id=
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid) return viewRecipe();
-  let h = `<button class="btn soft" data-a="cookback" style="margin:4px 0 12px">← Nestpflege</button><div class="sec-title" style="margin-top:0">📖 Kochbuch</div>`;
+  let h = '';
   h += `<div class="toolrow"><button class="btn blue" data-a="rphoto">📷 Rezept fotografieren</button><button class="btn soft" data-a="redit">✏️ Eigenes Rezept</button></div>`;
   const wait = (S.recipeInbox || []).filter(x => !x.del);
   if (wait.length) h += `<div class="card"><h3>📷 Wird gerade umgeschrieben</h3>${wait.map(x => `<div class="shoprow"><span style="flex:1">${x.n} ${x.n === 1 ? 'Foto' : 'Fotos'}${x.note ? ' · „' + esc(x.note) + '“' : ''}<br><span class="muted">${x.up ? 'abgeschickt am ' + esc(shortDate(key(new Date(x.ts)))) : '⏳ wird noch hochgeladen…'}</span></span><button class="mini-btn" data-a="rinboxdel" data-id="${x.id}" aria-label="Zurückziehen">✕</button></div>`).join('')}
@@ -1906,10 +1910,9 @@ function goBack() {
   const v = $('.viewer'), st = $('#story');
   if (v) { v.remove(); return; }
   if (st) { st.remove(); render(); return; }
-  if (ui.tab === 'ruhe' && ui.sub === 'cook') {
+  if (ui.tab === 'ruhe' && ui.qtab === 'kochbuch' && ui.rid) {
     if (ui.cstep != null) { endCookMode(); render(); return; }
-    if (ui.rid) { ui.rid = null; ui.sides = []; render(); return; }
-    ui.sub = null; render(); return;
+    ui.rid = null; ui.sides = []; render(); return;
   }
   if (ui.sub) { ui.sub = null; render(); scrollTo(0, 0); return; }
   if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
@@ -1953,7 +1956,7 @@ function welcome() {
   modal(`<h2>Hallo, gute Nudel! 💛</h2>
     <p style="text-align:left">📝 <b>Heute</b>: Such dir morgens ein paar Sachen aus. Wenn sie erledigt sind, ist der Tag geschafft – wirklich.</p>
     <p style="text-align:left">⭐ Für jede erledigte Sache gibt es einen <b>gute Nudel Stern</b>. Ab ${C.CAP} am Tag heißt es: genug für heute!</p>
-    <p style="text-align:left">🏠 <b>Daheim</b>: Was zuhause regelmäßig dran ist, kommt von allein – und Gemütliches und kleine Belohnungen findest du da auch.</p>
+    <p style="text-align:left">🏠 <b>Daheim</b>: Was zuhause regelmäßig dran ist, kommt von allein – dazu deine Einkaufsliste und das Kochbuch.</p>
     <p style="text-align:left">🎁 Bei <b>Schätze</b> wartet ein geheimes Fotobuch – und eine Pflanze, die mit dir wächst.</p>
     <label class="field"><span>Wie soll ich dich nennen? (optional)</span><input id="w-name" placeholder="Dein Name"></label>
     <div class="row"><button class="btn" data-a="welcomego">Los geht's</button></div>`);
