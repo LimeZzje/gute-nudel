@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-08.4';
+const VERSION = '2026-10-08.5';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1814,56 +1814,59 @@ function homeStats() {
   return { total: work.length, rest: S.log.filter(isRest).length, earned: S.earned, laundry, top: top && top[1] >= 2 ? top : null,
     sent: S.log.filter(e => e.kind === 'delegate').reduce((a, e) => a + (e.n || parseInt(e.text) || 1), 0) };
 }
+// Home (rebuilt 2026-10-08, user: "few, important things – not a wall of numbers"): today at a glance.
+// Never: streaks, week-vs-week, comparing the two of you. The numbers live in Woche / Schätze.
+function homeLine(st) { // ONE sentence that fits right now (rotates by day among those that apply)
+  const t = today(), wk = weekDays(monday(t)), out = [];
+  const took = S.sent.filter(x => (x.status === 'ok' || x.status === 'erledigt') && wk.includes(key(new Date(x.ts - 3 * 3600e3)))).length;
+  if (took) out.push(['💛', `${pn()} hat dir diese Woche ${took === 1 ? 'eine Aufgabe' : took + ' Aufgaben'} abgenommen.`, 'woche']);
+  const pc = C.pageCost(S.book.pages), canBuy = S.stars >= Math.min(pc, C.STAGE_COST);
+  if (canBuy) out.push(['⭐', `${S.stars} Sterne – genug für was Neues bei den Schätzen!`, 'schaetze']);
+  else if (S.book.pages < C.BOOK_PAGES) out.push(['📖', `Noch ${pc - S.stars} ⭐ bis zur nächsten Seite im Buch.`, 'schaetze']);
+  const r = C.rankOf(S.earned); if (r.to != null) out.push(['🏅', `Noch ${r.to - S.earned} ⭐ bis ${C.rankOf(r.to).name}.`, 'schaetze']);
+  if (st.top) out.push(['🏆', `Am häufigsten erledigt: ${st.top[0]} (${st.top[1]}×).`, 'woche']);
+  if (!out.length) return '';
+  const [ic, txt, tab] = canBuy ? out.find(x => x[2] === 'schaetze') : out[dayIndex() % out.length];
+  return `<button class="card hcard homeline" data-a="go" data-tab="${tab}"><span class="hl-ic">${ic}</span><span class="hc-txt">${esc(txt)}</span><span class="hc-go">›</span></button>`;
+}
 function viewHome() {
-  if (!ui.splash) pickSplash();
-  const t = today(), slot = daySlot(), st = homeStats();
+  const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
-  let h = `<section class="hello"><div class="hello-g">${GREET[slot]}${slot === 'nacht' ? '?' : ','}</div><div class="hello-n">${esc(S.name || 'gute Nudel')}</div>
-    <button class="splash" data-a="splash" aria-label="Neuer Spruch"><span class="${ui.splash.length > 26 ? 'long' : ''}">${esc(ui.splash)}</span></button></section>`;
+  let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
   h += incomingCard() + giftCards();
-  // today
-  const finished = dayDone();
-  const all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
-  h += `<button class="card hcard today-card" data-a="go" data-tab="heute">
+  // today: the ring + the next few things, ticked right here
+  const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
+  h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
     <svg class="ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${R}" class="ring-bg"/><circle cx="42" cy="42" r="${R}" class="ring-fg" style="stroke-dasharray:${U};stroke-dashoffset:${U * (1 - p)}"/></svg>
     <span class="ring-n">${finished ? '🎉' : all ? done.length + '<small>/' + all + '</small>' : '–'}</span>
-    <span class="hc-txt"><b>${finished ? 'Tag geschafft!' : !S.today.planned && !done.length ? 'Noch nichts geplant' : heute.length === 0 ? 'Alles abgehakt! 🎉' : heute.length === 1 ? 'Noch eine Sache' : 'Noch ' + heute.length + ' Sachen'}</b>
-      <span class="muted">${finished ? 'Der Rest wartet bis morgen.' : !S.today.planned && !done.length ? 'Hol dir was aus der Liste.' : done.length ? done.length + ' heute schon geschafft' : 'Du schaffst das.'}${heute.filter(i => i.chore).length ? ' · 🔁 ' + heute.filter(i => i.chore).length + ' fällig' : ''}</span></span><span class="hc-go">›</span></button>`;
-  // next appointments (today + tomorrow) and the car
+    <span class="hc-txt"><b>${finished ? 'Tag geschafft!' : !S.today.planned && !done.length && !heute.length ? 'Noch nichts geplant' : heute.length === 0 ? 'Alles abgehakt! 🎉' : heute.length === 1 ? 'Noch eine Sache' : 'Noch ' + heute.length + ' Sachen'}</b>
+      <span class="muted">${finished ? 'Der Rest wartet bis morgen.' : !S.today.planned && !done.length && !heute.length ? 'Hol dir was aus der Liste.' : done.length ? done.length + ' heute schon geschafft' : 'Du schaffst das.'}</span></span><span class="hc-go">›</span></button>
+    ${heute.slice(0, 3).map(i => { const c = i.chore && S.chores.find(x => x.id === i.chore);
+      return `<div class="item home-item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt"><span>${c ? c.icon + ' ' : ''}${esc(i.text)}</span></div></div>`; }).join('')}
+    ${heute.length > 3 ? `<button class="more-link" data-a="go" data-tab="heute">+ ${heute.length - 3} weitere ›</button>` : ''}</div>`;
+  // at home today: routines due, the shopping list, something to cook
+  const rout = heute.filter(i => i.chore).map(i => S.chores.find(c => c.id === i.chore)).filter(Boolean);
+  const nShop = S.shop.filter(x => !x.done).length, dish = cookSuggest(1)[0];
+  h += `<div class="sec-title">Daheim heute</div><div class="card home-rows">
+    <button class="hrow" data-a="go" data-tab="ruhe" data-q="haushalt"><span class="hr-ic">🔁</span><span class="hr-t">${rout.length ? rout.map(c => esc(c.icon + ' ' + c.name)).join(' · ') : '<span class="muted">Heute keine Routinen – frei. 🛋️</span>'}</span><span class="hc-go">›</span></button>
+    <button class="hrow" data-a="go" data-tab="ruhe" data-q="einkauf"><span class="hr-ic">🛒</span><span class="hr-t">${nShop ? `<b>${nShop}</b> ${nShop === 1 ? 'Sache' : 'Sachen'} auf der Einkaufsliste` : '<span class="muted">Einkaufsliste ist leer</span>'}</span><span class="hc-go">›</span></button>
+    ${dish ? `<button class="hrow" data-a="recipe" data-id="${esc(dish.id)}" data-go="1"><span class="hr-ic">${dish.icon}</span><span class="hr-t"><span class="muted">Heute kochen?</span> ${esc(dish.title)}</span><span class="hc-go">›</span></button>` : ''}</div>`;
+  // next appointments (today + tomorrow), the car included
   const now = Car.localISO(new Date()), tm = addDays(t, 1);
-  const soon = carAll(Car.live, false).filter(b => shared(b) && forMe(b) && carDay(b.start) <= tm && b.end > now).slice(0, 3);
+  const soon = carAll(Car.live, false).filter(b => shared(b) && forMe(b) && carDay(b.start) <= tm && b.end > now).slice(0, 2);
   h += `<button class="card hcard" data-a="go" data-tab="termine"><span class="hc-txt"><b>📅 Als Nächstes</b>${soon.length
-      ? soon.map(b => `<span class="hc-term"><i class="tdot" style="background:${b.color}"></i> ${esc(carDayLabel(carDay(b.start) < t ? t : carDay(b.start)))} ${esc(carTime(b.start))} · <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b> <span class="muted">· ${esc(whoName(b.who))}${isCar(b) ? ' · 🚗' : ''}</span></span>`).join('')
-      : '<span class="muted">Heute und morgen keine Termine. Der Kalender gähnt.</span>'}</span><span class="hc-go">›</span></button>`;
-  // the headline number
-  const facts = C.FUN_FACTS.filter(([c]) => c(st)), fact = facts.length ? facts[dayIndex() % facts.length][1](st) : 'Die erste Nudel ist die schwerste.';
-  h += `<div class="card headline"><div class="hl-n">${st.total}</div><div class="hl-l">Sachen erledigt – insgesamt</div><div class="hl-f">${esc(fact)}</div></div>`;
-  // numbers
-  h += `<div class="sec-title">In Zahlen</div><div class="nums">
-    <div class="num"><b>${S.earned}</b><span>⭐ gesammelt</span></div>
-    <div class="num"><b>${st.rest}</b><span>🛋️ entspannt</span></div>
-    <div class="num"><b>${st.sent}</b><span>🤝 abgegeben</span></div>
-    ${st.top ? `<div class="num wide"><span>Am häufigsten erledigt</span><b class="top">${esc(st.top[0])} <em>${st.top[1]}×</em></b></div>` : ''}</div>`;
-  h += `<button class="card wide rankwrap" data-a="rank">${rankCard(false)}</button>`;
-  // the two of you
-  const ps = S.partnerStats && S.partnerStats.day === t ? S.partnerStats : null;
-  const wk = weekDays(monday(t)), took = S.sent.filter(x => (x.status === 'ok' || x.status === 'erledigt') && wk.includes(key(new Date(x.ts - 3 * 3600e3)))).length;
-  h += `<div class="sec-title">Ihr zwei</div><div class="card team">
-    ${ps ? `<div class="team-n"><b>${done.length + ps.done}</b><span>heute zusammen geschafft</span></div>`
-      : `<p class="muted" style="margin:0">Sobald ${esc(pn())} heute die App öffnet, steht hier, was ihr zusammen schafft.</p>`}
-    ${took ? `<p class="team-l">🤝 ${esc(pn())} hat dir diese Woche ${took === 1 ? 'eine Aufgabe' : took + ' Aufgaben'} abgenommen.</p>` : ''}
-    ${(S.thanksSeen || []).length ? `<p class="team-l">💛 ${(S.thanksSeen || []).length}× Danke von ${esc(pn())} bekommen.</p>` : ''}
-    ${S.partnerStats && S.partnerStats.earned != null ? (pr => `<div class="team-rank">${emblem(pr.t, 40, pr.div)}<span>${esc(pn())} ist gerade <b style="color:${pr.tier.dark}">${esc(pr.name)}</b></span></div>`)(C.rankOf(S.partnerStats.earned)) : ''}
-    ${S.partnerStats && S.partnerStats.total ? `<p class="team-l">🍝 Zusammen schon ${st.total + S.partnerStats.total} Sachen erledigt.</p>` : ''}</div>`;
-  // treasures
-  const pages = S.book.pages, stage = (S.plant && S.plant.stage) || 0;
-  h += `<div class="sec-title">Deine Schätze</div><div class="treas">
-    <button class="card hcard tr" data-a="go" data-tab="schaetze"><b>📖 ${pages ? 'Fotobuch' : 'Geheimes Buch'}</b><span class="muted">${pages} von ${C.BOOK_PAGES} Seiten</span><span class="bar"><i style="width:${pages / C.BOOK_PAGES * 100}%"></i></span></button>
-    <button class="card hcard tr" data-a="go" data-tab="schaetze"><b>🌿 Pflanze</b><span class="muted">${esc(C.STAGES[Math.min(stage, C.STAGES.length - 1)])}</span><span class="bar"><i style="width:${Math.min(1, stage / (C.STAGES.length - 1)) * 100}%;background:var(--green)"></i></span></button></div>
-    ${S.stars >= Math.min(C.pageCost(pages), C.STAGE_COST) ? `<button class="btn wide" data-a="go" data-tab="schaetze">⭐ ${S.stars} Sterne – genug für was Neues!</button>` : `<p class="hint" style="text-align:center">⭐ ${S.stars} Sterne zum Ausgeben</p>`}`;
+      ? soon.map(b => `<span class="hc-term"><i class="tdot" style="background:${b.color}"></i> ${esc(carDayLabel(carDay(b.start) < t ? t : carDay(b.start)))} ${esc(carTime(b.start))} · <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b>${isCar(b) ? ' 🚗' : ''}</span>`).join('')
+      : '<span class="muted">Heute und morgen nichts Gemeinsames.</span>'}</span><span class="hc-go">›</span></button>`;
+  h += homeLine(st);
+  // the two of you: only the shared total (never who did more) + the partner's rank (user asked for it, 2026-10-05)
+  const ps = S.partnerStats;
+  if (ps && (ps.total || ps.earned != null)) {
+    const pr = ps.earned != null ? C.rankOf(ps.earned) : null;
+    h += `<div class="card team2"><div class="t2-n"><b>${st.total + (ps.total || 0)}</b><span>Sachen habt ihr zusammen erledigt</span></div>
+      ${pr ? `<div class="team-rank">${emblem(pr.t, 34, pr.div)}<span>${esc(pn())} ist gerade <b style="color:${pr.tier.dark}">${esc(pr.name)}</b></span></div>` : ''}</div>`;
+  }
   const gl = Object.values((S.game && S.game.levels) || {}), gdone = gl.filter(p => p >= 100).length;
-  h += `<div class="sec-title">Kleine Pause?</div><button class="card hcard gamecard" data-a="game"><span class="gc-pic" aria-hidden="true">🍝</span>
-    <span class="hc-txt"><b>Nudel-Rush</b><span class="muted">Im Takt durch die Küche: lenken, springen, Chaos wegputzen.${gl.length ? ' ' + gdone + ' von 5 Leveln geschafft.' : ''}</span></span><span class="hc-go">›</span></button>`;
+  h += `<button class="card hcard gamecard small" data-a="game"><span class="gc-pic" aria-hidden="true">🍝</span><span class="hc-txt"><b>Kleine Pause? Nudel-Rush</b>${gl.length ? `<span class="muted">${gdone} von 5 Leveln geschafft</span>` : ''}</span><span class="hc-go">›</span></button>`;
   return h;
 }
 A.splash = () => { pickSplash(); render(); };

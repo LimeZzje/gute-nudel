@@ -643,3 +643,26 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .rshot { position: relative; } .rshot img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; display: block; }
 .rshot .mini-btn { position: absolute; top: 4px; right: 4px; background: var(--card); }
 label.btn { display: inline-flex; align-items: center; justify-content: center; }
+/* Home v2 (2026-10-08) */
+.hello2 { padding: 10px 4px 14px; }
+.hello2 .hg { font: 700 clamp(30px, 9vw, 40px)/1.15 Caveat, cursive; color: var(--ink); }
+.hello2 .hg b { color: var(--accent); }
+.hello2 .hd { color: var(--ink2); font-weight: 700; font-size: 15px; margin-top: 2px; }
+.today2 { padding: 10px 12px 8px; }
+.today2 .today-card { background: none; box-shadow: none; padding: 4px 2px 8px; margin: 0; position: relative; }
+.today2 .ring-n { left: 2px; }
+.home-item { margin: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; background: none; padding: 8px 2px; }
+.more-link { display: block; width: 100%; border: 0; background: none; color: var(--ink2); font: inherit; font-weight: 700; font-size: 15px; text-align: left; padding: 8px 2px 4px; border-top: 1px solid var(--line); }
+.home-rows { padding: 4px 12px; }
+.hrow { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 12px 2px; border-top: 1px solid var(--line); }
+.hrow:first-child { border-top: 0; }
+.hr-ic { font-size: 24px; width: 30px; text-align: center; flex: none; }
+.hr-t { flex: 1; min-width: 0; font-size: 16px; line-height: 1.35; }
+.homeline .hl-ic { font-size: 26px; flex: none; }
+.homeline .hc-txt { font-weight: 700; }
+.team2 { padding: 14px 16px; }
+.t2-n { display: flex; align-items: baseline; gap: 10px; }
+.t2-n b { font: 700 44px/1 Caveat, cursive; color: var(--green); }
+.t2-n span { font-weight: 800; color: var(--ink2); }
+.gamecard.small { padding: 10px 14px; }
+.gamecard.small .gc-pic { width: 44px; height: 44px; font-size: 26px; }
