@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-08.11';
+const VERSION = '2026-10-08.12';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1269,10 +1269,12 @@ const bookRecipes = () => { try { return (JSON.parse(localStorage.getItem('gn_bo
 const vorratRecipes = () => { try { return (JSON.parse(localStorage.getItem('gn_vbook') || 'null') || { recipes: [] }).recipes || []; } catch (e) { return []; } };
 const fixRec = r => ({ tags: [], ing: [], steps: [], icon: '🍽️', min: 0, cat: 'haupt', ...r });
 function allRecipes() {
-  const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set(S.hiddenRecipes || []);
-  return K.RECIPES.concat(bookRecipes().filter(r => !ids.has(r.id) && !hidden.has(r.id)).map(r => fixRec({ ...r, book: true })), mine.map(r => fixRec({ ...r, own: true })),
-    vorratRecipes().filter(r => !ids.has(r.id)).map(r => fixRec({ ...r, vr: true })));
+  const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set(S.hiddenRecipes || []), free = r => !ids.has(r.id) && !hidden.has(r.id);
+  return K.RECIPES.filter(free).concat(bookRecipes().filter(free).map(r => fixRec({ ...r, book: true })), mine.filter(r => !hidden.has(r.id)).map(r => fixRec({ ...r, own: true })),
+    vorratRecipes().filter(free).map(r => fixRec({ ...r, vr: true })));
 }
+// the original a changed recipe came from (built-in, photographed book or Claude's Vorrat), if any
+const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r => r.id === id) || vorratRecipes().find(r => r.id === id) || null;
 const recipeById = id => allRecipes().find(r => r.id === id);
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
 // how much she'd want it: her favourites and what she rated well count more (and their kind), what she just had less,
@@ -1320,7 +1322,7 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
   return { all: rs.filter(x => !x.h.missing.length).map(x => x.r),
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
-const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? (r.level === 'fancy' ? ' · ✨ fancy' : ' · 🧊 aus dem Vorrat') : r.book ? ' · 📷 aus dem Buch' : r.own ? ' · ✏️ eigenes' : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}</span>${plateHtml(r, [])}</button>`;
+const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? (r.level === 'fancy' ? ' · ✨ fancy' : ' · 🧊 aus dem Vorrat') : r.book ? ' · 📷 aus dem Buch' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}</span>${plateHtml(r, [])}</button>`;
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid) return viewRecipe();
@@ -1351,7 +1353,7 @@ function viewRecipe() {
   let h = `<button class="btn soft" data-a="cookhome" style="margin:4px 0 12px">← Kochbuch</button>`;
   h += `<div class="card">${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<div style="font-size:44px;line-height:1">${r.icon}</div><h2 class="hand" style="font-size:34px;margin:6px 0">${esc(r.title)}</h2>
     <p class="muted" style="margin:0">${r.min ? '⏱ ' + r.min + ' Min. · ' : ''}für ${esc(r.serves || 2)}${isOurs(r) ? '' : ' · ganz einfach'}${r.fav ? ' · 💛 mag sie' : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>${r.src ? `<p class="muted" style="margin:4px 0 0">📚 ${esc(r.src)}</p>` : ''}${r.note ? `<p>${esc(r.note)}</p>` : ''}
-    ${isOurs(r) ? `<div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>` : ''}</div>`;
+    <div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div></div>`;
   if (r.plate) {
     const missing = Object.keys(K.PLATE).filter(k => !r.plate[k] && !sides.some(s => s.g === k));
     const want = Object.keys(K.PLATE).filter(k => !r.plate[k]);
@@ -1514,7 +1516,7 @@ function recipeModal() {
     ${e.cat === 'haupt' ? `<p class="muted" style="font-weight:800;margin:12px 0 4px">Was ist schon auf dem Teller?</p><div class="chips">${Object.entries(K.PLATE).map(([k, [ic, l]]) => `<button class="chip ${e.plate[k] ? 'on' : ''}" data-a="replate" data-v="${k}">${ic} ${l}</button>`).join('')}</div>` : ''}
     <p class="muted" id="re-msg" style="color:var(--danger)"></p>
     <div class="row"><button class="btn soft" data-a="close">Abbrechen</button><button class="btn" data-a="resave">Speichern</button></div>
-    ${e.id ? `<div class="row"><button class="btn soft" data-a="redel" style="color:var(--danger)">${e.book && !e.own ? 'Für mich ausblenden' : 'Rezept löschen'}</button></div>` : ''}</div>`, '', true);
+    ${e.id ? `<div class="row">${e.own && origOf(e.id) ? '<button class="btn soft" data-a="rereset">↺ Original zurück</button>' : ''}<button class="btn soft" data-a="redel" style="color:var(--danger)">${e.own && !origOf(e.id) ? 'Rezept löschen' : 'Für mich ausblenden'}</button></div>` : ''}</div>`, '', true);
 }
 function reRead() {
   const v = id => (document.getElementById(id) || {}).value;
@@ -1557,17 +1559,18 @@ Object.assign(A, {
     if (!e.title) { msg.textContent = 'Wie heißt das Rezept?'; return; }
     if (!e.ing.length) { msg.textContent = 'Mindestens eine Zutat, damit die Einkaufsliste weiß, was sie braucht.'; return; }
     const id = e.id || 'own-' + uid();
-    const keep = ['photo', 'pages', 'src', 'inbox', 'tags'].reduce((o, k) => (e[k] ? { ...o, [k]: e[k] } : o), {});
+    const keep = ['photo', 'pages', 'src', 'inbox', 'tags', 'fav', 'mini'].reduce((o, k) => (e[k] ? { ...o, [k]: e[k] } : o), {});
     const r = { id, cat: e.cat, title: e.title, icon: e.icon, min: e.min, serves: e.serves, ing: e.ing, steps: e.steps, note: e.note, ...(e.cat === 'haupt' ? { plate: e.plate } : {}), ...keep, ts: Date.now() };
     S.myRecipes = (S.myRecipes || []).filter(x => x.id !== id).concat([r]);
     closeModal(); ui.rid = id; ui.sides = []; ui.cstep = null; commit(); scrollTo(0, 0); toast('📖 Gespeichert');
   },
-  redel() {
-    const e = ui.re;
-    if (e.own) S.myRecipes = (S.myRecipes || []).filter(x => x.id !== e.id);
-    if (e.book) S.hiddenRecipes = [...new Set([...(S.hiddenRecipes || []), e.id])];
-    closeModal(); ui.rid = null; commit(); toast(e.book && !e.own ? 'Ausgeblendet' : 'Gelöscht');
+  redel() {   // own recipe → gone; anything with an original → hidden for me (built-in, book, Vorrat)
+    const e = ui.re, orig = origOf(e.id);
+    S.myRecipes = (S.myRecipes || []).filter(x => x.id !== e.id);
+    if (orig) S.hiddenRecipes = [...new Set([...(S.hiddenRecipes || []), e.id])];
+    closeModal(); ui.rid = null; commit(); toast(orig ? 'Ausgeblendet' : 'Gelöscht');
   },
+  rereset() { S.myRecipes = (S.myRecipes || []).filter(x => x.id !== ui.re.id); closeModal(); commit(); toast('↺ Original ist zurück'); },
 });
 A.rshotadd = async el => {
   ui.rnote = ($('#rp-note') || {}).value || '';
