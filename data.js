@@ -138,9 +138,15 @@ export function scheduleBackup(state, delay = 8000) {
 // Each device remembers which version of the backup it last had (its "base"). Newer one on the server → another device
 // saved: take it over (nothing changed here) or merge (both changed). Before every save the same check runs, so a device
 // never overwrites what another one did.
+// The base state itself is kept too: an entry that was in the base but is missing on one side was deleted there
+// (ticked off, removed) and must stay gone instead of coming back from the other device.
 const base = () => +localStorage.getItem('gn_base') || 0;
-const setBase = t => localStorage.setItem('gn_base', String(t || 0));
-let onRemote = null;   // set by the app: (remote state, adopt?) → the state to keep
+const baseState = () => { try { const b = JSON.parse(localStorage.getItem('gn_base_state') || 'null'); return b && b.updatedAt === base() ? b : null; } catch (e) { return null; } };
+const setBase = (t, st) => {
+  localStorage.setItem('gn_base', String(t || 0));
+  try { if (st) localStorage.setItem('gn_base_state', JSON.stringify(st)); else localStorage.removeItem('gn_base_state'); } catch (e) {}
+};
+let onRemote = null;   // set by the app: (remote state, adopt?, base state or null) → the state to keep
 export function setRemoteHandler(fn) { onRemote = fn; }
 const unb64 = c => new TextDecoder().decode(Uint8Array.from(atob(String(c).replace(/\s/g, '')), ch => ch.charCodeAt(0)));
 async function getFile(path) { // content + version in one request
@@ -163,8 +169,8 @@ export async function pull(local) { // → the state to use now, or null when no
       if (remote.updatedAt === local.updatedAt) { setBase(remote.updatedAt); return null; }   // the same version
       // nothing new here since the last sync — or this device never synced and is simply older → take it over
       const adopt = !(local.updatedAt > base()) || (!base() && local.updatedAt <= remote.updatedAt);
-      const next = onRemote(remote, adopt);
-      setBase(remote.updatedAt);
+      const next = onRemote(remote, adopt, baseState());
+      setBase(remote.updatedAt, remote);
       if (!adopt) scheduleBackup(next, 500);   // a merge: the result goes up too
       return next;
     } catch (e) { return null; }
@@ -172,7 +178,7 @@ export async function pull(local) { // → the state to use now, or null when no
   })();
   return pulling;
 }
-export function markSynced(t) { setBase(t); }
+export function markSynced(t, st) { setBase(t, st); }
 
 export async function flushBackup() {
   clearTimeout(timer);
@@ -183,9 +189,9 @@ export async function flushBackup() {
   let s = pending; pending = null;
   try {
     const remote = await getFile(FILE_());   // did another device save meanwhile? then merge first
-    if (remote && remote.updatedAt > base() && onRemote) s = onRemote(remote, false);
+    if (remote && remote.updatedAt > base() && onRemote) s = onRemote(remote, false, baseState());
     await putJSON(FILE_(), s, 'Sicherung ' + new Date().toLocaleString('de-DE'));
-    setBase(s.updatedAt);
+    setBase(s.updatedAt, s);
     backup.last = Date.now(); localStorage.setItem('gn_lastbackup', backup.last);
     setStatus('ok');
   } catch (e) {

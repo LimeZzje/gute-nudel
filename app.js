@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-05.1';
+const VERSION = '2026-10-08.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -177,12 +177,18 @@ function planChanged(c) {
   if (!on) c.skip = addDays(today(), 1);
   else if (Array.isArray(c.week) && !c.week.includes(parse(today()).getDay())) S.items = S.items.filter(i => i !== on);
 }
+const choreItemId = (cid, d) => 'ch-' + cid + '-' + d;
+function dedupeChoreItems() { // one open to-do per chore; none for chores that no longer exist
+  const cids = new Set(S.chores.map(c => c.id)), one = new Set();
+  S.items = S.items.filter(i => !i.chore || (cids.has(i.chore) && !(i.where === 'heute' && (one.has(i.chore) || !one.add(i.chore)))));
+}
 function scheduleChores() {
+  dedupeChoreItems();
   const d = today();
   let added = 0;
   for (const c of S.chores) {
     if (!choreDue(c, d) || S.items.some(i => i.chore === c.id) || S.log.some(e => e.day === d && e.chore === c.id)) continue;
-    S.items.push({ id: uid(), text: c.name, where: 'heute', created: Date.now(), chore: c.id });
+    S.items.push({ id: choreItemId(c.id, d), text: c.name, where: 'heute', created: Date.now(), chore: c.id });
     added++;
   }
   return added;
@@ -719,7 +725,7 @@ async function saveCfgAndTest() {
 }
 async function applyRestore(remote) {
   S = Object.assign(D.freshState(), remote, { me: D.me() });
-  D.markSynced(remote.updatedAt);
+  D.markSynced(remote.updatedAt, remote);
   await D.saveLocal(S);
   rollover(); closeModal(); render(); toast('Wiederhergestellt ✓');
 }
@@ -740,7 +746,7 @@ const A = {
   undo(el) {
     const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
     S.log = S.log.filter(x => x !== e); S.stars = Math.max(0, S.stars - e.stars); S.earned = Math.max(0, S.earned - e.stars);
-    if (e.kind === 'task') S.items.unshift({ id: uid(), text: e.text, where: 'heute', created: Date.now(), ...(e.did ? { did: e.did, from: e.from } : {}), ...(e.chore ? { chore: e.chore } : {}) });
+    if (e.kind === 'task') S.items.unshift({ id: e.chore ? choreItemId(e.chore, e.day) : uid(), text: e.text, where: 'heute', created: Date.now(), ...(e.did ? { did: e.did, from: e.from } : {}), ...(e.chore ? { chore: e.chore } : {}) });
     if (e.chore) { const c = S.chores.find(x => x.id === e.chore); if (c) c.last = e.prevLast || null; S.gifts = S.gifts.filter(g => !(g.cid === e.chore && g.day === e.day)); }
     let post = false;
     if (e.did && S.answered[e.did]) { S.answered[e.did] = { status: 'ok', ts: Date.now() }; post = true; }
@@ -1793,17 +1799,33 @@ function welcome() {
 A.welcomego = () => { const n = $('#w-name').value.trim(); S.name = n; S.welcomed = true; closeModal(); commit(); D.askPersistent(); };
 
 // ---------- several devices of one person: merge two versions of the same save ----------
-function mergeStates(local, remote) {
+// base = the version both devices last agreed on (null if unknown). With it, the merge knows what was DELETED:
+// an entry that was in the base but is missing on one side was ticked off or removed there and stays gone.
+// Without a base (old app version) it falls back to joining everything.
+function mergeStates(local, remote, base = null) {
   const newer = (remote.updatedAt || 0) >= (local.updatedAt || 0) ? remote : local, older = newer === remote ? local : remote;
   const m = Object.assign(D.freshState(), newer, { me: D.me() });
-  // the log: everything from both (stars of entries only the older one has are added)
+  // lists: joined by id, the newer version of an entry wins; deleted on either side (since the base) = gone
+  const join = k => {
+    const a = (newer[k] || []).filter(Boolean), b = (older[k] || []).filter(Boolean);
+    const inA = new Set(a.map(x => x.id)), inB = new Set(b.map(x => x.id)), inBase = base ? new Set((base[k] || []).filter(Boolean).map(x => x.id)) : null;
+    const seen = new Set();
+    return a.concat(b).filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return !inBase || !inBase.has(x.id) || (inA.has(x.id) && inB.has(x.id)); });
+  };
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks'].forEach(k => { m[k] = join(k); });
+  // the log the same way (an undo on one device removes the entry everywhere)
   const ids = new Set((newer.log || []).map(e => e.id)), extra = (older.log || []).filter(e => !ids.has(e.id));
-  m.log = (newer.log || []).concat(extra).sort((a, b) => (a.ts || 0) - (b.ts || 0));
-  m.stars = Math.max(0, (newer.stars || 0) + extra.reduce((a, e) => a + (e.stars || 0), 0));
-  m.earned = (newer.earned || 0) + extra.reduce((a, e) => a + Math.max(0, e.stars || 0), 0);
-  // lists: joined by id, the newer version of an entry wins
-  const join = (a = [], b = []) => { const seen = new Set(a.map(x => x.id)); return a.concat(b.filter(x => x && !seen.has(x.id))); };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks'].forEach(k => { m[k] = join(newer[k], older[k]); });
+  m.log = join('log').sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  if (base) { // stars: both sides' changes since the base add up
+    m.stars = Math.max(0, (newer.stars || 0) + (older.stars || 0) - (base.stars || 0));
+    m.earned = Math.max(0, (newer.earned || 0) + (older.earned || 0) - (base.earned || 0));
+  } else {
+    m.stars = Math.max(0, (newer.stars || 0) + extra.reduce((a, e) => a + (e.stars || 0), 0));
+    m.earned = (newer.earned || 0) + extra.reduce((a, e) => a + Math.max(0, e.stars || 0), 0);
+  }
+  // a chore deleted on one device takes its open to-dos with it; one open to-do per chore at most
+  const cids = new Set(m.chores.map(c => c.id)), one = new Set();
+  m.items = m.items.filter(i => !i.chore || (cids.has(i.chore) && !(i.where === 'heute' && (one.has(i.chore) || !one.add(i.chore)))));
   m.recipes = newer.recipes || older.recipes;
   m.fixes = [...new Set([].concat(newer.fixes || [], older.fixes || []))];
   m.favs = [...new Set([].concat(newer.favs || [], older.favs || []))];
@@ -1818,8 +1840,8 @@ function mergeStates(local, remote) {
   m.updatedAt = Math.max(local.updatedAt || 0, remote.updatedAt || 0) + 1;
   return m;
 }
-function takeRemote(remote, adopt) {
-  S = adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote);
+function takeRemote(remote, adopt, base) {
+  S = adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote, base);
   D.saveLocal(S);
   rollover(); scheduleChores(); render();
   toast(adopt ? '🔄 Auf dem neuesten Stand' : '🔄 Mit dem anderen Gerät zusammengeführt');
