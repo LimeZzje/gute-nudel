@@ -686,3 +686,6 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .vrcard .hl-ic { font-size: 28px; flex: none; }
 .dacard .hl-ic { font-size: 28px; flex: none; }
 .recipe-row .miss { font-size: 14px; color: var(--accent); font-weight: 700; }
+.qty { font-weight: 800; color: var(--ink2); white-space: nowrap; margin-left: 6px; }
+.vorrat .pick { text-align: left; }
+.vask { border-top: 1px solid var(--line); padding-top: 4px; }

@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-08.12';
+const VERSION = '2026-10-08.13';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -68,25 +68,96 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
 // 🧊 Vorrat (shared, 2026-10-08): "Alles eingekauft!" puts the bought things in; cooking (or ✕) takes them out.
 // Each phone only posts its own adds + uses (post/<me>.json → vorrat), the fridge = both adds minus both uses. Claude reads it too.
 const VDAY = 864e5;
+// Amounts (2026-10-08): "500 g", "1,5 kg", "2 Dosen" … → {n, unit, label}. g/kg and ml/l are converted, a bare number or
+// "Stück" counts pieces; any other word (Dose, Scheiben, EL, Packung) only adds up with the same word.
+const FR = { '½': .5, '¼': .25, '¾': .75, '⅓': 1 / 3, '⅔': 2 / 3 };
+const UNITS = { g: ['g', 1], gramm: ['g', 1], kg: ['g', 1000], ml: ['ml', 1], l: ['ml', 1000], liter: ['ml', 1000], cl: ['ml', 10], dl: ['ml', 100] };
+function parseQty(q) {
+  if (q == null || q === '') return null;
+  let t = String(q).trim().replace(/^ca\.?\s*/i, '').replace(/(\d)\s*([½¼¾⅓⅔])/g, (m, a, b) => String(+a + FR[b])).replace(/[½¼¾⅓⅔]/g, m => String(FR[m]));
+  const m = t.match(/^(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?\s*([A-Za-zÄÖÜäöüß]*\.?)/); if (!m) return null;
+  const n = parseFloat(m[1].replace(',', '.')), w = m[2].replace(/\.$/, ''), k = w.toLowerCase();
+  if (UNITS[k]) return { n: n * UNITS[k][1], unit: UNITS[k][0] };
+  if (!w || /^(stück|stk|st)$/.test(k)) return { n, unit: 'stk' };
+  return { n, unit: k.replace(/(n|en|s)$/, ''), label: w };   // Dose/Dosen, Scheibe/Scheiben add up
+}
+const qtyOk = (a, b) => !!(a && b && a.unit === b.unit);
+function fmtQty(q) {
+  if (!q) return '';
+  const num = x => String(Math.round(x * 100) / 100).replace('.', ',');
+  if (q.unit === 'g') return q.n >= 1000 ? num(q.n / 1000) + ' kg' : num(q.n) + ' g';
+  if (q.unit === 'ml') return q.n >= 1000 ? num(q.n / 1000) + ' l' : num(q.n) + ' ml';
+  if (q.unit === 'stk') return num(q.n) + (q.n === 1 ? ' Stück' : ' Stück');
+  return num(q.n) + ' ' + (q.label || q.unit);
+}
+// "500 g Nudeln", "Nudeln 500 g", "Nudeln (500 g)" → {name, qty}
+function splitAmount(t) {
+  t = String(t || '').trim();
+  let m = t.match(/^(.*\S)\s*\(([^)]*)\)\s*$/);
+  if (m && parseQty(m[2])) return { name: m[1].trim(), qty: parseQty(m[2]), raw: m[2] };
+  m = t.match(/^((?:ca\.\s*)?[\d½¼¾⅓⅔][\d½¼¾⅓⅔.,\-–\s]*(?:\s*[A-Za-zÄÖÜäöüß]+\.?)?)\s+(.+)$/);
+  if (m && parseQty(m[1]) && /^(g|gramm|kg|ml|l|liter|cl|dl|stück|stk|dosen?|scheiben?|packungen?|pck|becher|bund|beutel|gläser|glas|flaschen?|el|tl|zehen?|kopf|köpfe)\.?$|^\d/i.test(m[1].trim().split(/\s+/).pop())) return { name: m[2].trim(), qty: parseQty(m[1]), raw: m[1].trim() };
+  m = t.match(/^(.*\S)\s+(\d+(?:[.,]\d+)?\s*(?:g|kg|ml|l|stück|stk|dosen?|scheiben?|packungen?)\.?)$/i);
+  if (m && parseQty(m[2])) return { name: m[1].trim(), qty: parseQty(m[2]), raw: m[2] };
+  return { name: t, qty: null };
+}
+const itemName = x => x.qty !== undefined ? x.text : splitAmount(x.text).name;          // older entries kept the amount in the text
+const itemQty = x => x.qty !== undefined ? x.qty : splitAmount(x.text).qty;
+
+// the Vorrat: adds (with the amount bought) and use records from both phones. A use record is {id, item, ts} = all gone,
+// {…, amt} = that much taken, {…, set} = "now there's this much" (corrected by hand / answered when cooking).
+// (older records were {id: <item id>, ts} = all gone)
 function vorrat() {
-  const used = new Set([...(S.vorratUsed || []), ...((S.partnerVorrat || {}).used || [])].map(x => x.id)), seen = new Set();
-  return [...(S.vorratAdd || []), ...((S.partnerVorrat || {}).add || [])].filter(x => x && x.id && !used.has(x.id) && !seen.has(x.id) && seen.add(x.id)).sort((a, b) => (a.ts || 0) - (b.ts || 0));
-}
-function useVorrat(ids) { S.vorratUsed = S.vorratUsed || []; ids.forEach(id => { if (!S.vorratUsed.some(u => u.id === id)) S.vorratUsed.push({ id, ts: Date.now() }); }); }
-function vorratPost() { // used things stay listed a while so the other phone sees them go; then they're forgotten
-  const used = new Map([...(S.vorratUsed || []), ...((S.partnerVorrat || {}).used || [])].map(u => [u.id, u.ts]));
-  return { add: (S.vorratAdd || []).filter(x => !used.has(x.id) || Date.now() - used.get(x.id) < 30 * VDAY), used: (S.vorratUsed || []).filter(u => Date.now() - u.ts < 45 * VDAY) };
-}
-// what a recipe takes out of the fridge: Claude's recipes name the exact items (uses), others match by name
-function consumeFor(r) {
-  const V = vorrat(); let ids = (r.uses || []).filter(id => V.some(x => x.id === id));
-  if (!ids.length) {
-    const names = (r.ing || []).map(([, t]) => Sh.norm(t)).filter(n => n.length >= 3);
-    ids = V.filter(x => { const v = Sh.norm(x.text); return v.length >= 3 && names.some(n => v.includes(n) || n.includes(v)); }).map(x => x.id);
+  const uses = [...(S.vorratUsed || []), ...((S.partnerVorrat || {}).used || [])].filter(Boolean).sort((a, b) => (a.ts || 0) - (b.ts || 0)), seen = new Set(), out = [];
+  for (const x of [...(S.vorratAdd || []), ...((S.partnerVorrat || {}).add || [])].sort((a, b) => (a.ts || 0) - (b.ts || 0))) {
+    if (!x || !x.id || seen.has(x.id)) continue; seen.add(x.id);
+    let left = itemQty(x), gone = false;
+    for (const u of uses) {
+      if ((u.item || u.id) !== x.id) continue;
+      if (u.set) left = u.set;
+      else if (u.amt) { if (qtyOk(left, u.amt)) left = { ...left, n: left.n - u.amt.n }; }
+      else gone = true;
+      if (left && left.n <= 1e-6) gone = true;
+    }
+    if (!gone) out.push({ ...x, name: itemName(x), left });
   }
-  if (!ids.length) return [];
-  useVorrat(ids); return V.filter(x => ids.includes(x.id)).map(x => x.text);
+  return out;
 }
+const useRec = (item, extra = {}) => { (S.vorratUsed = S.vorratUsed || []).push({ id: uid(), item, ts: Date.now(), ...extra }); };
+function useVorrat(ids) { ids.forEach(id => useRec(id)); }
+function vorratPost() { // used-up things stay listed a while so the other phone sees them go; then they're forgotten
+  const gone = new Set(vorrat().map(x => x.id)), last = new Map();
+  [...(S.vorratUsed || []), ...((S.partnerVorrat || {}).used || [])].forEach(u => { const k = u.item || u.id; last.set(k, Math.max(last.get(k) || 0, u.ts || 0)); });
+  return { add: (S.vorratAdd || []).filter(x => gone.has(x.id) || !last.has(x.id) || Date.now() - last.get(x.id) < 30 * VDAY), used: (S.vorratUsed || []).filter(u => Date.now() - u.ts < 45 * VDAY) };
+}
+// what a recipe takes out of the fridge. Amounts that fit (g, ml, Stück …) are taken off quietly; what can't be
+// worked out (1 Packung vs 250 g, no amount) is asked after "Jetzt kochen" (user's choice). Staples (salt, oil …) never.
+function consumeFor(r) {
+  const V = vorrat(), out = { taken: [], ask: [] }, done = new Set();
+  const take = (x, need) => {
+    if (done.has(x.id)) return; done.add(x.id);
+    const rq = parseQty(need);
+    if (need === true) { useRec(x.id); out.taken.push(x.name); return; }                    // Claude: "this item is used up"
+    if (x.left && rq && qtyOk(x.left, rq)) { if (rq.n >= x.left.n - 1e-6) useRec(x.id); else useRec(x.id, { amt: rq }); out.taken.push(x.name + ' ' + fmtQty(rq)); return; }
+    out.ask.push({ id: x.id, name: x.name, have: x.left ? fmtQty(x.left) : '', need: need || '' });
+  };
+  for (const u of r.uses || []) { const id = typeof u === 'string' ? u : u.id, x = V.find(y => y.id === id); if (x) take(x, typeof u === 'string' ? true : (u.q || true)); }
+  for (const [q, t] of r.ing || []) {
+    if (!t || isPantry(t)) continue;
+    const n = Sh.norm(t), x = V.find(y => !done.has(y.id) && vMatch(n, Sh.norm(y.name)));
+    if (x) take(x, q || '');
+  }
+  return out;
+}
+function askVorrat(list) { // after "Jetzt kochen": how much is left of what couldn't be worked out?
+  ui.vask = list;
+  modal(`<div style="text-align:left"><h2 style="text-align:center">🧊 Was ist noch da?</h2><p class="muted" style="margin-top:0">Das konnte ich nicht ausrechnen:</p>
+    ${list.map(a => `<div class="vask" data-id="${esc(a.id)}"><p style="margin:10px 0 6px"><b>${esc(a.name)}</b><br><span class="muted">${a.have ? 'im Vorrat: ' + esc(a.have) : 'ohne Menge im Vorrat'}${a.need ? ' · Rezept braucht ' + esc(a.need) : ''}</span></p>
+      <div class="chips"><button class="chip" data-a="vask" data-id="${esc(a.id)}" data-v="gone">Alles weg</button><button class="chip" data-a="vask" data-id="${esc(a.id)}" data-v="keep">Noch was übrig</button></div>
+      <form class="add" data-f="vaskset" data-id="${esc(a.id)}"><input name="t" placeholder="Noch übrig, z.B. 200 g" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Menge speichern">✓</button></form></div>`).join('')}
+    <div class="row"><button class="btn soft" data-a="close">Später</button></div></div>`, '', true);
+}
+function vaskDone(id) { ui.vask = (ui.vask || []).filter(a => a.id !== id); commit(true); if (ui.vask.length) askVorrat(ui.vask); else closeModal(); }
 const RANK = { wartet: 0, ok: 1, nein: 1, erledigt: 2 };
 let syncing = false;
 async function syncPost() {
@@ -922,13 +993,13 @@ const A = {
   ccat(el) { ui.ccat = el.dataset.v; render(); if (el.classList.contains('hcard')) { const c = document.querySelector('.ccats'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
   recipe(el) { if (el.dataset.go || ui.tab !== 'ruhe') { closeModal(); ui.tab = 'ruhe'; ui.sub = null; ui.qtab = 'kochbuch'; } ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; render(); scrollTo(0, 0); },
   ingextradel(el) { ui.ingExtra.splice(+el.dataset.i, 1); render(); },
-  ingtoggle(el) { const t = el.dataset.v; ui.ingPick = ui.ingPick || {}; ui.ingPick[ingKey(t)] = !ingWanted(t); render(); },
+  ingtoggle(el) { const t = el.dataset.v; ui.ingPick = ui.ingPick || {}; ui.ingPick[ingKey(t)] = !ingWanted(t, el.dataset.q); render(); },
   side(el) { const id = el.dataset.id, a = ui.sides || (ui.sides = []); a.includes(id) ? a.splice(a.indexOf(id), 1) : a.push(id); render(); },
   cookshop2() {
     const r = recipeById(ui.rid), all = r.ing.concat(...sidesOf().map(s => s.ing)).filter(([, t]) => t);
-    const add = all.filter(([, t]) => ingWanted(t) && !onList(t));
-    add.forEach(([q, t]) => S.shop.push({ id: uid(), text: q ? t + ' (' + q + ')' : t, done: false, from: r.title }));
-    (ui.ingExtra || []).forEach(t => S.shop.push({ id: uid(), text: t, done: false }));
+    const add = all.filter(([q, t]) => ingWanted(t, q));
+    add.forEach(([q, t]) => addToShop(t, parseQty(q), q, r.title));
+    (ui.ingExtra || []).forEach(t => { const a = splitAmount(t); addToShop(a.name, a.qty, '', null); });
     const nExtra = (ui.ingExtra || []).length;
     ui.ingPick = {}; ui.ingExtra = [];
     S.dishes = (S.dishes || []).filter(x => x.id !== r.id).concat([{ id: r.id, ts: Date.now() }]);   // bought for → "Heute kochen?" on Home
@@ -938,18 +1009,27 @@ const A = {
   cookstart() {   // cooked = off Home's "Heute kochen?", and what it needs leaves the Vorrat
     ui.cstep = 0; const r = recipeById(ui.rid), had = (S.dishes || []).some(x => x.id === ui.rid);
     S.dishes = (S.dishes || []).filter(x => x.id !== ui.rid);
-    const gone = r ? consumeFor(r) : [];
-    if (had || gone.length) commit(true); else render();
-    if (gone.length) toast('🧊 Aus dem Vorrat: ' + gone.join(', '));
+    const c = r ? consumeFor(r) : { taken: [], ask: [] };
+    if (had || c.taken.length || c.ask.length) commit(true); else render();
+    if (c.taken.length) toast('🧊 Aus dem Vorrat: ' + c.taken.join(', '));
+    if (c.ask.length) askVorrat(c.ask);
     scrollTo(0, 0);
   },
   shopdone() {
     const got = S.shop.filter(x => x.done); if (!got.length) return;
-    S.vorratAdd = (S.vorratAdd || []).concat(got.map(x => ({ id: uid(), text: x.text, ts: Date.now(), by: D.me() })));
+    S.vorratAdd = (S.vorratAdd || []).concat(got.map(x => ({ id: uid(), text: itemName(x), qty: itemQty(x) || null, ...(x.q && !itemQty(x) ? { q: x.q } : {}), ts: Date.now(), by: D.me() })));
     S.shop = S.shop.filter(x => !x.done); commit(true); confetti(50);
     toast('🧊 ' + got.length + (got.length === 1 ? ' Sache' : ' Sachen') + ' im Vorrat');
   },
   vorratdel(el) { useVorrat([el.dataset.id]); commit(true); },
+  vask(el) { const id = el.dataset.id; if (el.dataset.v === 'gone') useRec(id); vaskDone(id); },
+  vorratqty(el) {   // ✎ the amount by hand
+    const x = vorrat().find(y => y.id === el.dataset.id); if (!x) return;
+    modal(`<div style="text-align:left"><h2 style="text-align:center">🧊 ${esc(x.name)}</h2><p class="muted">Wie viel ist noch da?</p>
+      <form class="add" data-f="vorratset" data-id="${esc(x.id)}"><input name="t" value="${esc(x.left ? fmtQty(x.left) : '')}" placeholder="z.B. 250 g, 3 Stück, 1 Dose" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Speichern">✓</button></form>
+      <div class="row"><button class="btn soft" data-a="close">Abbrechen</button><button class="btn soft" data-a="vorratdelm" data-id="${esc(x.id)}" style="color:var(--danger)">Ist alle</button></div></div>`);
+  },
+  vorratdelm(el) { useVorrat([el.dataset.id]); closeModal(); commit(true); },
   cnext() { ui.cstep++; render(); },
   cprev() { ui.cstep = Math.max(0, ui.cstep - 1); render(); },
   cookstop() { endCookMode(); render(); },
@@ -1206,7 +1286,7 @@ function shopModal(item, keep) { // her list — or a handed-over one (item.list
 }
 function shopBody(item, inTab) {
   const L = item ? item.list : S.shop, open = L.filter(x => !x.done), done = L.filter(x => x.done), di = item ? ` data-item="${item.id}"` : '';
-  const row = x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(x.text)}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}</span></button>`
+  const row = x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(itemName(x))}${itemQty(x) || x.q ? ` <b class="qty">${esc(itemQty(x) ? fmtQty(itemQty(x)) : x.q)}</b>` : ''}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}</span></button>`
     + (!x.done && (ui.shopEdit || secOf(x) === 'sonst') ? `<button class="mini-btn" data-a="shoptag" data-id="${x.id}"${di} aria-label="Abteilung wählen">🏷️</button>` : '')
     + `<button class="mini-btn" data-a="shopdel" data-id="${x.id}"${di} aria-label="Entfernen">✕</button></div>`
     + (ui.tagId === x.id ? `<div class="chips tagpick">${Object.entries(Sh.SECTIONS).map(([k, [ic, l]]) => `<button class="chip ${secOf(x) === k ? 'on' : ''}" data-a="shopsec" data-id="${x.id}" data-v="${k}"${di}>${ic} ${l.split(' (')[0]}</button>`).join('')}</div>` : '');
@@ -1233,9 +1313,9 @@ function shopBody(item, inTab) {
 function vorratHtml() {
   const V = vorrat();
   return `<div class="vorrat"><div class="sechead"><span>🧊 Daheim im Vorrat <span class="muted">(${V.length})</span></span></div>
-    ${V.map(x => `<div class="shoprow"><span class="pick" style="cursor:default"><span>${esc(x.text)}</span></span><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('') || '<p class="muted">Noch leer. Nach dem Einkaufen „Alles eingekauft!“ drücken – oder hier eintragen, was eh da ist.</p>'}
-    <form class="add" data-f="vorratadd"><input name="t" placeholder="Hab ich daheim… (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Zum Vorrat">+</button></form>
-    <p class="hint">✕ = aufgebraucht. Beim „Jetzt kochen“ verschwindet, was das Rezept braucht, von selbst.</p></div>`;
+    ${V.map(x => `<div class="shoprow"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${x.left ? `<b class="qty">${esc(fmtQty(x.left))}</b>` : x.q ? `<b class="qty">${esc(x.q)}</b>` : '<span class="muted" style="font-size:14px">Menge?</span>'}</button><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('') || '<p class="muted">Noch leer. Nach dem Einkaufen „Alles eingekauft!“ drücken – oder hier eintragen, was eh da ist.</p>'}
+    <form class="add" data-f="vorratadd"><input name="t" placeholder="Hab ich daheim… z.B. 500 g Nudeln" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Zum Vorrat">+</button></form>
+    <p class="hint">Tippen = Menge ändern · ✕ = aufgebraucht. Beim „Jetzt kochen“ wird abgezogen, was das Rezept braucht.</p></div>`;
 }
 const shopAgain = () => shopModal(ui.shopItemId ? S.items.find(i => i.id === ui.shopItemId) : null, true);
 // cookbook "auf die Liste" while the list isn't open: show it as a pop-over as before
@@ -1302,9 +1382,17 @@ function cookSuggest(n) { // weighted, no repeats; ui.sugSeed changes with "ande
 // which ingredients go on the list: her choice for this recipe, else — not already on the list and not a pantry staple
 // (salt/oil/spices: marked "Vorrat?" so she can tick them when they're empty). Nothing is remembered — things run out.
 const ingKey = t => Sh.norm(t);
-const onList = t => S.shop.some(x => !x.done && Sh.norm(x.text) === ingKey(t));
+const onListItem = t => S.shop.find(x => !x.done && Sh.norm(itemName(x)) === ingKey(t));
+const onList = t => !!onListItem(t);
+const canAddUp = (t, q) => { const x = onListItem(t), a = parseQty(q); return !!(x && a && qtyOk(itemQty(x), a)); };   // already on the list, amounts add up
+function addToShop(name, qty, raw, from) {
+  const x = onListItem(name);
+  if (x && qty && qtyOk(itemQty(x), qty)) { const had = itemQty(x); x.text = itemName(x); x.qty = { ...had, n: had.n + qty.n }; if (from && !(x.from || '').includes(from)) x.from = x.from ? x.from + ' + ' + from : from; return; }
+  if (x && !qty) return;                                                    // "Salz" twice = once
+  S.shop.push({ id: uid(), text: name, qty: qty || null, ...(raw && !qty ? { q: raw } : {}), done: false, ...(from ? { from } : {}) });
+}
 const isPantry = t => Sh.classify(t, S.shopLearn || {}) === 'backen';
-const ingWanted = t => { const k = ingKey(t); return ui.ingPick && k in ui.ingPick ? ui.ingPick[k] : !onList(t) && !isPantry(t); };
+const ingWanted = (t, q) => { const k = ingKey(t); return ui.ingPick && k in ui.ingPick ? ui.ingPick[k] : !isPantry(t) && (!onList(t) || canAddUp(t, q)); };
 const sidesOf = () => (ui.sides || []).map(id => K.SIDES.find(s => s.id === id)).filter(Boolean);
 function plateHtml(r, sides) {
   if (!r.plate) return '';
@@ -1312,9 +1400,10 @@ function plateHtml(r, sides) {
 }
 const tasteOf = r => { const c = S.cook[r.id]; return c && c.taste ? K.TASTE.find(t => t[2] === c.taste)[0] : ''; };
 const vMatch = (n, v) => n.length >= 3 && v.length >= 3 && (v.includes(n) || n.includes(v));
-function haveFor(r, V) { // → {need, missing[]} over the real ingredients (staples skipped)
-  const vs = V.map(x => Sh.norm(x.text)), need = (r.ing || []).filter(([, t]) => t && !isPantry(t));
-  return { need: need.length, missing: need.filter(([, t]) => !vs.some(v => vMatch(Sh.norm(t), v))).map(([, t]) => t) };
+function haveFor(r, V) { // → {need, missing[]} over the real ingredients (staples skipped); too little of something = missing
+  const need = (r.ing || []).filter(([, t]) => t && !isPantry(t));
+  return { need: need.length, missing: need.filter(([q, t]) => { const x = V.find(y => vMatch(Sh.norm(t), Sh.norm(y.name))), rq = parseQty(q);
+    return !x || (x.left && rq && qtyOk(x.left, rq) && x.left.n < rq.n - 1e-6); }).map(([q, t]) => { const x = V.find(y => vMatch(Sh.norm(t), Sh.norm(y.name))); return x && x.left ? t + ' (nur ' + fmtQty(x.left) + ')' : t; }) };
 }
 function cookableNow() { // all of it at home / only 1–2 things missing (Claude's own Vorrat recipes are listed separately)
   const V = vorrat(); if (!V.length) return { all: [], almost: [] };
@@ -1363,10 +1452,10 @@ function viewRecipe() {
         return `<div class="chips">${opts.map(s => `<button class="chip ${(ui.sides || []).includes(s.id) ? 'on' : ''}" data-a="side" data-id="${s.id}">${K.PLATE[k][0]} ${esc(s.title)}</button>`).join('')}</div>`; }).join('') + '</div>';
   }
   const ing = r.ing.concat(...sides.map(s => s.ing.map(x => [x[0], x[1], s.title])));
-  const sel = ing.filter(([, t]) => t && ingWanted(t)).length, total = sel + (ui.ingExtra || []).length;
+  const sel = ing.filter(([q, t]) => t && ingWanted(t, q)).length, total = sel + (ui.ingExtra || []).length;
   h += `<div class="card"><h3>Zutaten</h3><p class="muted" style="margin-top:0">Was du gerade noch daheim hast, einfach abwählen.</p>
-    <div class="steps">${ing.map(([q, t, from]) => { const on = t && ingWanted(t), why = onList(t) ? 'steht schon drauf' : isPantry(t) ? 'Vorrat?' : '';
-      return `<button class="pick ${on ? 'on' : ''}" data-a="ingtoggle" data-v="${esc(t)}"><span class="box">${on ? '✓' : ''}</span><span style="flex:1">${esc(t)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}${why && !on ? ` <span class="tag">${why}</span>` : ''}</span><span class="muted">${esc(q)}</span></button>`; }).join('')}</div>
+    <div class="steps">${ing.map(([q, t, from]) => { const on = t && ingWanted(t, q), why = canAddUp(t, q) ? '+ zur Menge auf der Liste' : onList(t) ? 'steht schon drauf' : isPantry(t) ? 'Vorrat?' : '';
+      return `<button class="pick ${on ? 'on' : ''}" data-a="ingtoggle" data-v="${esc(t)}" data-q="${esc(q || '')}"><span class="box">${on ? '✓' : ''}</span><span style="flex:1">${esc(t)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}${why && (!on || canAddUp(t, q)) ? ` <span class="tag">${why}</span>` : ''}</span><span class="muted">${esc(q)}</span></button>`; }).join('')}</div>
     ${(ui.ingExtra || []).length ? `<div class="steps">${ui.ingExtra.map((t, i) => `<div class="shoprow"><span class="pick on" style="cursor:default"><span class="box">✓</span><span style="flex:1">${esc(t)} <span class="tag">dazu</span></span></span><button class="mini-btn" data-a="ingextradel" data-i="${i}" aria-label="Entfernen">✕</button></div>`).join('')}</div>` : ''}
     <form class="add" data-f="ingextra"><input name="t" placeholder="Noch was dazu? (z.B. Getränke)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Dazu">+</button></form>
     <div class="row"><button class="btn soft" data-a="cookshop2" ${sel + (ui.ingExtra || []).length ? '' : 'disabled'}>🛒 ${total ? total + (total === 1 ? ' Sache' : ' Sachen') + ' auf die Liste' : 'Alles da'}</button></div></div>`;
@@ -1581,7 +1670,7 @@ function loadRecPhotos() { document.querySelectorAll('img.recphoto[data-photo]:n
 
 const FORMS = {
   ingextra(t) { ui.ingExtra = (ui.ingExtra || []).concat(t.split(',').map(x => x.trim()).filter(Boolean)); render(); const i = document.querySelector('form[data-f="ingextra"] input'); if (i) i.focus(); },
-  shopadd(t) { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => S.shop.push({ id: uid(), text: x, done: false })); commit(); shopModal(null, true); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
+  shopadd(t) { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const a = splitAmount(x); addToShop(a.name, a.qty, a.qty ? '' : '', null); }); commit(); shopModal(null, true); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
   decline(t, form) {
     const id = form.dataset.id, x = S.incoming.find(y => y.id === id); if (!x) return;
     S.answered[id] = { status: 'nein', reason: t, ts: Date.now() }; S.incoming = S.incoming.filter(y => y !== x); ui.declining = null;
@@ -1589,7 +1678,9 @@ const FORMS = {
   },
   addplan(t) { const it = { id: uid(), text: t, where: 'liste', created: Date.now() }; S.items.push(it); ui.picks.add(it.id); commit(); },
   addtoday(t) { S.items.push({ id: uid(), text: t, where: 'heute', created: Date.now() }); S.today.planned = true; commit(); },
-  vorratadd(t) { S.vorratAdd = (S.vorratAdd || []).concat(t.split(',').map(x => x.trim()).filter(Boolean).map(x => ({ id: uid(), text: x, ts: Date.now(), by: D.me() }))); commit(true); },
+  vorratadd(t) { S.vorratAdd = (S.vorratAdd || []).concat(t.split(',').map(x => x.trim()).filter(Boolean).map(x => { const a = splitAmount(x); return { id: uid(), text: a.name, qty: a.qty, ts: Date.now(), by: D.me() }; })); commit(true); },
+  vorratset(t, form) { const id = form.dataset.id, q = parseQty(t) || (splitAmount('x ' + t).qty); if (!q) { toast('Menge nicht verstanden – z.B. „250 g“'); return; } useRec(id, { set: q }); closeModal(); commit(true); },
+  vaskset(t, form) { const id = form.dataset.id, q = parseQty(t); if (!q) { toast('Menge nicht verstanden – z.B. „200 g“'); return; } useRec(id, { set: q }); vaskDone(id); },
   addlist(t) { S.items.push({ id: uid(), text: t, where: 'liste', created: Date.now() }); commit(); },
   extra(t, form) {
     const n = workToday().length, stars = n < C.CAP ? 1 : 0;
@@ -2185,4 +2276,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { vorrat: () => vorrat(), goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
+window.__gn = { vorrat: () => vorrat(), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
