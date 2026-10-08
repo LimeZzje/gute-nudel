@@ -279,6 +279,10 @@ export const stashPut = (k, v) => idb('photos', 'readwrite', s => s.put(v, 'stas
 export const stashGet = k => idb('photos', 'readonly', s => s.get('stash:' + k));
 export const stashDel = k => idb('photos', 'readwrite', s => s.delete('stash:' + k));
 export async function listDir(path) { const r = await gh(path); if (r.status === 404) return []; if (!r.ok) throw ghErr(r.status); return r.json(); }
+export async function readVorratRezepte() {   // Claude's 5 easy + 5 fancy recipes from what's at home; null when offline
+  if (!configured(getCfg()) || !navigator.onLine) return null;
+  try { return (await getJSON('rezepte/vorrat-rezepte.json')) || { recipes: [] }; } catch (e) { return null; }
+}
 export async function readBook() {   // the shared recipe book Claude writes; null when offline/not set up
   if (!configured(getCfg()) || !navigator.onLine) return null;
   try { return (await getJSON('rezepte/buch.json')) || { recipes: [] }; } catch (e) { return null; }

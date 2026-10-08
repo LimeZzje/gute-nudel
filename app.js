@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-08.7';
+const VERSION = '2026-10-08.9';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -61,8 +61,31 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     car: Car.raw(S.car),
     thanks: (S.thanks || []).filter(t => Date.now() - t.ts < MONTH),
     stats: myStats(),
+    vorrat: vorratPost(),
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
+}
+// 🧊 Vorrat (shared, 2026-10-08): "Alles eingekauft!" puts the bought things in; cooking (or ✕) takes them out.
+// Each phone only posts its own adds + uses (post/<me>.json → vorrat), the fridge = both adds minus both uses. Claude reads it too.
+const VDAY = 864e5;
+function vorrat() {
+  const used = new Set([...(S.vorratUsed || []), ...((S.partnerVorrat || {}).used || [])].map(x => x.id)), seen = new Set();
+  return [...(S.vorratAdd || []), ...((S.partnerVorrat || {}).add || [])].filter(x => x && x.id && !used.has(x.id) && !seen.has(x.id) && seen.add(x.id)).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+}
+function useVorrat(ids) { S.vorratUsed = S.vorratUsed || []; ids.forEach(id => { if (!S.vorratUsed.some(u => u.id === id)) S.vorratUsed.push({ id, ts: Date.now() }); }); }
+function vorratPost() { // used things stay listed a while so the other phone sees them go; then they're forgotten
+  const used = new Map([...(S.vorratUsed || []), ...((S.partnerVorrat || {}).used || [])].map(u => [u.id, u.ts]));
+  return { add: (S.vorratAdd || []).filter(x => !used.has(x.id) || Date.now() - used.get(x.id) < 30 * VDAY), used: (S.vorratUsed || []).filter(u => Date.now() - u.ts < 45 * VDAY) };
+}
+// what a recipe takes out of the fridge: Claude's recipes name the exact items (uses), others match by name
+function consumeFor(r) {
+  const V = vorrat(); let ids = (r.uses || []).filter(id => V.some(x => x.id === id));
+  if (!ids.length) {
+    const names = (r.ing || []).map(([, t]) => Sh.norm(t)).filter(n => n.length >= 3);
+    ids = V.filter(x => { const v = Sh.norm(x.text); return v.length >= 3 && names.some(n => v.includes(n) || n.includes(v)); }).map(x => x.id);
+  }
+  if (!ids.length) return [];
+  useVorrat(ids); return V.filter(x => ids.includes(x.id)).map(x => x.text);
 }
 const RANK = { wartet: 0, ok: 1, nein: 1, erledigt: 2 };
 let syncing = false;
@@ -78,6 +101,7 @@ async function syncPost() {
     const thx = (p.thanks || []).filter(t => t && t.id && !(S.thanksSeen || []).includes(t.id));
     if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
+    if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; }
     const pc = Car.raw(p.car);
     if (JSON.stringify(pc) !== JSON.stringify(Car.raw(S.partnerCar))) { S.partnerCar = pc; changed = true; }
     const fresh = newForMe(); if (fresh.length) changed = true;
@@ -911,7 +935,21 @@ const A = {
     commit(); shopModal();   // the list right away, as a pop-over
     toast(add.length + nExtra ? (add.length + nExtra) + ' Sachen dazugekommen 🛒' : 'Steht schon alles drauf 🛒');
   },
-  cookstart() { ui.cstep = 0; if ((S.dishes || []).some(x => x.id === ui.rid)) { S.dishes = S.dishes.filter(x => x.id !== ui.rid); commit(); } else render(); scrollTo(0, 0); },   // cooked = off Home
+  cookstart() {   // cooked = off Home's "Heute kochen?", and what it needs leaves the Vorrat
+    ui.cstep = 0; const r = recipeById(ui.rid), had = (S.dishes || []).some(x => x.id === ui.rid);
+    S.dishes = (S.dishes || []).filter(x => x.id !== ui.rid);
+    const gone = r ? consumeFor(r) : [];
+    if (had || gone.length) commit(true); else render();
+    if (gone.length) toast('🧊 Aus dem Vorrat: ' + gone.join(', '));
+    scrollTo(0, 0);
+  },
+  shopdone() {
+    const got = S.shop.filter(x => x.done); if (!got.length) return;
+    S.vorratAdd = (S.vorratAdd || []).concat(got.map(x => ({ id: uid(), text: x.text, ts: Date.now(), by: D.me() })));
+    S.shop = S.shop.filter(x => !x.done); commit(true); confetti(50);
+    toast('🧊 ' + got.length + (got.length === 1 ? ' Sache' : ' Sachen') + ' im Vorrat');
+  },
+  vorratdel(el) { useVorrat([el.dataset.id]); commit(true); },
   cnext() { ui.cstep++; render(); },
   cprev() { ui.cstep = Math.max(0, ui.cstep - 1); render(); },
   cookstop() { endCookMode(); render(); },
@@ -1186,9 +1224,18 @@ function shopBody(item, inTab) {
     <div class="steps">${groups || (open.length ? '' : '<p class="muted">Noch leer.</p>')}
     ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
+    ${!item && done.length && !open.length ? `<button class="btn green wide alldone" data-a="shopdone">✅ Alles eingekauft!</button><p class="hint" style="text-align:center;margin-top:4px">Kommt in den Vorrat – Claude kocht sich daraus Rezepte für euch aus.</p>` : ''}
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
     ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
-      : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}`;
+      : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}
+    ${inTab ? vorratHtml() : ''}`;
+}
+function vorratHtml() {
+  const V = vorrat();
+  return `<div class="vorrat"><div class="sechead"><span>🧊 Daheim im Vorrat <span class="muted">(${V.length})</span></span></div>
+    ${V.map(x => `<div class="shoprow"><span class="pick" style="cursor:default"><span>${esc(x.text)}</span></span><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('') || '<p class="muted">Noch leer. Nach dem Einkaufen „Alles eingekauft!“ drücken – oder hier eintragen, was eh da ist.</p>'}
+    <form class="add" data-f="vorratadd"><input name="t" placeholder="Hab ich daheim… (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Zum Vorrat">+</button></form>
+    <p class="hint">✕ = aufgebraucht. Beim „Jetzt kochen“ verschwindet, was das Rezept braucht, von selbst.</p></div>`;
 }
 const shopAgain = () => shopModal(ui.shopItemId ? S.items.find(i => i.id === ui.shopItemId) : null, true);
 // cookbook "auf die Liste" while the list isn't open: show it as a pop-over as before
@@ -1219,13 +1266,15 @@ function cookModal(rid) {
 // every recipe: built-in (cookbook.js) + the shared book (photographed pages, written by Claude) + my own ones.
 // My own copy with the same id shadows a book recipe (that's how she edits one); S.hiddenRecipes hides book recipes for me.
 const bookRecipes = () => { try { return (JSON.parse(localStorage.getItem('gn_book') || 'null') || { recipes: [] }).recipes || []; } catch (e) { return []; } };
+const vorratRecipes = () => { try { return (JSON.parse(localStorage.getItem('gn_vbook') || 'null') || { recipes: [] }).recipes || []; } catch (e) { return []; } };
 const fixRec = r => ({ tags: [], ing: [], steps: [], icon: '🍽️', min: 0, cat: 'haupt', ...r });
 function allRecipes() {
   const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set(S.hiddenRecipes || []);
-  return K.RECIPES.concat(bookRecipes().filter(r => !ids.has(r.id) && !hidden.has(r.id)).map(r => fixRec({ ...r, book: true })), mine.map(r => fixRec({ ...r, own: true })));
+  return K.RECIPES.concat(bookRecipes().filter(r => !ids.has(r.id) && !hidden.has(r.id)).map(r => fixRec({ ...r, book: true })), mine.map(r => fixRec({ ...r, own: true })),
+    vorratRecipes().filter(r => !ids.has(r.id)).map(r => fixRec({ ...r, vr: true })));
 }
 const recipeById = id => allRecipes().find(r => r.id === id);
-const isOurs = r => r.book || r.own;
+const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
 // how much she'd want it: her favourites and what she rated well count more (and their kind), what she just had less,
 // and what she didn't like never comes up again
 function cookWeight(r) {
@@ -1260,7 +1309,7 @@ function plateHtml(r, sides) {
   return '<span class="plate">' + Object.entries(K.PLATE).map(([k, [ic, l]]) => { const on = r.plate[k] || sides.some(s => s.g === k); return `<span class="pb ${on ? 'on' : ''}" title="${l}">${ic}</span>`; }).join('') + '</span>';
 }
 const tasteOf = r => { const c = S.cook[r.id]; return c && c.taste ? K.TASTE.find(t => t[2] === c.taste)[0] : ''; };
-const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.book ? ' · 📷 aus dem Buch' : r.own ? ' · ✏️ eigenes' : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span></span>${plateHtml(r, [])}</button>`;
+const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? (r.level === 'fancy' ? ' · ✨ fancy' : ' · 🧊 aus dem Vorrat') : r.book ? ' · 📷 aus dem Buch' : r.own ? ' · ✏️ eigenes' : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span></span>${plateHtml(r, [])}</button>`;
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid) return viewRecipe();
@@ -1269,13 +1318,16 @@ function viewCook() {
   const wait = (S.recipeInbox || []).filter(x => !x.del);
   if (wait.length) h += `<div class="card"><h3>📷 Wird gerade umgeschrieben</h3>${wait.map(x => `<div class="shoprow"><span style="flex:1">${x.n} ${x.n === 1 ? 'Foto' : 'Fotos'}${x.note ? ' · „' + esc(x.note) + '“' : ''}<br><span class="muted">${x.up ? 'abgeschickt am ' + esc(shortDate(key(new Date(x.ts)))) : '⏳ wird noch hochgeladen…'}</span></span><button class="mini-btn" data-a="rinboxdel" data-id="${x.id}" aria-label="Zurückziehen">✕</button></div>`).join('')}
     <p class="hint">Claude macht daraus eine Kochbuch-Seite mit Zutaten und Schritten – sie taucht hier auf, sobald sie fertig ist.</p></div>`;
+  { const vr = allRecipes().filter(r => r.vr); if (vr.length) h += `<button class="card hcard vrcard" data-a="ccat" data-v="vorrat"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was koch ich aus dem Vorrat?</b><span class="muted">${vr.length} Rezepte von Claude – aus dem, was ihr daheim habt</span></span><span class="hc-go">›</span></button>`; }
   h += `<div class="card"><h3>Was koch ich heute?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was dir schmeckt.</p>` +
     cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min. ' : ''}${tasteOf(r)}</span></span></button>`).join('') +
     `<button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
-  const ours = allRecipes().filter(isOurs), cats = K.CATS.concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : []), cat = ui.ccat || 'haupt';
+  const ours = allRecipes().filter(isOurs), vr = allRecipes().filter(r => r.vr);
+  const cats = K.CATS.concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : [], vr.length ? [['vorrat', '🧊 Aus dem Vorrat']] : []), cat = ui.ccat || 'haupt';
   h += `<div class="chips">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours : allRecipes().filter(r => r.cat === cat);
-  h += list.map(recipeRow).join('') || '<p class="muted">Noch nichts hier.</p>';
+  const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours : cat === 'vorrat' ? [] : allRecipes().filter(r => r.cat === cat && !r.vr);
+  if (cat === 'vorrat') h += [['einfach', '😋 Schnell & lecker'], ['fancy', '✨ Fancy']].map(([lv, l]) => { const xs = vr.filter(r => (r.level || 'einfach') === lv); return xs.length ? `<div class="sec-title">${l}</div>` + xs.map(recipeRow).join('') : ''; }).join('');
+  else h += list.map(recipeRow).join('') || '<p class="muted">Noch nichts hier.</p>';
   if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
   return h;
 }
@@ -1418,6 +1470,8 @@ const loadShots = async id => { try { return (await D.stashGet(id)) || null; } c
 const dropShots = id => { D.stashDel(id).catch(() => {}); };
 // the shared book: loaded with the post (start, coming back, every 90 s); a finished inbox entry turns into "fertig!"
 async function syncBook() {
+  const vb = await D.readVorratRezepte();
+  if (vb) { const j = JSON.stringify(vb); if (j !== localStorage.getItem('gn_vbook')) { localStorage.setItem('gn_vbook', j); render(); } }
   const b = await D.readBook(); if (!b) return;
   const j = JSON.stringify(b); if (j === localStorage.getItem('gn_book')) return;
   localStorage.setItem('gn_book', j);
@@ -1518,6 +1572,7 @@ const FORMS = {
   },
   addplan(t) { const it = { id: uid(), text: t, where: 'liste', created: Date.now() }; S.items.push(it); ui.picks.add(it.id); commit(); },
   addtoday(t) { S.items.push({ id: uid(), text: t, where: 'heute', created: Date.now() }); S.today.planned = true; commit(); },
+  vorratadd(t) { S.vorratAdd = (S.vorratAdd || []).concat(t.split(',').map(x => x.trim()).filter(Boolean).map(x => ({ id: uid(), text: x, ts: Date.now(), by: D.me() }))); commit(true); },
   addlist(t) { S.items.push({ id: uid(), text: t, where: 'liste', created: Date.now() }); commit(); },
   extra(t, form) {
     const n = workToday().length, stars = n < C.CAP ? 1 : 0;
@@ -1983,7 +2038,7 @@ function mergeStates(local, remote, base = null) {
     const seen = new Set();
     return a.concat(b).filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return !inBase || !inBase.has(x.id) || (inA.has(x.id) && inB.has(x.id)); });
   };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes'].forEach(k => { m[k] = join(k); });
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed'].forEach(k => { m[k] = join(k); });
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)
   const ids = new Set((newer.log || []).map(e => e.id)), extra = (older.log || []).filter(e => !ids.has(e.id));
@@ -2094,4 +2149,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
+window.__gn = { vorrat: () => vorrat(), goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
