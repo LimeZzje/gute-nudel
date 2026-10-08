@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-08.1';
+const VERSION = '2026-10-08.2';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -857,7 +857,8 @@ const A = {
       : { id: null, icon: '🔁', name: '', mode: 'week', every: 7, week: [], reward: '', start: 'morgen', tools: [], music: '' };
     choreModal();
   },
-  cemode(el) { ceRead(); ui.ce.mode = el.dataset.v; choreModal(); },   // "alle paar Tage" brings its own start date
+  cemode(el) { ceRead(); ui.ce.mode = el.dataset.v; choreModal(); },
+  ceicon(el) { ceRead(); ui.ce.icon = el.dataset.v; ui.ce.iconSet = true; const i = $('#ce-icon'); if (i) i.value = ''; choreModal(); },   // "alle paar Tage" brings its own start date
   cenext(el) { ceRead(); const v = el.dataset.v; ui.ce.next = addDays(today(), v === 'every' ? (+ui.ce.every || 7) : +v); ui.ce.nextTouched = true; choreModal(); },
   chorenext(el) {
     const c = S.chores.find(x => x.id === el.dataset.id), k = el.value; if (!c) return;
@@ -885,7 +886,7 @@ const A = {
       if (e.start === 'morgen') c.skip = addDays(today(), 1);
       if (e.mode === 'week' && e.start === 'datum' && e.startDate > today()) c.skip = e.startDate;   // nothing before that day
     }
-    Object.assign(c, { name: e.name, reward: e.reward || null, tools: e.tools.slice(), music: e.music || '', ...(e.mode === 'week' ? { week: e.week.slice(), every: undefined } : { every, week: undefined }) });
+    Object.assign(c, { icon: e.iconSet ? e.icon || '🔁' : e.id && e.icon && e.icon !== '🔁' ? e.icon : guessIcon(e.name), name: e.name, reward: e.reward || null, tools: e.tools.slice(), music: e.music || '', ...(e.mode === 'week' ? { week: e.week.slice(), every: undefined } : { every, week: undefined }) });
     if (e.mode === 'days') setChoreNext(c, e.next);
     S.items.filter(i => i.chore === c.id).forEach(i => { i.text = c.name; });
     if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
@@ -1299,7 +1300,16 @@ function viewCookMode() {
 function endCookMode() { if (wake) { wake.release().catch(() => {}); wake = null; } ui.cstep = null; }
 
 // the chore editor (a modal that keeps what's typed when a chip is tapped)
+// its symbol: shown in Meine Woche and on the to-do; picked here, any own emoji, or guessed from the name
+const CE_ICONS = ['🧹', '🧽', '🪣', '🧺', '👕', '🚽', '🛁', '🚿', '🪟', '🗑️', '🍳', '🍽️', '🛒', '🛏️', '🪴', '🐕', '🚗', '🧊', '💊', '💸', '📬', '🏃', '📞', '✂️'];
+const CE_GUESS = [[/fenster/i, '🪟'], [/klo|toilette|wc/i, '🚽'], [/bad|wanne/i, '🛁'], [/dusch/i, '🚿'], [/wäsche|waschen/i, '🧺'], [/bügel/i, '👕'],
+  [/müll|abfall|tonne/i, '🗑️'], [/saug|staub|kehr|fegen/i, '🧹'], [/wisch|boden|putz/i, '🧽'], [/koch/i, '🍳'], [/spül|geschirr/i, '🍽️'], [/einkauf/i, '🛒'],
+  [/bett/i, '🛏️'], [/pflanz|gieß|blume/i, '🪴'], [/hund|gassi|monti/i, '🐕'], [/auto|tank/i, '🚗'], [/kühlschrank|gefrier/i, '🧊'], [/medi|tablett/i, '💊'],
+  [/rechnung|geld|bank/i, '💸'], [/post|brief/i, '📬'], [/sport|lauf|joggen/i, '🏃'], [/anruf|telefon/i, '📞'], [/haare|nägel/i, '✂️']];
+const guessIcon = name => (CE_GUESS.find(([re]) => re.test(name || '')) || [0, '🔁'])[1];
+const firstEmoji = t => { t = (t || '').trim(); if (!t) return ''; try { return [...new Intl.Segmenter().segment(t)][0].segment; } catch (e) { return [...t].slice(0, 2).join(''); } };
 function ceRead() {
+  const ic = $('#ce-icon'); if (ic && ic.value.trim()) { ui.ce.icon = firstEmoji(ic.value); ui.ce.iconSet = true; }
   const n = $('#ce-name'), ev = $('#ce-every'), r = $('#ce-own');
   if (n) ui.ce.name = n.value.trim();
   if (ev) ui.ce.every = ev.value;
@@ -1313,6 +1323,9 @@ function choreModal() {
   const opts = C.CHORE_REWARDS.concat(S.wishes.map(w => w.text)).filter((x, i, a) => a.indexOf(x) === i);
   modal(`<div style="text-align:left"><h2 style="text-align:center">${e.id ? 'Aufgabe ändern' : 'Neue Aufgabe'}</h2>
     <label class="field"><span>Was ist dran?</span><input id="ce-name" value="${esc(e.name)}" placeholder="z.B. Wäsche waschen" autocomplete="off"></label>
+    <p class="muted" style="font-weight:800;margin:12px 0 4px">Symbol${e.iconSet || e.id ? ': <span style="font-size:22px">' + esc(e.icon) + '</span>' : ' <span style="font-weight:400">(sonst passend zum Namen)</span>'}</p>
+    <div class="chips ce-icons">${CE_ICONS.map(ic => `<button class="chip ${(e.iconSet || e.id) && e.icon === ic ? 'on' : ''}" data-a="ceicon" data-v="${ic}" aria-label="Symbol ${ic}">${ic}</button>`).join('')}</div>
+    <label class="field"><span>…oder ein eigenes Emoji</span><input id="ce-icon" value="${(e.iconSet || e.id) && !CE_ICONS.includes(e.icon) && e.icon !== '🔁' ? esc(e.icon) : ''}" placeholder="z.B. 🦆" autocomplete="off" style="max-width:7em;font-size:20px"></label>
     <p class="muted" style="font-weight:800;margin:12px 0 4px">Wie oft?</p>
     <div class="chips"><button class="chip ${e.mode === 'days' ? 'on' : ''}" data-a="cemode" data-v="days">Alle paar Tage</button><button class="chip ${e.mode === 'week' ? 'on' : ''}" data-a="cemode" data-v="week">An Wochentagen</button></div>
     ${e.mode === 'days' ? `<label class="field"><span>Alle wie viele Tage?</span><input id="ce-every" type="number" min="1" max="90" inputmode="numeric" value="${esc(e.every)}" oninput="const l=document.getElementById('ce-later'); if(l) l.textContent='In '+(this.value||7)+' Tagen'; const f=document.getElementById('ce-from'); if(f) f.textContent='Von diesem Tag an alle '+(this.value||7)+' Tage.'; const d=new Date(Date.now()-3*3600e3); d.setDate(d.getDate()+(+this.value||7)); const t=document.getElementById('ce-next'); if(t&&t.dataset.auto==='1') t.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');"></label>
