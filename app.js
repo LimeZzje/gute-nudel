@@ -5,10 +5,11 @@ import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
+import * as E from './entspannen.js';
 
-const VERSION = '2026-10-08.13';
+const VERSION = '2026-10-08.14';
 let S = null;                                   // the state (see data.js freshState)
-const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
+const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
 const tags = i => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
 const choreTag = i => { const c = S.chores.find(x => x.id === i.chore); return c ? `<span class="tag">🔁${c.reward ? ' 🎁' : ''}</span>` + toolBtns(c, i) : ''; };
@@ -362,7 +363,7 @@ function renderTop() {
   const c = $('#cloud'), st = D.backup.status;
   c.className = st === 'ok' ? 'ok' : st === 'wait' ? 'wait' : st === 'bad' ? 'bad' : '';
   c.title = { ok: 'Gesichert', wait: 'Wird gleich gesichert', bad: 'Sicherung hat nicht geklappt', none: 'Sicherung nicht eingerichtet' }[st] || '';
-  document.querySelectorAll('nav#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === (ui.tab === 'schaetze' ? 'home' : ui.tab)));
+  document.querySelectorAll('nav#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
   $('#tabs [data-tab="heute"]').classList.toggle('dot', S.incoming.length > 0);
   $('#tabs [data-tab="home"]').classList.toggle('dot', S.incoming.length > 0 && ui.tab !== 'home');
 }
@@ -521,14 +522,15 @@ function questCard(q, active) {
     ${active ? `<div class="row"><button class="btn" data-a="questdone">Überlebt! +${C.REST_STARS} ⭐</button><button class="btn soft" data-a="questquit">Später</button></div>`
       : `<button class="btn wide" data-a="queststart" data-id="${q.id}">Quest annehmen</button>`}</div>`;
 }
-const QTABS = [['haushalt', '🔁 Routinen'], ['einkauf', '🛒 Einkaufsliste'], ['kochbuch', '📖 Kochbuch']];
+const QTABS = [['haushalt', '🔁 Routinen'], ['einkauf', '🛒 Einkaufsliste'], ['kochbuch', '📖 Kochbuch'], ['termine', '📅 Termine']];
 function viewRuhe() {
   if (ui.sub === 'cook') { ui.sub = null; ui.qtab = 'kochbuch'; }   // old way in: the cookbook was a sub-page
   if (!QTABS.some(([k]) => k === ui.qtab)) ui.qtab = 'haushalt';
   if (ui.qtab === 'kochbuch' && ui.rid) return viewCook();          // a recipe / cooking mode: full page, no chips
-  const h = `<div class="chips qtabs">${QTABS.map(([k, l]) => `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}">${l}</button>`).join('')}</div>`;
+  const h = `<div class="chips qtabs four">${QTABS.map(([k, l]) => { const [ic, ...w] = l.split(' '); return `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}"><span class="qi">${ic}</span>${w.join(' ')}</button>`; }).join('')}</div>`;
   if (ui.qtab === 'einkauf') return h + `<div class="card shoptab">${shopBody(null, true)}</div>`;
   if (ui.qtab === 'kochbuch') return h + viewCook();
+  if (ui.qtab === 'termine') return h + viewTermine();
   return h + viewHaushalt();
 }
 function viewHaushalt() {
@@ -632,6 +634,98 @@ function viewGoenn() {
     <ul class="list-plain">${S.wishes.map(w => `<li><span>${esc(w.text)}</span><button class="mini-btn" data-a="delwish" data-id="${w.id}" aria-label="Löschen">✕</button></li>`).join('')}</ul>
     <form class="add" data-f="wish"><input name="t" placeholder="Das würde mir gefallen…" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form></div>`;
   return h;
+}
+
+// ---------- 🛋️ ENTSPANNEN (since 2026-10-08): time + energy → ONE ritual, the app does the thinking ----------
+const rxP = t => String(t).replace(/\{p\}/g, pn());
+const ownRituals = () => (S.myRituals || []).map(x => Object.assign({ own: true }, x))
+  .concat((S.wishes || []).map(w => ({ id: 'w-' + w.id, icon: '💛', title: w.text, size: 'besonders', en: 'pof', own: true, wish: true })));
+const allRituals = () => E.RITUALS.concat(ownRituals());
+const ritualById = id => allRituals().find(x => x.id === id);
+const prepReady = id => { const st = S.preps[id] || []; return st.length > 0 && st.every(Boolean); };
+function rxCtx() {
+  const recent = {}, t = today();
+  for (const e of S.log) if (e.ritual) { const ago = Math.round((parse(t) - parse(e.day)) / 864e5); if (recent[e.ritual] == null || ago < recent[e.ritual]) recent[e.ritual] = ago; }
+  return { rate: S.relaxRate || {}, recent, ready: new Set(C.PREPS.map(p => p.id).filter(prepReady)), hour: new Date().getHours(), partner: !!(S.partnerName || D.me() === 'stand') };
+}
+const sizeOf = k => E.SIZES.find(z => z[0] === k);
+function ritualSteps(x, mini) { return (mini && x.mini ? x.mini : x.steps) || []; }
+
+function viewRelax() {
+  const rx = ui.rx;
+  let h = `<section class="relax-hero"><div class="rh-k">${evening() ? 'Feierabend 🌙' : 'Kleine Pause'}</div><h2>Mach's dir gemütlich</h2>
+    <p>Du musst dir nichts ausdenken. Sag mir nur, wie viel Zeit du hast und wie es dir geht – den Rest mach ich.</p></section>`;
+  if (S.ritual) h += relaxActive();
+  else if (!rx.size) {
+    h += `<div class="card rx-step"><h3>Wie viel Zeit hast du?</h3><div class="rx-tiles">${E.SIZES.map(([k, ic, l, sub]) => `<button class="rx-tile" data-a="rxsize" data-v="${k}"><span class="rt-i">${ic}</span><b>${l}</b><small>${sub}</small></button>`).join('')}</div></div>`;
+  } else if (!rx.en && rx.size !== 'besonders') {
+    const z = sizeOf(rx.size);
+    h += `<div class="card rx-step"><button class="rx-back" data-a="rxback">‹ ${z[1]} ${z[2]}</button><h3>Und wie geht's dir gerade?</h3><div class="rx-tiles">${E.ENERGY.map(([k, ic, l]) => `<button class="rx-tile" data-a="rxen" data-v="${k}"><span class="rt-i">${ic}</span><b>${l}</b></button>`).join('')}</div></div>`;
+  } else {
+    let x = rx.cur && ritualById(rx.cur);
+    if (!x) { x = E.choose(allRituals(), rx.size, rx.en, rxCtx(), rx.skip); rx.cur = x.id; }
+    const z = sizeOf(rx.size), en = E.ENERGY.find(e => e[0] === rx.en), steps = ritualSteps(x), rate = (S.relaxRate || {})[x.id];
+    h += `<div class="card rx-pick"><button class="rx-back" data-a="rxback">‹ ${z[1]} ${z[2]}${en ? ' · ' + en[1] + ' ' + en[2] : ''}</button>
+      <div class="rx-icon">${x.icon}</div><h3 class="rx-title">${esc(rxP(x.title))}</h3>
+      ${x.text ? `<p class="rx-text">${esc(rxP(x.text))}</p>` : ''}
+      ${steps.length ? `<ol class="rx-prev">${steps.map(t => `<li>${esc(rxP(t))}</li>`).join('')}</ol>` : ''}
+      <div class="rx-tags">${x.own ? '<span class="tag">💛 deins</span>' : ''}${rate === 3 ? '<span class="tag">😍 mochtest du</span>' : ''}${x.prep && prepReady(x.prep) ? '<span class="tag">🧺 vorbereitet</span>' : ''}${x.mini ? '<span class="tag">Mini-Version möglich</span>' : ''}</div>
+      <div class="row"><button class="btn" data-a="rxgo">${rx.size === 'besonders' ? 'Mach ich!' : "Los geht's"}</button><button class="btn soft" data-a="rxnext">↻ Was anderes</button></div>
+      ${x.mini ? `<button class="btn soft wide" data-a="rxgo" data-mini="1">Nur die Mini-Version (2 Min.)</button>` : ''}
+      ${rx.size === 'besonders' ? `<button class="btn soft wide" data-a="rxplan">📋 Auf meine Liste – zum Planen</button>` : ''}</div>`;
+  }
+  // her own rituals
+  const own = S.myRituals || [];
+  h += `<div class="sec-title">Deine Rituale</div><div class="card">${own.length ? `<ul class="list-plain rx-own">${own.map(x => `<li><span><b>${esc(x.icon)} ${esc(x.title)}</b><small>${sizeOf(x.size)[1]} ${sizeOf(x.size)[2]}${(x.steps || []).length ? ' · ' + x.steps.length + ' Schritte' : ''}</small></span>
+      <span class="rx-own-b"><button class="mini-btn" data-a="rxstart" data-id="${esc(x.id)}" aria-label="Jetzt machen">▶</button><button class="mini-btn" data-a="rxown" data-id="${esc(x.id)}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="rxowndel" data-id="${esc(x.id)}" aria-label="Löschen">✕</button></span></li>`).join('')}</ul>`
+      : '<p class="muted" style="margin-top:0">Was tut dir gut? Trag deine eigenen Entspannungsrituale ein – sie kommen dann öfter dran als meine.</p>'}
+    <button class="btn wide" data-a="rxown">+ Eigenes Ritual</button></div>`;
+  // preparations for days with energy (they make the rituals cost almost nothing later)
+  h += `<div class="sec-title">Vorbereiten – für Tage mit Energie</div><p class="muted" style="margin:0 4px 12px">Einmal vorbereiten, dann kostet Gemütlichkeit später fast nichts mehr. Vorbereitete Rituale schlage ich öfter vor. Fertig vorbereitet: +2 ⭐.</p>`;
+  for (const p of C.PREPS) {
+    const st = S.preps[p.id] || [], n = st.filter(Boolean).length, full = n === p.steps.length, open = ui.openPrep === p.id;
+    h += `<div class="card"><h3>${p.icon} ${esc(p.title)}${full ? '<span class="ready">fertig</span>' : ''}</h3><p class="muted">${esc(p.text)}</p><div class="bar"><i style="width:${n / p.steps.length * 100}%"></i></div>`;
+    if (open) h += '<div class="steps">' + p.steps.map((t, i) => `<button class="pick ${st[i] ? 'on' : ''}" data-a="prepstep" data-id="${p.id}" data-i="${i}"><span class="box">${st[i] ? '✓' : ''}</span><span>${esc(t)}</span></button>`).join('') + '</div>';
+    h += `<button class="btn soft wide" data-a="prepopen" data-id="${p.id}">${open ? 'Zuklappen' : full ? 'Ansehen' : n ? 'Weitermachen' : 'Anfangen'}</button></div>`;
+  }
+  // browse everything (optional — for days when she does want to choose)
+  const all = allRituals();
+  h += `<details class="card rx-all"><summary>Alle ${all.length} Ideen durchstöbern</summary>${E.SIZES.map(([k, ic, l, sub]) => `<h4>${ic} ${l} <small>${sub}</small></h4><div class="rx-chips">${all.filter(x => x.size === k).map(x => `<button class="chip" data-a="rxpick" data-id="${esc(x.id)}">${x.icon} ${esc(rxP(x.title))}${(S.relaxRate || {})[x.id] === 3 ? ' 😍' : ''}</button>`).join('')}</div>`).join('')}</details>`;
+  return h;
+}
+function relaxActive() {
+  const x = ritualById(S.ritual.id);
+  if (!x) { S.ritual = null; return ''; }
+  const steps = ritualSteps(x, S.ritual.mini), done = S.ritual.done || [], all = !steps.length || steps.every((_, i) => done[i]);
+  return `<div class="card rx-active"><div class="rx-icon">${x.icon}</div><h3 class="rx-title">${esc(rxP(x.title))}${S.ritual.mini ? ' <small>(Mini)</small>' : ''}</h3>
+    ${steps.length ? `<p class="muted" style="margin:0 0 8px">Hak ab, was fertig ist – oder auch nicht. Es ist nur eine Hilfe.</p><div class="steps">${steps.map((t, i) => `<button class="pick ${done[i] ? 'on' : ''}" data-a="rxstep" data-i="${i}"><span class="box">${done[i] ? '✓' : ''}</span><span>${esc(rxP(t))}</span></button>`).join('')}</div>`
+      : `<p class="rx-text">${esc(rxP(x.text || 'Genieß es. 💛'))}</p>`}
+    ${all && steps.length ? '<p><b>Alles bereit. Und jetzt: genießen.</b></p>' : ''}
+    <div class="row"><button class="btn green" data-a="rxdone">Hab's genossen! +${E.STARS} ⭐</button><button class="btn soft" data-a="rxstop">Abbrechen</button></div></div>`;
+}
+function ownRitualForm(id) {
+  const x = (S.myRituals || []).find(r => r.id === id) || { icon: '🛋️', title: '', size: 'kurz', en: 'pof', steps: [] };
+  ui.rxForm = { id: x.id || null, icon: x.icon, size: x.size, en: x.en };
+  modal(`<h2>${x.id ? 'Ritual ändern' : 'Eigenes Ritual'}</h2>
+    <label class="field"><span>Was tut dir gut?</span><input id="rx-title" value="${esc(x.title)}" placeholder="z. B. Badewanne mit Hörbuch" autocomplete="off"></label>
+    <div class="field"><span>Symbol</span><div class="rx-icons">${E.OWN_ICONS.map(i => `<button class="chip ${i === x.icon ? 'on' : ''}" data-a="rxfi" data-v="${i}">${i}</button>`).join('')}</div></div>
+    <div class="field"><span>Wie lange?</span><div class="chips">${E.SIZES.map(([k, ic, l]) => `<button class="chip ${k === x.size ? 'on' : ''}" data-a="rxfs" data-v="${k}">${ic} ${l}</button>`).join('')}</div></div>
+    <div class="field"><span>Passt, wenn ich … bin (mehrere gehen)</span><div class="chips">${E.ENERGY.map(([k, ic, l]) => `<button class="chip ${x.en.includes(k) ? 'on' : ''}" data-a="rxfe" data-v="${k}">${ic} ${l}</button>`).join('')}</div></div>
+    <label class="field"><span>Schritte (optional, einer pro Zeile)</span><textarea id="rx-steps" rows="4" placeholder="Wanne einlassen&#10;Hörbuch an&#10;Kerze an">${esc((x.steps || []).join('\n'))}</textarea></label>
+    <div class="row"><button class="btn" data-a="rxownsave">Speichern</button><button class="btn soft" data-a="close">Abbrechen</button></div>`);
+}
+function rateRitual(id) {
+  const x = ritualById(id); if (!x) return;
+  modal(`<h2>Wie war's?</h2><p><b>${x.icon} ${esc(rxP(x.title))}</b></p><p class="muted">Dann schlage ich dir mehr von dem vor, was dir guttut.</p>
+    <div class="rx-rate">${[[3, '😍', 'Richtig gut'], [2, '🙂', 'Okay'], [1, '😕', 'Eher nicht']].map(([v, e, l]) => `<button class="btn soft" data-a="rxrate" data-id="${esc(id)}" data-v="${v}"><span>${e}</span>${l}</button>`).join('')}</div>
+    <div class="row"><button class="btn soft" data-a="close">Überspringen</button></div>`);
+}
+function relaxHomeCard() {   // after Feierabend: the way in, right on Home
+  if (!evening()) return '';
+  if (S.ritual) { const x = ritualById(S.ritual.id); if (x) return `<button class="card hcard relax-home" data-a="go" data-tab="relax"><span class="hc-txt"><b>🛋️ Weiter mit: ${esc(rxP(x.title))}</b><span class="muted">Du hast schon angefangen. Schön.</span></span><span class="hc-go">›</span></button>`; }
+  const rested = dayLog(today()).some(isRest);
+  return `<div class="card relax-home"><b>${rested ? 'Noch was Gemütliches? 🌙' : 'Feierabend 🌙 Lust auf was Gemütliches?'}</b><span class="muted">${rested ? 'Du hast dir heute schon was gegönnt – mehr ist erlaubt.' : 'Du musst nichts aussuchen. Nur sagen, wie viel Zeit du hast.'}</span>
+    <div class="rx-tiles small">${E.SIZES.slice(0, 2).map(([k, ic, l]) => `<button class="rx-tile" data-a="rxhome" data-v="${k}"><span class="rt-i">${ic}</span><b>${l}</b></button>`).join('')}</div></div>`;
 }
 
 // ---------- SCHÄTZE ----------
@@ -1146,6 +1240,46 @@ const A = {
     } else commit();
   },
   delwish(el) { S.wishes = S.wishes.filter(w => w.id !== el.dataset.id); commit(); },
+  // ---------- 🛋️ Entspannen ----------
+  rxsize(el) { ui.rx = { size: el.dataset.v, en: null, cur: null, skip: [] }; render(); },
+  rxen(el) { ui.rx.en = el.dataset.v; ui.rx.cur = null; ui.rx.skip = []; render(); },
+  rxback() { const rx = ui.rx; if (rx.en) rx.en = null; else rx.size = null; rx.cur = null; rx.skip = []; render(); },
+  rxnext() { const rx = ui.rx; if (rx.cur) rx.skip.push(rx.cur); rx.cur = null; render(); },
+  rxhome(el) { closeModal(); ui.tab = 'relax'; ui.rx = { size: el.dataset.v, en: null, cur: null, skip: [] }; render(); scrollTo(0, 0); },
+  rxpick(el) { const x = ritualById(el.dataset.id); if (!x) return; ui.rx = { size: x.size, en: ui.rx.en || 'o', cur: x.id, skip: [] }; render(); scrollTo(0, 0); },
+  rxstart(el) { const x = ritualById(el.dataset.id); if (!x) return; S.ritual = { id: x.id, mini: false, done: [] }; commit(); scrollTo(0, 0); },
+  rxgo(el) { const id = ui.rx.cur; if (!id) return; S.ritual = { id, mini: el.dataset.mini === '1', done: [] }; ui.rx = { size: null, en: null, cur: null, skip: [] }; commit(); scrollTo(0, 0); },
+  rxstep(el) { const i = +el.dataset.i, d = S.ritual.done || (S.ritual.done = []); d[i] = !d[i]; commit(); },
+  rxstop() { S.ritual = null; commit(); },
+  rxdone(el) {
+    const x = ritualById(S.ritual.id), id = S.ritual.id;
+    if (x) { S.log.push({ id: uid(), text: rxP(x.title) + (S.ritual.mini ? ' (Mini)' : ''), kind: 'rest', day: today(), ts: Date.now(), stars: E.STARS, ritual: id }); earn(E.STARS); floatStar(el, '+' + E.STARS + ' ⭐'); }
+    S.ritual = null; commit(); confetti(40);
+    setTimeout(() => rateRitual(id), 700);
+  },
+  rxrate(el) { S.relaxRate = Object.assign({}, S.relaxRate, { [el.dataset.id]: +el.dataset.v }); closeModal(); commit(); toast(+el.dataset.v === 3 ? 'Gemerkt – kommt öfter dran 😍' : +el.dataset.v === 1 ? 'Okay, kommt seltener dran.' : 'Danke 💛'); },
+  rxplan() {
+    const x = ritualById(ui.rx.cur); if (!x) return;
+    S.items.push({ id: uid(), text: '✨ ' + rxP(x.title), where: 'liste', created: Date.now() });
+    ui.rx.skip.push(x.id); ui.rx.cur = null; commit(); toast('Steht auf deiner Liste – zum Planen, wenn du magst. 📋');
+  },
+  rxown(el) { ownRitualForm(el.dataset.id); },
+  rxfi(el) { ui.rxForm.icon = el.dataset.v; document.querySelectorAll('.rx-icons .chip').forEach(b => b.classList.toggle('on', b === el)); },
+  rxfs(el) { ui.rxForm.size = el.dataset.v; el.parentNode.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b === el)); },
+  rxfe(el) { const f = ui.rxForm, k = el.dataset.v; f.en = f.en.includes(k) ? f.en.replace(k, '') : f.en + k; el.classList.toggle('on', f.en.includes(k)); },
+  rxownsave() {
+    const f = ui.rxForm, title = $('#rx-title').value.trim();
+    if (!title) { $('#rx-title').focus(); return; }
+    const steps = $('#rx-steps').value.split('\n').map(t => t.trim()).filter(Boolean);
+    const x = { id: f.id || 'my-' + uid(), icon: f.icon, title, size: f.size, en: f.en || 'pof', steps };
+    S.myRituals = (S.myRituals || []).filter(r => r.id !== x.id).concat(x);
+    closeModal(); commit(); toast(f.id ? 'Geändert 💛' : 'Gespeichert – kommt jetzt öfter dran 💛');
+  },
+  rxowndel(el) {
+    if (el.dataset.sure !== '1') { el.dataset.sure = '1'; el.textContent = '?'; el.classList.add('warn'); setTimeout(() => { if (el.isConnected) { el.dataset.sure = ''; el.textContent = '✕'; el.classList.remove('warn'); } }, 2500); return; }
+    S.myRituals = (S.myRituals || []).filter(r => r.id !== el.dataset.id); if (S.ritual && S.ritual.id === el.dataset.id) S.ritual = null; commit();
+  },
+
 
   async unlockpage() {
     const cost = C.pageCost(S.book.pages);
@@ -1763,7 +1897,7 @@ const mark = (b, size) => isCar(b) ? Car.icon(b.color, size) : `<i class="tdot" 
 function termRow(b) { // one entry in a list (the next date of a series)
   return `<div class="au-row${b.clash ? ' clash' : ''}${b.mine ? ' mine' : ''}" style="--who:${b.color}">
       <div class="au-time">${esc(carRange(b))}</div>
-      <div class="au-who">${mark(b, 22)} <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b> · ${esc(whoName(b.who))}${isCar(b) && ui.tab === 'termine' ? ' · 🚗' : ''}${repTag(b)}${!b.mine ? `<div class="au-by">eingetragen von ${esc(pn())}</div>` : ''}${b.clash ? `<div class="au-warn">Auto doppelt verplant – kurz absprechen</div>` : ''}</div>
+      <div class="au-who">${mark(b, 22)} <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b> · ${esc(whoName(b.who))}${isCar(b) && ui.qtab === 'termine' ? ' · 🚗' : ''}${repTag(b)}${!b.mine ? `<div class="au-by">eingetragen von ${esc(pn())}</div>` : ''}${b.clash ? `<div class="au-warn">Auto doppelt verplant – kurz absprechen</div>` : ''}</div>
       ${b.mine ? termActs(b) : ''}
     </div>`;
 }
@@ -2008,6 +2142,7 @@ function viewHome() {
     ${heute.slice(0, 3).map(i => { const c = i.chore && S.chores.find(x => x.id === i.chore);
       return `<div class="item home-item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt"><span>${c ? c.icon + ' ' : ''}${esc(i.text)}</span></div></div>`; }).join('')}
     ${heute.length > 3 ? `<button class="more-link" data-a="go" data-tab="heute">+ ${heute.length - 3} weitere ›</button>` : ''}</div>`;
+  h += relaxHomeCard();
   // at home today: routines due, the shopping list, something to cook
   const rout = heute.filter(i => i.chore).map(i => S.chores.find(c => c.id === i.chore)).filter(Boolean);
   const nShop = S.shop.filter(x => !x.done).length, dishes = (S.dishes || []).map(x => recipeById(x.id)).filter(Boolean).slice(0, 3);
@@ -2053,11 +2188,12 @@ function viewHeuteTab() {
   const n = S.items.filter(i => i.where === 'liste').length;
   return `<div class="chips qtabs two">${HTABS.map(([k, l]) => `<button class="chip ${ui.htab === k ? 'on' : ''}" data-a="htab" data-v="${k}">${l}${k === 'liste' && n ? ' <span class="cnt">' + n + '</span>' : ''}</button>`).join('')}</div>` + incomingCard() + (ui.htab === 'liste' ? viewListe() : viewHeute());
 }
-const VIEWS = { home: viewHome, heute: viewHeuteTab, termine: viewTermine, ruhe: viewRuhe, schaetze: viewSchaetze, woche: viewWoche };
+const VIEWS = { home: viewHome, heute: viewHeuteTab, relax: viewRelax, ruhe: viewRuhe, schaetze: viewSchaetze, woche: viewWoche };
 function render() {
   const focused = document.activeElement && document.activeElement.closest('form[data-f]');
   const refocus = focused && focused.dataset.f;
   if (ui.tab === 'liste') { ui.tab = 'heute'; ui.htab = 'liste'; }   // old links to the Liste tab
+  if (ui.tab === 'termine') { ui.tab = 'ruhe'; ui.qtab = 'termine'; }   // Termine lives in Daheim since 2026-10-08
   $('#main').innerHTML = VIEWS[ui.tab]();
   renderTop();
   loadRecPhotos();
@@ -2084,6 +2220,7 @@ function goBack() {
     ui.rid = null; ui.sides = []; render(); return;
   }
   if (ui.sub) { ui.sub = null; render(); scrollTo(0, 0); return; }
+  if (ui.tab === 'relax' && !S.ritual && ui.rx.size) { A.rxback(); return; }
   if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
   if (ui.tab !== 'home') { ui.tab = 'home'; render(); scrollTo(0, 0); return; }
   toast('Du bist zu Hause 🙂');
@@ -2147,7 +2284,8 @@ function mergeStates(local, remote, base = null) {
     const seen = new Set();
     return a.concat(b).filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return !inBase || !inBase.has(x.id) || (inA.has(x.id) && inB.has(x.id)); });
   };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed'].forEach(k => { m[k] = join(k); });
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals'].forEach(k => { m[k] = join(k); });
+  m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)
   const ids = new Set((newer.log || []).map(e => e.id)), extra = (older.log || []).filter(e => !ids.has(e.id));

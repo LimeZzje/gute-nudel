@@ -31,7 +31,10 @@ export function freshState() {
     today: { day: '', planned: false, capShown: false, closed: false },
     book: { pages: 0 },
     plant: { stage: 0, harvests: [] },
-    recipe: null,          // {id, mini, done: [bool]}
+    recipe: null,          // old Gemütlich recipe in progress (replaced by ritual)
+    ritual: null,          // 🛋️ ritual in progress: {id, mini, done: [bool]}
+    myRituals: [],         // her own rituals: {id, icon, title, size: kurz|abend|besonders, en: 'pof', steps[]}
+    relaxRate: {},         // ritual id -> 1 😕 | 2 🙂 | 3 😍 (latest rating)
     preps: {},             // id -> [bool]
     quest: null,           // active quest id
     chores: [],            // recurring chores: {id, icon, name, every (days) | week [0..6], reward, last (day), skip (day)}
