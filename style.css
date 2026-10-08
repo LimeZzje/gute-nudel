@@ -637,3 +637,9 @@ nav#tabs button.dot::after { content: ''; position: absolute; top: 6px; left: ca
 .g-attempt { position: absolute; left: 0; right: 0; top: 34%; text-align: center; font: 700 52px/1 Caveat, cursive; color: rgba(43, 42, 51, .75); pointer-events: none; animation: g-att 1.6s ease both; }
 @keyframes g-att { 0% { opacity: 0; transform: scale(.9); } 15% { opacity: 1; transform: scale(1); } 70% { opacity: 1; } 100% { opacity: 0; } }
 .ce-icons .chip{font-size:20px;padding:4px 8px;min-width:40px}
+/* recipes: photos */
+.recphoto { display: block; width: 100%; max-height: 60vh; object-fit: contain; border-radius: 14px; margin: 0 0 12px; background: var(--paper2); }
+.rshots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.rshot { position: relative; } .rshot img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; display: block; }
+.rshot .mini-btn { position: absolute; top: 4px; right: 4px; background: var(--card); }
+label.btn { display: inline-flex; align-items: center; justify-content: center; }

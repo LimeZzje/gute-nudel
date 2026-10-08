@@ -258,4 +258,29 @@ async function privateURL(key, path, type) { // object URL of a picture in the p
   return (urls[key] = URL.createObjectURL(blob));
 }
 export const photoURL = n => privateURL(n, 'fotos/' + pad(n) + '.jpg', 'image/jpeg');   // book photo n (1-based)
+export const repoPhotoURL = path => privateURL('r:' + path, path, 'image/jpeg');          // a recipe photo (rezepte/…)
+
+// ---------- recipes: photos of cookbook pages go into an inbox, Claude turns them into recipes ----------
+// rezepte-eingang/<id>/1.jpg … + info.json (written by the app) → Claude writes rezepte/buch.json + rezepte/fotos/<rid>.jpg
+// (the app only ever READS buch.json, so nobody overwrites anybody)
+export async function putBinary(path, base64, msg) {   // a retry after a half-finished upload overwrites (needs the sha)
+  const g = await gh(path), sha = g.ok ? (await g.json()).sha : null;
+  const r = await gh(path, { method: 'PUT', body: JSON.stringify({ message: msg, content: base64, ...(sha ? { sha } : {}) }) });
+  if (!r.ok) throw ghErr(r.status);
+}
+export async function deleteFile(path) {
+  const g = await gh(path); if (g.status === 404) return; if (!g.ok) throw ghErr(g.status);
+  const r = await gh(path, { method: 'DELETE', body: JSON.stringify({ message: 'Entfernt', sha: (await g.json()).sha }) });
+  if (!r.ok && r.status !== 404) throw ghErr(r.status);
+}
+export const putInfo = (path, obj, msg) => putJSON(path, obj, msg);
+// photos waiting for their upload: parked in IndexedDB (localStorage is too small for a few photos on an iPhone)
+export const stashPut = (k, v) => idb('photos', 'readwrite', s => s.put(v, 'stash:' + k));
+export const stashGet = k => idb('photos', 'readonly', s => s.get('stash:' + k));
+export const stashDel = k => idb('photos', 'readwrite', s => s.delete('stash:' + k));
+export async function listDir(path) { const r = await gh(path); if (r.status === 404) return []; if (!r.ok) throw ghErr(r.status); return r.json(); }
+export async function readBook() {   // the shared recipe book Claude writes; null when offline/not set up
+  if (!configured(getCfg()) || !navigator.onLine) return null;
+  try { return (await getJSON('rezepte/buch.json')) || { recipes: [] }; } catch (e) { return null; }
+}
 export const carURL = () => privateURL('auto-2', 'fotos/auto.webp', 'image/webp');      // their own A1 (shows the plate → private); new photo = new key
