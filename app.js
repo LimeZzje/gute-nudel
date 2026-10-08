@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-08.2';
+const VERSION = '2026-10-08.3';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -457,7 +457,7 @@ function choreWeek(off = 0) {   // off: 0 = this week, 1 = next week …
   for (const c of S.chores) {
     days.filter(d => d < t).forEach(d => { if (S.log.some(e => e.day === d && e.chore === c.id)) out[d].push({ c, st: 'done' }); });
     const doneToday = S.log.some(e => e.day === t && e.chore === c.id);
-    if (doneToday) out[t].push({ c, st: 'done' });
+    if (doneToday && out[t]) out[t].push({ c, st: 'done' });   // today is only in the list when this week is shown
     const x = Object.assign({}, c, doneToday ? { last: t } : {});
     for (const d of ahead) {
       if (d === t && doneToday) continue;
