@@ -48,6 +48,10 @@ button { cursor: pointer; }
 }
 #stars .s { color: var(--gold); font-size: 20px; line-height: 1; }
 #cloud { border: 0; background: none; padding: 6px; min-width: 44px; min-height: 44px; font-size: 20px; line-height: 1; position: relative; }
+#refresh { border: 0; background: none; padding: 6px; min-width: 40px; min-height: 44px; font-size: 22px; font-weight: 800; line-height: 1; color: var(--ink2); }
+#refresh.spin { animation: rf-spin .8s linear infinite; }
+@keyframes rf-spin { to { transform: rotate(360deg); } }
+.ccats { scroll-margin-top: calc(var(--top-h, 64px) + 60px); }
 #cloud::after { content: ''; position: absolute; right: 4px; bottom: 6px; width: 9px; height: 9px; border-radius: 50%; background: var(--ink2); }
 #cloud.ok::after { background: var(--green); }
 #cloud.wait::after { background: var(--gold); }

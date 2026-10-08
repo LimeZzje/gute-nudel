@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-08.10';
+const VERSION = '2026-10-08.11';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -919,7 +919,7 @@ const A = {
   cookback() { ui.sub = null; ui.qtab = 'kochbuch'; ui.rid = null; render(); scrollTo(0, 0); },
   cookhome() { endCookMode(); ui.rid = null; ui.sides = []; render(); scrollTo(0, 0); },
   cookreroll() { ui.sugSeed = (ui.sugSeed || 1) + 1; render(); },
-  ccat(el) { ui.ccat = el.dataset.v; render(); },
+  ccat(el) { ui.ccat = el.dataset.v; render(); if (el.classList.contains('hcard')) { const c = document.querySelector('.ccats'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
   recipe(el) { if (el.dataset.go || ui.tab !== 'ruhe') { closeModal(); ui.tab = 'ruhe'; ui.sub = null; ui.qtab = 'kochbuch'; } ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; render(); scrollTo(0, 0); },
   ingextradel(el) { ui.ingExtra.splice(+el.dataset.i, 1); render(); },
   ingtoggle(el) { const t = el.dataset.v; ui.ingPick = ui.ingPick || {}; ui.ingPick[ingKey(t)] = !ingWanted(t); render(); },
@@ -1336,7 +1336,7 @@ function viewCook() {
     `<button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
   const ours = allRecipes().filter(isOurs), vr = allRecipes().filter(r => r.vr);
   const cn = cookableNow(), cats = K.CATS.concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : [], cn.all.length || cn.almost.length ? [['da', '✅ Alles da']] : [], vr.length ? [['vorrat', '🧊 Aus dem Vorrat']] : []), cat = ui.ccat || 'haupt';
-  h += `<div class="chips">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
+  h += `<div class="chips ccats">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
   const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours : cat === 'vorrat' || cat === 'da' ? [] : allRecipes().filter(r => r.cat === cat && !r.vr);
   if (cat === 'da') h += (cn.all.length ? `<div class="sec-title">✅ Alles daheim</div>` + cn.all.map(recipeRow).join('') : '<p class="muted">Für kein Rezept ist gerade alles da.</p>') +
     (cn.almost.length ? `<div class="sec-title">🛒 Fehlt nur wenig</div>` + cn.almost.map(recipeRow).join('') : '') + `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
@@ -2014,6 +2014,7 @@ function bind() {
   });
   $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.tab === 'heute') ui.htab = 'heute'; ui.tab = b.dataset.tab; ui.sub = null; render(); scrollTo(0, 0); });
   $('#cloud').addEventListener('click', settings);
+  $('#refresh').addEventListener('click', refreshAll);
   $('#stars').addEventListener('click', A.stars);
   $('#rankbtn').addEventListener('click', rankModal);
   D.backup.listeners.add(renderTop);
@@ -2089,6 +2090,23 @@ function takeRemote(remote, adopt, base) {
   return S;
 }
 async function syncDevices() { await D.pull(S); }
+// ↻ in the header (2026-10-08): first send up whatever waits on this phone, then fetch everything new
+// (own other devices, the partner's post = handed-over tasks, Termine, the shared Vorrat, the recipe book), and a new app version
+let refreshing = false;
+async function refreshAll() {
+  if (refreshing) return;
+  if (!navigator.onLine) { toast('Kein Internet – später nochmal'); return; }
+  refreshing = true; const b = $('#refresh'); b.classList.add('spin');
+  try {
+    if (D.canPost()) { S.postedStats = null; D.schedulePost(postObj(), 0); }
+    D.scheduleBackup(S, 0);
+    await Promise.all([D.flushBackup(), D.flushPost()]);
+    await syncDevices(); await syncPost();
+    const reg = window.__swreg; if (reg) { try { await reg.update(); } catch (e) {} }
+    render();
+    toast(D.backup.status === 'bad' ? '⚠️ Sicherung klappt gerade nicht: ' + (D.backup.err || 'Fehler') : '🔄 Auf dem neuesten Stand');
+  } finally { refreshing = false; b.classList.remove('spin'); }
+}
 
 // One-time corrections, applied on the right phone the next time it opens (each only once, noted in S.fixes).
 const FIXES = [
@@ -2140,6 +2158,7 @@ async function start() {
     let reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !reloading) { reloading = true; location.reload(); } });
     navigator.serviceWorker.register('sw.js').then(reg => {
+      window.__swreg = reg;
       const check = () => { if (navigator.onLine) reg.update().catch(() => {}); };
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
       setInterval(check, 30 * 60e3);
