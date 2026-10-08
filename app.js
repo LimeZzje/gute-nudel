@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-08.9';
+const VERSION = '2026-10-08.10';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -1309,7 +1309,18 @@ function plateHtml(r, sides) {
   return '<span class="plate">' + Object.entries(K.PLATE).map(([k, [ic, l]]) => { const on = r.plate[k] || sides.some(s => s.g === k); return `<span class="pb ${on ? 'on' : ''}" title="${l}">${ic}</span>`; }).join('') + '</span>';
 }
 const tasteOf = r => { const c = S.cook[r.id]; return c && c.taste ? K.TASTE.find(t => t[2] === c.taste)[0] : ''; };
-const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? (r.level === 'fancy' ? ' · ✨ fancy' : ' · 🧊 aus dem Vorrat') : r.book ? ' · 📷 aus dem Buch' : r.own ? ' · ✏️ eigenes' : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span></span>${plateHtml(r, [])}</button>`;
+const vMatch = (n, v) => n.length >= 3 && v.length >= 3 && (v.includes(n) || n.includes(v));
+function haveFor(r, V) { // → {need, missing[]} over the real ingredients (staples skipped)
+  const vs = V.map(x => Sh.norm(x.text)), need = (r.ing || []).filter(([, t]) => t && !isPantry(t));
+  return { need: need.length, missing: need.filter(([, t]) => !vs.some(v => vMatch(Sh.norm(t), v))).map(([, t]) => t) };
+}
+function cookableNow() { // all of it at home / only 1–2 things missing (Claude's own Vorrat recipes are listed separately)
+  const V = vorrat(); if (!V.length) return { all: [], almost: [] };
+  const rs = allRecipes().filter(r => !r.vr).map(r => ({ r, h: haveFor(r, V) })).filter(x => x.h.need >= 2);
+  return { all: rs.filter(x => !x.h.missing.length).map(x => x.r),
+    almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
+}
+const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? (r.level === 'fancy' ? ' · ✨ fancy' : ' · 🧊 aus dem Vorrat') : r.book ? ' · 📷 aus dem Buch' : r.own ? ' · ✏️ eigenes' : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}</span>${plateHtml(r, [])}</button>`;
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid) return viewRecipe();
@@ -1318,15 +1329,18 @@ function viewCook() {
   const wait = (S.recipeInbox || []).filter(x => !x.del);
   if (wait.length) h += `<div class="card"><h3>📷 Wird gerade umgeschrieben</h3>${wait.map(x => `<div class="shoprow"><span style="flex:1">${x.n} ${x.n === 1 ? 'Foto' : 'Fotos'}${x.note ? ' · „' + esc(x.note) + '“' : ''}<br><span class="muted">${x.up ? 'abgeschickt am ' + esc(shortDate(key(new Date(x.ts)))) : '⏳ wird noch hochgeladen…'}</span></span><button class="mini-btn" data-a="rinboxdel" data-id="${x.id}" aria-label="Zurückziehen">✕</button></div>`).join('')}
     <p class="hint">Claude macht daraus eine Kochbuch-Seite mit Zutaten und Schritten – sie taucht hier auf, sobald sie fertig ist.</p></div>`;
+  { const cn = cookableNow(), n = cn.all.length; if (n || cn.almost.length) h += `<button class="card hcard dacard" data-a="ccat" data-v="da"><span class="hl-ic">✅</span><span class="hc-txt"><b>${n ? 'Alles daheim für ' + n + (n === 1 ? ' Gericht' : ' Gerichte') : 'Fast alles daheim'}</b><span class="muted">${cn.almost.length ? cn.almost.length + ' weitere, da fehlen nur 1–2 Sachen' : 'aus dem Kochbuch, mit dem was im Vorrat ist'}</span></span><span class="hc-go">›</span></button>`; }
   { const vr = allRecipes().filter(r => r.vr); if (vr.length) h += `<button class="card hcard vrcard" data-a="ccat" data-v="vorrat"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was koch ich aus dem Vorrat?</b><span class="muted">${vr.length} Rezepte von Claude – aus dem, was ihr daheim habt</span></span><span class="hc-go">›</span></button>`; }
   h += `<div class="card"><h3>Was koch ich heute?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was dir schmeckt.</p>` +
     cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min. ' : ''}${tasteOf(r)}</span></span></button>`).join('') +
     `<button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
   const ours = allRecipes().filter(isOurs), vr = allRecipes().filter(r => r.vr);
-  const cats = K.CATS.concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : [], vr.length ? [['vorrat', '🧊 Aus dem Vorrat']] : []), cat = ui.ccat || 'haupt';
+  const cn = cookableNow(), cats = K.CATS.concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : [], cn.all.length || cn.almost.length ? [['da', '✅ Alles da']] : [], vr.length ? [['vorrat', '🧊 Aus dem Vorrat']] : []), cat = ui.ccat || 'haupt';
   h += `<div class="chips">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours : cat === 'vorrat' ? [] : allRecipes().filter(r => r.cat === cat && !r.vr);
-  if (cat === 'vorrat') h += [['einfach', '😋 Schnell & lecker'], ['fancy', '✨ Fancy']].map(([lv, l]) => { const xs = vr.filter(r => (r.level || 'einfach') === lv); return xs.length ? `<div class="sec-title">${l}</div>` + xs.map(recipeRow).join('') : ''; }).join('');
+  const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours : cat === 'vorrat' || cat === 'da' ? [] : allRecipes().filter(r => r.cat === cat && !r.vr);
+  if (cat === 'da') h += (cn.all.length ? `<div class="sec-title">✅ Alles daheim</div>` + cn.all.map(recipeRow).join('') : '<p class="muted">Für kein Rezept ist gerade alles da.</p>') +
+    (cn.almost.length ? `<div class="sec-title">🛒 Fehlt nur wenig</div>` + cn.almost.map(recipeRow).join('') : '') + `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
+  else if (cat === 'vorrat') h += [['einfach', '😋 Schnell & lecker'], ['fancy', '✨ Fancy']].map(([lv, l]) => { const xs = vr.filter(r => (r.level || 'einfach') === lv); return xs.length ? `<div class="sec-title">${l}</div>` + xs.map(recipeRow).join('') : ''; }).join('');
   else h += list.map(recipeRow).join('') || '<p class="muted">Noch nichts hier.</p>';
   if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
   return h;
@@ -1471,7 +1485,7 @@ const dropShots = id => { D.stashDel(id).catch(() => {}); };
 // the shared book: loaded with the post (start, coming back, every 90 s); a finished inbox entry turns into "fertig!"
 async function syncBook() {
   const vb = await D.readVorratRezepte();
-  if (vb) { const j = JSON.stringify(vb); if (j !== localStorage.getItem('gn_vbook')) { localStorage.setItem('gn_vbook', j); render(); } }
+  if (vb) { const j = JSON.stringify(vb), was = vorratRecipes().map(r => r.id + r.ts).join(); if (j !== localStorage.getItem('gn_vbook')) { localStorage.setItem('gn_vbook', j); if (vorratRecipes().map(r => r.id + r.ts).join() !== was) render(); } }   // redraw only when something visible changed (a redraw can swallow a tap)
   const b = await D.readBook(); if (!b) return;
   const j = JSON.stringify(b); if (j === localStorage.getItem('gn_book')) return;
   localStorage.setItem('gn_book', j);

@@ -680,3 +680,5 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .alldone { margin-top: 12px; font-size: 18px; padding: 14px; }
 .vorrat { margin-top: 18px; padding-top: 6px; border-top: 2px dashed var(--line); }
 .vrcard .hl-ic { font-size: 28px; flex: none; }
+.dacard .hl-ic { font-size: 28px; flex: none; }
+.recipe-row .miss { font-size: 14px; color: var(--accent); font-weight: 700; }
