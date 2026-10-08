@@ -6,7 +6,7 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 
-const VERSION = '2026-10-08.5';
+const VERSION = '2026-10-08.7';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null };
 const $ = s => document.querySelector(s);
@@ -907,10 +907,11 @@ const A = {
     (ui.ingExtra || []).forEach(t => S.shop.push({ id: uid(), text: t, done: false }));
     const nExtra = (ui.ingExtra || []).length;
     ui.ingPick = {}; ui.ingExtra = [];
+    S.dishes = (S.dishes || []).filter(x => x.id !== r.id).concat([{ id: r.id, ts: Date.now() }]);   // bought for → "Heute kochen?" on Home
     commit(); shopModal();   // the list right away, as a pop-over
     toast(add.length + nExtra ? (add.length + nExtra) + ' Sachen dazugekommen 🛒' : 'Steht schon alles drauf 🛒');
   },
-  cookstart() { ui.cstep = 0; render(); scrollTo(0, 0); },
+  cookstart() { ui.cstep = 0; if ((S.dishes || []).some(x => x.id === ui.rid)) { S.dishes = S.dishes.filter(x => x.id !== ui.rid); commit(); } else render(); scrollTo(0, 0); },   // cooked = off Home
   cnext() { ui.cstep++; render(); },
   cprev() { ui.cstep = Math.max(0, ui.cstep - 1); render(); },
   cookstop() { endCookMode(); render(); },
@@ -1846,11 +1847,13 @@ function viewHome() {
     ${heute.length > 3 ? `<button class="more-link" data-a="go" data-tab="heute">+ ${heute.length - 3} weitere ›</button>` : ''}</div>`;
   // at home today: routines due, the shopping list, something to cook
   const rout = heute.filter(i => i.chore).map(i => S.chores.find(c => c.id === i.chore)).filter(Boolean);
-  const nShop = S.shop.filter(x => !x.done).length, dish = cookSuggest(1)[0];
+  const nShop = S.shop.filter(x => !x.done).length, dishes = (S.dishes || []).map(x => recipeById(x.id)).filter(Boolean).slice(0, 3);
+  // the last dish that was shopped for: time to go shopping again (user's wording, 2026-10-08)
+  if ((S.dishes || []).filter(x => recipeById(x.id)).length === 1) h += `<button class="last-dish" data-a="go" data-tab="ruhe" data-q="einkauf"><span class="ld-t">ZEIT FÜR EINEN WEITEREN VERDAMMTEN EINKAUF!</span> <span class="ld-e">😡</span></button>`;
   h += `<div class="sec-title">Daheim heute</div><div class="card home-rows">
     <button class="hrow" data-a="go" data-tab="ruhe" data-q="haushalt"><span class="hr-ic">🔁</span><span class="hr-t">${rout.length ? rout.map(c => esc(c.icon + ' ' + c.name)).join(' · ') : '<span class="muted">Heute keine Routinen – frei. 🛋️</span>'}</span><span class="hc-go">›</span></button>
     <button class="hrow" data-a="go" data-tab="ruhe" data-q="einkauf"><span class="hr-ic">🛒</span><span class="hr-t">${nShop ? `<b>${nShop}</b> ${nShop === 1 ? 'Sache' : 'Sachen'} auf der Einkaufsliste` : '<span class="muted">Einkaufsliste ist leer</span>'}</span><span class="hc-go">›</span></button>
-    ${dish ? `<button class="hrow" data-a="recipe" data-id="${esc(dish.id)}" data-go="1"><span class="hr-ic">${dish.icon}</span><span class="hr-t"><span class="muted">Heute kochen?</span> ${esc(dish.title)}</span><span class="hc-go">›</span></button>` : ''}</div>`;
+    ${dishes.map(r => `<button class="hrow" data-a="recipe" data-id="${esc(r.id)}" data-go="1"><span class="hr-ic">${r.icon}</span><span class="hr-t"><span class="muted">Heute kochen?</span> ${esc(r.title)}</span><span class="hc-go">›</span></button>`).join('')}</div>`;
   // next appointments (today + tomorrow), the car included
   const now = Car.localISO(new Date()), tm = addDays(t, 1);
   const soon = carAll(Car.live, false).filter(b => shared(b) && forMe(b) && carDay(b.start) <= tm && b.end > now).slice(0, 2);
@@ -1980,7 +1983,7 @@ function mergeStates(local, remote, base = null) {
     const seen = new Set();
     return a.concat(b).filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return !inBase || !inBase.has(x.id) || (inA.has(x.id) && inB.has(x.id)); });
   };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox'].forEach(k => { m[k] = join(k); });
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes'].forEach(k => { m[k] = join(k); });
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)
   const ids = new Set((newer.log || []).map(e => e.id)), extra = (older.log || []).filter(e => !ids.has(e.id));

@@ -666,3 +666,13 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .t2-n span { font-weight: 800; color: var(--ink2); }
 .gamecard.small { padding: 10px 14px; }
 .gamecard.small .gc-pic { width: 44px; height: 44px; font-size: 26px; }
+/* only one dish left that was shopped for → the angry shopping banner (Creepster, OFL, fonts/creepster.woff2) */
+@font-face { font-family: 'Creepster'; src: url(fonts/creepster.woff2) format('woff2'); font-display: swap; }
+.last-dish { display: block; width: 100%; margin: 4px 0 14px; padding: 16px 14px 18px; border: 2px solid #5c0010; border-radius: 18px; cursor: pointer; text-align: center;
+  background: radial-gradient(ellipse at 50% 0%, #3a0710 0%, #14070a 70%); box-shadow: 0 6px 18px rgba(90, 0, 16, .35), inset 0 0 22px rgba(0, 0, 0, .7); }
+.last-dish .ld-t { font: 400 clamp(26px, 8.4vw, 36px)/1.05 Creepster, 'Caveat', cursive; letter-spacing: .02em; color: #e0142f;
+  text-shadow: 0 2px 0 #4a000c, 0 0 12px rgba(224, 20, 47, .55); display: inline; }
+.last-dish .ld-e { font-size: 30px; display: inline-block; animation: ld-shake 2.6s ease-in-out infinite; }
+.last-dish:active { transform: scale(.98); }
+@keyframes ld-shake { 0%, 82%, 100% { transform: none; } 85% { transform: rotate(-14deg) scale(1.15); } 89% { transform: rotate(12deg) scale(1.15); } 93% { transform: rotate(-8deg); } }
+@media (prefers-reduced-motion: reduce) { .last-dish .ld-e { animation: none; } }
