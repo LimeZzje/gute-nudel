@@ -6,8 +6,9 @@ import { plantSVG } from './plant.js';
 import * as Car from './car.js';
 import { openGame } from './spiel.js';
 import * as E from './entspannen.js';
+import * as B from './baby.js';
 
-const VERSION = '2026-10-08.14';
+const VERSION = '2026-10-10.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -63,6 +64,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     thanks: (S.thanks || []).filter(t => Date.now() - t.ts < MONTH),
     stats: myStats(),
     vorrat: vorratPost(),
+    baby: S.babyMine || {},
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
 }
@@ -174,6 +176,8 @@ async function syncPost() {
     if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
     if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; }
+    let babyNews = 0;
+    if (p.baby && JSON.stringify(p.baby) !== JSON.stringify(S.partnerBaby || {})) { S.partnerBaby = p.baby; babyNews = babyReconcile().add; changed = true; }
     const pc = Car.raw(p.car);
     if (JSON.stringify(pc) !== JSON.stringify(Car.raw(S.partnerCar))) { S.partnerCar = pc; changed = true; }
     const fresh = newForMe(); if (fresh.length) changed = true;
@@ -192,6 +196,8 @@ async function syncPost() {
     S.sent = S.sent.filter(x => x.status === 'wartet' || x.status === 'ok' || Date.now() - (x.wts || x.ts) < 14 * 864e5);
     if (S.sent.length !== before) changed = true;
     if (changed) commit();
+    if (babyNews) toast(`🍼 ${pn()} hat ${babyNews === 1 ? 'eine Sache' : babyNews + ' Sachen'} für den kleinen Menschen abgehakt · +${babyNews} ⭐`);
+    babyParty();
     if (pulled.length) toast(pn() + ' hat zurückgenommen: ' + pulled.map(i => i.text).join(', '));
     if (back.length) modal(`<h2>Kommt zurück</h2><p>${esc(pn())} kann das gerade nicht übernehmen:</p><div style="text-align:left">${back.map(x => `<p><b>${esc(x.text)}</b><br><span class="muted">„${esc(x.reason)}“</span></p>`).join('')}</div><p class="muted">${back.length > 1 ? 'Die Aufgaben sind' : 'Die Aufgabe ist'} wieder auf deiner Liste.</p><div class="row"><button class="btn" data-a="close">Okay</button></div>`);
     else if (done.length) doneModal(done);
@@ -1398,7 +1404,7 @@ const A = {
     location.replace(location.pathname);
   },
   rank: rankModal,
-  stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>⭐ 2 fürs Genießen eines Gemütlichkeits-Rezepts, einer fertigen Vorbereitung oder einer Belohnung nach der Hausarbeit</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
+  stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>${babyLive() ? '🍼 1 pro Haken bei der Babyerstausstattung – für euch beide, ohne Tageslimit<br>' : ''}⭐ 2 fürs Genießen eines Gemütlichkeits-Rezepts, einer fertigen Vorbereitung oder einer Belohnung nach der Hausarbeit</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
 };
 
 // ---------- helpers: shopping list, cookbook, music ----------
@@ -2128,10 +2134,12 @@ function homeLine(st) { // ONE sentence that fits right now (rotates by day amon
   return `<button class="card hcard homeline" data-a="go" data-tab="${tab}"><span class="hl-ic">${ic}</span><span class="hc-txt">${esc(txt)}</span><span class="hc-go">›</span></button>`;
 }
 function viewHome() {
+  if (ui.sub === 'baby') return viewBaby();
+  if (ui.sub === 'events') return viewEvents();
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
-  h += incomingCard() + giftCards();
+  h += incomingCard() + giftCards() + babyCard();
   // today: the ring + the next few things, ticked right here
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
   h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
@@ -2166,6 +2174,7 @@ function viewHome() {
     h += `<div class="card team2"><div class="t2-n"><b>${st.total + (ps.total || 0)}</b><span>Sachen habt ihr zusammen erledigt</span></div>
       ${pr ? `<div class="team-rank">${emblem(pr.t, 34, pr.div)}<span>${esc(pn())} ist gerade <b style="color:${pr.tier.dark}">${esc(pr.name)}</b></span></div>` : ''}</div>`;
   }
+  if ((S.events || []).length) h += `<button class="card hcard" data-a="events"><span class="hc-txt"><b>🗓️ Vergangene Events</b><span class="muted">${S.events.map(e => esc(e.icon + ' ' + e.title)).join(' · ')}</span></span><span class="hc-go">›</span></button>`;
   const gl = Object.values((S.game && S.game.levels) || {}), gdone = gl.filter(p => p >= 100).length;
   h += `<button class="card hcard gamecard small" data-a="game"><span class="gc-pic" aria-hidden="true">🍝</span><span class="hc-txt"><b>Kleine Pause? Nudel-Rush</b>${gl.length ? `<span class="muted">${gdone} von 5 Leveln geschafft</span>` : ''}</span><span class="hc-go">›</span></button>`;
   return h;
@@ -2180,6 +2189,102 @@ A.game = () => {
     onSave: d => { S.game = { levels: { ...d.levels }, endless: d.endless }; S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); },
     onClose: () => { game = null; render(); },
   });
+};
+
+// ---------- 🍼 EVENT: Babyerstausstattung (2026-10-10, baby.js) ----------
+// One shared list for both until 10 January. Every tick (by either of you) = +1 ⭐ for BOTH (outside the daily cap),
+// untick = the star goes back. The stars follow the shared ticks: a log entry 'baby-<item>' per ticked item.
+// All ticked → the event ends, its fun statistics stay on Home ("Vergangene Events"). Deadline first → it just vanishes.
+const babyLive = () => Date.now() < B.END && !(S.events || []).some(e => e.id === B.ID);
+const babyOn = id => { const x = B.state(S.babyMine, S.partnerBaby, id); return !!(x && x[0]); };
+const babyCount = () => B.ITEMS.filter(it => babyOn(it.id)).length;
+function babyReconcile() {   // → {add, sub}: stars granted / taken back now
+  const r = { add: 0, sub: 0 };
+  if (!S || !babyLive()) return r;
+  for (const it of B.ITEMS) {
+    const lid = 'baby-' + it.id, has = S.log.some(e => e.id === lid), on = babyOn(it.id);
+    if (on && !has) { S.log.push({ id: lid, text: '🍼 ' + it.name, kind: 'baby', day: today(), ts: Date.now(), stars: 1 }); earn(1); r.add++; }
+    else if (!on && has) { S.log = S.log.filter(e => e.id !== lid); S.stars = Math.max(0, S.stars - 1); S.earned = Math.max(0, S.earned - 1); r.sub++; }
+  }
+  if (B.ITEMS.every(it => babyOn(it.id))) {
+    const ticks = {}; B.ITEMS.forEach(it => { ticks[it.id] = B.state(S.babyMine, S.partnerBaby, it.id)[1]; });
+    (S.events = S.events || []).push(B.record(ticks));
+    ui.babyParty = true; if (ui.sub === 'baby') ui.sub = null;
+  }
+  return r;
+}
+function babyParty() {   // everything ticked: once, on the phone that noticed it
+  if (!ui.babyParty) return;
+  ui.babyParty = false; render(); confetti(140);
+  modal(`<div class="bparty">${BSKY}</div><h2>Alles bereit! 🍼</h2><p>Alle ${B.ITEMS.length} Sachen sind abgehakt. Der kleine Mensch kann kommen. 💛</p>
+    <p class="muted">Eure Statistik wartet auf Home unter „Vergangene Events“.</p>
+    <div class="row"><button class="btn" data-a="events">Ansehen</button><button class="btn soft" data-a="close">Hach 💛</button></div>`);
+}
+// a little night sky: moon, twinkling stars, a sleeping cloud
+const BSKY = `<svg class="bsky" viewBox="0 0 220 96" aria-hidden="true">
+  <path class="bm" d="M128 12a28 28 0 1 0 32 38 22 22 0 1 1-32-38z"/>
+  <path class="bs s1" d="M44 18l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/>
+  <path class="bs s2" d="M186 24l2 5 5 1-4 3 1 5-4-2-4 2 1-5-4-3 5-1z"/>
+  <circle class="bs s3" cx="80" cy="12" r="3"/><circle class="bs s1" cx="200" cy="58" r="2.5"/><circle class="bs s2" cx="18" cy="52" r="2"/>
+  <path class="bc" d="M40 86h120a17 17 0 0 0 0-34 25 25 0 0 0-46-8 19 19 0 0 0-32 10 15 15 0 0 0-42 32z"/>
+  <path class="bz" d="M86 70q4 3 8 0M106 70q4 3 8 0"/></svg>`;
+const CDL = { d: ['Tag', 'Tage'], h: ['Stunde', 'Stunden'], m: ['Minute', 'Minuten'], s: ['Sekunde', 'Sekunden'] };
+function cdHtml(big) {
+  const l = B.left();
+  return `<span class="bcd${big ? ' big' : ''}" data-cd>${['d', 'h', 'm', 's'].map(k =>
+    `<span class="bcd-u u-${k}"><b data-u="${k}">${k === 'd' ? l[k] : String(l[k]).padStart(2, '0')}</b><small data-l="${k}">${CDL[k][l[k] === 1 ? 0 : 1]}</small></span>`).join('')}</span>`;
+}
+setInterval(() => {   // the countdown ticks without redrawing the page
+  const els = document.querySelectorAll('[data-cd]'); if (!els.length || !S) return;
+  if (!babyLive()) { render(); return; }
+  const l = B.left();
+  els.forEach(c => {
+    c.querySelectorAll('[data-u]').forEach(b => { const k = b.dataset.u; b.textContent = k === 'd' ? l[k] : String(l[k]).padStart(2, '0'); });
+    c.querySelectorAll('[data-l]').forEach(x => { x.textContent = CDL[x.dataset.l][l[x.dataset.l] === 1 ? 0 : 1]; });
+  });
+}, 1000);
+function babyBar() { const n = babyCount(), N = B.ITEMS.length; return `<span class="bbar"><i style="width:${n / N * 100}%"></i></span><span class="bc-n"><b>${n}</b> von ${N} bereit</span>`; }
+function babyCard() {
+  if (!babyLive()) return '';
+  return `<button class="card babycard" data-a="baby">${BSKY}<span class="bc-eye">Bald bist du da, kleiner Mensch</span>
+    <span class="bc-t">Babyerstausstattung</span>${cdHtml()}${babyBar()}<span class="bc-go">Zur Liste ›</span></button>`;
+}
+function viewBaby() {
+  if (!babyLive()) { ui.sub = null; return viewHome(); }
+  let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button>`;
+  h += `<div class="card babycard hero">${BSKY}<span class="bc-eye">Willkommen im Januar, kleiner Mensch</span><span class="bc-t">Babyerstausstattung</span>
+    ${cdHtml(true)}<span class="bc-until">bis zum 10. Januar</span>${babyBar()}
+    <span class="bc-info">Jeder Haken: +1 ⭐ für dich <i>und</i> für ${esc(pn())}. Haken weg = Stern weg.</span></div>`;
+  for (const g of B.GROUPS) {
+    const gn = g.items.filter(it => babyOn(it.id)).length, full = gn === g.items.length;
+    h += `<div class="card bgroup t-${g.tone}"><div class="bg-head"><span class="bg-ic">${g.icon}</span><span class="bg-tt"><b>${esc(g.title)}</b><span class="muted">${esc(g.where)}</span></span><span class="bg-n${full ? ' full' : ''}">${full ? '✓' : gn + '/' + g.items.length}</span></div>
+      ${g.items.map(it => { const on = babyOn(it.id), open = ui.bopen === it.id, more = it.note || it.shops.length;
+        return `<div class="bitem${on ? ' done' : ''}"><button class="bchk" data-a="btick" data-id="${it.id}" aria-pressed="${on}" aria-label="${esc(it.name)} ${on ? 'nicht mehr abhaken' : 'abhaken'}"></button>
+          <button class="btxt" data-a="bopen" data-id="${it.id}"${more ? '' : ' disabled'}><span>${esc(it.name)}</span>${more ? `<span class="bmore">${open ? '▾' : '▸'}</span>` : ''}</button>
+          ${open ? `<div class="bnote">${it.note ? `<p>${esc(it.note)}</p>` : ''}${it.shops.length ? `<p class="bshops">${it.shops.map((x, i) => `<span class="bshop${i ? '' : ' top'}">${i ? '' : '♥ '}${esc(x)}</span>`).join('')}</p>` : ''}</div>` : ''}</div>`; }).join('')}
+      ${g.tip ? `<p class="hint">💡 ${esc(g.tip)}</p>` : ''}</div>`;
+  }
+  return h;
+}
+function viewEvents() {
+  let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button><div class="sec-title" style="margin-top:0">Vergangene Events</div>`;
+  for (const e of (S.events || []).slice().sort((a, b) => b.done - a.done)) {
+    h += `<div class="card evcard">${e.id === B.ID ? BSKY : ''}<h3>${esc(e.icon + ' ' + e.title)}</h3><p class="muted">Abgeschlossen am ${esc(longDate(key(new Date(e.done))))}</p>
+      <ul class="evlines">${e.lines.map(([ic, t]) => `<li><span>${esc(ic)}</span><span>${esc(t)}</span></li>`).join('')}</ul></div>`;
+  }
+  return h;
+}
+A.baby = () => { closeModal(); ui.tab = 'home'; ui.sub = 'baby'; render(); scrollTo(0, 0); };
+A.events = () => { closeModal(); ui.tab = 'home'; ui.sub = 'events'; render(); scrollTo(0, 0); };
+A.babyback = () => { ui.sub = null; render(); scrollTo(0, 0); };
+A.bopen = el => { ui.bopen = ui.bopen === el.dataset.id ? null : el.dataset.id; render(); };
+A.btick = el => {
+  if (!babyLive()) return;
+  const id = el.dataset.id, on = babyOn(id);
+  (S.babyMine = S.babyMine || {})[id] = [on ? 0 : 1, Date.now()];
+  babyReconcile();
+  floatStar(el, on ? '−1 ⭐' : '+1 ⭐');
+  commit(true); babyParty();
 };
 
 // ---------- render ----------
@@ -2284,7 +2389,7 @@ function mergeStates(local, remote, base = null) {
     const seen = new Set();
     return a.concat(b).filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return !inBase || !inBase.has(x.id) || (inA.has(x.id) && inB.has(x.id)); });
   };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals'].forEach(k => { m[k] = join(k); });
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events'].forEach(k => { m[k] = join(k); });
   m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)
@@ -2293,6 +2398,10 @@ function mergeStates(local, remote, base = null) {
   if (base) { // stars: both sides' changes since the base add up
     m.stars = Math.max(0, (newer.stars || 0) + (older.stars || 0) - (base.stars || 0));
     m.earned = Math.max(0, (newer.earned || 0) + (older.earned || 0) - (base.earned || 0));
+    // 🍼 a baby tick credited (or taken back) on BOTH devices counted twice above → once
+    const bids = x => new Set((x.log || []).filter(e => e.kind === 'baby').map(e => e.id)), bA = bids(newer), bB = bids(older), bZ = bids(base);
+    let fix = 0; bA.forEach(id => { if (bB.has(id) && !bZ.has(id)) fix--; }); bZ.forEach(id => { if (!bA.has(id) && !bB.has(id)) fix++; });
+    m.stars = Math.max(0, m.stars + fix); m.earned = Math.max(0, m.earned + fix);
   } else {
     m.stars = Math.max(0, (newer.stars || 0) + extra.reduce((a, e) => a + (e.stars || 0), 0));
     m.earned = (newer.earned || 0) + extra.reduce((a, e) => a + Math.max(0, e.stars || 0), 0);
@@ -2306,6 +2415,7 @@ function mergeStates(local, remote, base = null) {
   m.termSeen = newer.termSeen || older.termSeen ? [...new Set([].concat(newer.termSeen || [], older.termSeen || []))].slice(-300) : undefined;
   m.thanksSeen = [...new Set([].concat(newer.thanksSeen || [], older.thanksSeen || []))].slice(-200);
   m.cook = Object.assign({}, older.cook || {}, newer.cook || {});
+  m.babyMine = B.mergeMine(older.babyMine, newer.babyMine);
   m.answered = Object.assign({}, older.answered || {}, newer.answered || {});
   const gA = newer.game || {}, gB = older.game || {}, lv = { ...(gB.levels || {}) };
   for (const [k, v] of Object.entries(gA.levels || {})) lv[k] = Math.max(v, lv[k] || 0);
@@ -2316,9 +2426,11 @@ function mergeStates(local, remote, base = null) {
 }
 function takeRemote(remote, adopt, base) {
   S = adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote, base);
+  const br = babyReconcile(); if (br.add + br.sub) S.updatedAt = Date.now();
   D.saveLocal(S);
   rollover(); scheduleChores(); render();
   toast(adopt ? '🔄 Auf dem neuesten Stand' : '🔄 Mit dem anderen Gerät zusammengeführt');
+  babyParty();
   return S;
 }
 async function syncDevices() { await D.pull(S); }
@@ -2379,6 +2491,7 @@ async function start() {
   S.me = D.me();
   rollover();
   scheduleChores();
+  babyReconcile();
   if (applyFixes()) { S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); }
   D.setRemoteHandler(takeRemote);
   bind();

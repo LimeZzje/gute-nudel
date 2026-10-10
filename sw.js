@@ -1,7 +1,7 @@
 // Offline support. Online: always the newest app files from the network (so updates apply at once);
 // offline: the copy from the cache. GitHub (backup + photos) never goes through here.
-const V = 'gn-72';
-const FILES = ['./', 'index.html', 'style.css', 'app.js', 'data.js', 'content.js', 'cookbook.js', 'shop.js', 'plant.js', 'car.js', 'spiel.js', 'entspannen.js', 'manifest.json',
+const V = 'gn-73';
+const FILES = ['./', 'index.html', 'style.css', 'app.js', 'data.js', 'content.js', 'cookbook.js', 'shop.js', 'plant.js', 'car.js', 'spiel.js', 'entspannen.js', 'baby.js', 'manifest.json',
   'fonts/nunito.woff2', 'fonts/caveat.woff2', 'fonts/pixel.woff2', 'fonts/creepster.woff2', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });

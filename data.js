@@ -55,6 +55,9 @@ export function freshState() {
     partnerCar: [],        // the partner's upcoming bookings (from their post)
     thanks: [],            // my thank-yous for tasks the partner finished: {id, task, text, e (emoji), ts}
     thanksSeen: [],        // ids of the partner's thank-yous already shown (flying emojis once)
+    babyMine: {},          // 🍼 my own ticks on the shared baby list: item id -> [on 0/1, ts]
+    partnerBaby: {},       // the partner's (from their post)
+    events: [],            // finished events with their fun statistics (Home → Vergangene Events)
     partnerName: '', postedName: null,
   };
 }
