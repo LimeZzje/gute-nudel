@@ -357,6 +357,7 @@ textarea { width: 100%; border: 2px solid var(--line); border-radius: 12px; back
 .cookmode .cing-all { margin-bottom: 10px; }
 .cookmode .cing-list { font-size: 17px; }
 .trip-title { font-weight: 800; font-size: 15px; color: var(--ink2); text-transform: uppercase; letter-spacing: .04em; margin: 26px 4px -8px; }
+.preglater { display: inline-block; margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--rest); }
 .dochstamp { display: inline-block; margin-top: 4px; padding: 1px 8px; border: 2px solid var(--green); color: var(--green); border-radius: 6px; font-weight: 800; font-size: 13px; transform: rotate(-3deg); }
 
 /* ---------- handing tasks to the partner ---------- */

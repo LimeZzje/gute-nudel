@@ -8,7 +8,7 @@ import { openGame } from './spiel.js';
 import * as E from './entspannen.js';
 import * as B from './baby.js';
 
-const VERSION = '2026-10-11.1';
+const VERSION = '2026-10-11.2';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1504,6 +1504,9 @@ function allRecipes() {
 }
 // the original a changed recipe came from (built-in, photographed book or Claude's Vorrat), if any
 const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r => r.id === id) || vorratRecipes().find(r => r.id === id) || archRecipes().find(r => r.id === id) || null;
+// pregnancy: recipes with runny egg / cold smoked salmon get a note until the baby is here (gone by itself from February 2027)
+const PREG_LATER = ['vorrat-eggs-royale', 'vorrat-strammer-max-gurke', 'vorrat-spitzkohl-glasiert', 'ofenkartoffel'];
+const pregLater = r => PREG_LATER.includes(r.id) && today() < '2027-02-01';
 const loveTag = r => r.level === 'fancy' ? '💙 mag er' : '🩷 mag sie';   // Claude's Vorrat recipes: fancy = his, einfach = hers
 const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'][d.getMonth()]; };
 const recipeById = id => allRecipes().find(r => r.id === id);
@@ -1562,7 +1565,7 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
   return { all: rs.filter(x => !x.h.missing.length).map(x => x.r),
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
-const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? ' · ' + loveTag(r) : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.trip && (S.cook[r.id] || {}).n ? '<br><span class="dochstamp">✅ Doch gekocht!</span>' : ''}</span>${plateHtml(r, [])}</button>`;
+const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? ' · ' + loveTag(r) : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.trip && (S.cook[r.id] || {}).n ? '<br><span class="dochstamp">✅ Doch gekocht!</span>' : ''}</span>${plateHtml(r, [])}</button>`;
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid) return viewRecipe();
@@ -1597,7 +1600,7 @@ function viewRecipe() {
   const sides = sidesOf(), c = S.cook[r.id];
   let h = `<button class="btn soft" data-a="cookhome" style="margin:4px 0 12px">← Kochbuch</button>`;
   h += `<div class="card">${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<div style="font-size:44px;line-height:1">${r.icon}</div><h2 class="hand" style="font-size:34px;margin:6px 0">${esc(r.title)}</h2>
-    <p class="muted" style="margin:0">${r.min ? '⏱ ' + r.min + ' Min. · ' : ''}für ${esc(r.serves || 2)}${r.vr ? ' · ' + loveTag(r) : isOurs(r) ? '' : ' · ganz einfach'}${r.fav ? ' · 💛 mag sie' : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>${r.src ? `<p class="muted" style="margin:4px 0 0">📚 ${esc(r.src)}</p>` : ''}${r.arch ? `<p class="muted" style="margin:4px 0 0">💭 Hätten wir nach dem Einkauf vom ${tripDate(r.trip)} kochen können${c && c.n ? ' – <b>und haben wir doch!</b> ✅' : ''}</p>` : ''}${r.note ? `<p>${esc(r.note)}</p>` : ''}
+    <p class="muted" style="margin:0">${r.min ? '⏱ ' + r.min + ' Min. · ' : ''}für ${esc(r.serves || 2)}${r.vr ? ' · ' + loveTag(r) : isOurs(r) ? '' : ' · ganz einfach'}${r.fav ? ' · 💛 mag sie' : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>${r.src ? `<p class="muted" style="margin:4px 0 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:6px 0 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.arch ? `<p class="muted" style="margin:4px 0 0">💭 Hätten wir nach dem Einkauf vom ${tripDate(r.trip)} kochen können${c && c.n ? ' – <b>und haben wir doch!</b> ✅' : ''}</p>` : ''}${r.note ? `<p>${esc(r.note)}</p>` : ''}
     <div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}${r.vr ? `<button class="btn soft" data-a="rpromote" data-id="${r.id}">📖 Ins Kochbuch</button>` : ''}</div></div>`;
   if (r.plate) {
     const missing = Object.keys(K.PLATE).filter(k => !r.plate[k] && !sides.some(s => s.g === k));
