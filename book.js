@@ -155,22 +155,13 @@ const goat = (c = RED) => `<g fill="none" stroke="${c}" stroke-width="2" stroke-
   <path d="M46,78 Q50,82 54,78"/><path d="M45,86 Q50,100 55,86"/><path d="M50,36 L50,44" stroke-width="1.4"/>
   <path d="M41,49 l6,1.5 M59,49 l-6,1.5" stroke-width="2.6"/></g>
   <circle class="eye" cx="44" cy="51" r="1.4" fill="${c}"/><circle class="eye" cx="56" cy="51" r="1.4" fill="${c}"/>`;
-// a rabbit skull seen from above (user's wish, instead of the goat), snout down into the lower point of the pentagram:
-// small round braincase, the winged supraorbital processes, big eye holes inside the wide cheek arches, the long snout with
-// its two nasal bones and the lattice of little holes on the sides, nasal opening, the two incisors
-const skull = (c = RED) => `<g fill="none" stroke="${c}" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4">
-  <path d="M37,42 C24,40 14,45 14,53 C14,61 23,64 37,61" fill="#150c0e"/><path d="M63,42 C76,40 86,45 86,53 C86,61 77,64 63,61" fill="#150c0e"/>
-  <ellipse cx="27" cy="52" rx="9" ry="7.2" fill="#050304" stroke="none"/><ellipse cx="73" cy="52" rx="9" ry="7.2" fill="#050304" stroke="none"/>
-  <path d="M50,9 C61,9 67,15 67,24 C67,31 65,35 63,38 L37,38 C35,35 33,31 33,24 C33,15 39,9 50,9 Z" fill="#150c0e"/>
-  <path d="M37,38 C34,44 33,52 36,61 C38,71 42,82 45,92 L55,92 C58,82 62,71 64,61 C67,52 66,44 63,38 Z" fill="#150c0e"/>
-  <path d="M37.5,38.5 C31,37 25,37.5 20,40 C24,41 26,42 24,44 C28,43.5 31,43 35.5,44.5" fill="#150c0e" stroke-width="1.1"/>
-  <path d="M62.5,38.5 C69,37 75,37.5 80,40 C76,41 74,42 76,44 C72,43.5 69,43 64.5,44.5" fill="#150c0e" stroke-width="1.1"/>
-  <path d="M50,10 l-1.3,3.6 l2.4,3 l-2.4,3.2 l1.4,3.6 l-1.1,3.4 M38.5,38.4 C44,36.8 56,36.8 61.5,38.4" stroke-width=".9" opacity=".75"/>
-  <path d="M47,40 C46.4,55 46.6,70 47.6,84 M53,40 C53.6,55 53.4,70 52.4,84" stroke-width=".95"/>
-  ${[[39.5, 62, 1.4], [42, 66.5, 1.2], [39.8, 68.5, 1.05], [42.4, 72, .95], [41, 75.5, .85], [43.4, 78.5, .75]].map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${f1(r * 1.35)}" fill="#050304" stroke-width=".55"/><ellipse cx="${100 - x}" cy="${y}" rx="${r}" ry="${f1(r * 1.35)}" fill="#050304" stroke-width=".55"/>`).join('')}
-  <path d="M45.4,84 Q50,79.5 54.6,84 Q53.4,89.5 50,89.5 Q46.6,89.5 45.4,84 Z" fill="#050304"/>
-  <path d="M46.8,91.5 h2.9 v7.4 q-1.45,2.2 -2.9,0 Z M50.3,91.5 h2.9 v7.4 q-1.45,2.2 -2.9,0 Z" fill="#2a1a1c" stroke-width="1"/></g>
-  <circle class="eye" cx="27.5" cy="52.5" r="1.1" fill="${c}"/><circle class="eye" cx="72.5" cy="52.5" r="1.1" fill="${c}"/>`;
+// the Leviathan cross (sulfur's alchemical sign: a double cross on the infinity sign), glowing like brimstone
+const leviathan = () => `<svg viewBox="0 0 120 130" class="levi" aria-hidden="true"><defs>
+  <linearGradient id="brim" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="118"><stop offset="0" stop-color="#ffe066"/><stop offset=".55" stop-color="#ffb02e"/><stop offset="1" stop-color="#ff6a1a"/></linearGradient>
+  <filter id="brimglow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  <g fill="none" stroke="url(#brim)" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#brimglow)">
+  <path d="M60,8 V92"/><path d="M42,26 H78"/><path d="M34,48 H86"/>
+  <path d="M60,104 C52,92 30,92 30,104 C30,116 52,116 60,104 C68,92 90,92 90,104 C90,116 68,116 60,104 Z"/></g></svg>`;
 const candle = (x, y, h, i = 0) => `<g transform="translate(${x} ${y})">
   <ellipse class="glow" cx="0" cy="-${h + 10}" rx="26" ry="30" fill="url(#cglow)" style="--d:${i * .37}s"/>
   <path d="M-7,0 V-${h} Q-7,-${h + 3} -3,-${h + 2} Q0,-${h + 4} 3,-${h + 2} Q7,-${h + 3} 7,-${h} V0 Z" fill="${BONE}"/>
@@ -183,17 +174,20 @@ const candle = (x, y, h, i = 0) => `<g transform="translate(${x} ${y})">
 // the sigil wheel: the consonants sit around a circle; the line runs from letter to letter in the name's order,
 // starting with a small circle and ending with a bar
 const WHEEL = 'BCDFGHJKLMNPQRSTVWXZ'.split('');
-const sigilLetters = name => { const out = []; for (const c of String(name).toUpperCase().replace(/ß/g, 'S').normalize('NFD').replace(/[^A-Z]/g, '').replace(/[AEIOUY]/g, '')) if (WHEEL.includes(c) && out[out.length - 1] !== c && !out.includes(c)) out.push(c); return out.slice(0, 9); };
+// the "star" of the dish: what comes before "mit", "auf", "&", ":" … (Kirschtomaten-Confit mit … → KRSCHTMTN CNFT)
+const starOf = title => String(title).split(/\s+(?:mit|auf|an|am|in|im|und|vom|von|aus|nach|zu|über|unter)\s+|\s*[,:–(]\s*|\s+&\s+/i)[0];
+const sigilWords = title => starOf(title).toUpperCase().replace(/ß/g, 'S').normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^A-Z]+/)
+  .map(w => w.replace(/[AEIOUY]/g, '').split('').filter(c => WHEEL.includes(c)).join('')).filter(Boolean);
 function sigil(name, size = 92) {
-  const L = sigilLetters(name), pos = c => { const a = (WHEEL.indexOf(c) / WHEEL.length * 360 - 90) * Math.PI / 180; return [50 + Math.cos(a) * 33, 50 + Math.sin(a) * 33]; };
-  const P = L.map(pos), [s0, e] = [P[0], P[P.length - 1]], prev = P[P.length - 2] || [50, 50];
+  const W = sigilWords(name), L = W.join('').split('').filter((c, i, a) => c !== a[i - 1]), pos = c => { const a = (WHEEL.indexOf(c) / WHEEL.length * 360 - 90) * Math.PI / 180; return [50 + Math.cos(a) * 33, 50 + Math.sin(a) * 33]; };
+  const P = L.map(pos), [s0, e] = [P[0] || [50, 50], P[P.length - 1] || [50, 50]], prev = P[P.length - 2] || [50, 50];
   const ang = Math.atan2(e[1] - prev[1], e[0] - prev[0]), bx = Math.cos(ang + Math.PI / 2) * 5, by = Math.sin(ang + Math.PI / 2) * 5;
   const rim = WHEEL.map((c, i) => { const a = (i / WHEEL.length * 360 - 90) * Math.PI / 180; return `<text x="${f1(50 + Math.cos(a) * 42)}" y="${f1(50 + Math.sin(a) * 42 + 2)}" text-anchor="middle" font-size="5.2" fill="${RED}" opacity="${L.includes(c) ? .95 : .35}">${c}</text>`; }).join('');
   return `<figure class="sigil-fig"><svg viewBox="0 0 100 100" width="${size}" height="${size}" class="sigil" aria-hidden="true"><g fill="none" stroke="${RED}" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="50" cy="50" r="47.5" stroke-width=".9"/><circle cx="50" cy="50" r="37" stroke-width=".5" opacity=".5"/>
     ${P.length > 1 ? `<polyline points="${P.map(p => f1(p[0]) + ',' + f1(p[1])).join(' ')}" stroke-width="1.8"/>` : ''}
     <circle cx="${f1(s0[0])}" cy="${f1(s0[1])}" r="3" stroke-width="1.5"/><path d="M${f1(e[0] - bx)},${f1(e[1] - by)} L${f1(e[0] + bx)},${f1(e[1] + by)}" stroke-width="1.8"/></g>
-    <g font-family="Fell, Georgia, serif">${rim}</g></svg><figcaption>${L.join(' · ')}</figcaption></figure>`;
+    <g font-family="Fell, Georgia, serif">${rim}</g></svg><figcaption>${W.join(' ')}</figcaption></figure>`;
 }
 // how the dish really smells: only aromas of what's in it (and how it's cooked), sorted by how fleeting they are —
 // head notes fade first (citrus, herbs, onion), heart notes carry the dish (spices, meat, veg), base notes linger (roast, nut, cocoa)
@@ -256,7 +250,7 @@ export function deco(theme, r, o = {}) {
 }
 // a little picture for the top of each section page
 export const sectionArt = k => k === 'jetzt' ? `<div class="sa-dog">${poodle(7)}</div>` : k === 'gekocht' ? `<div class="sa-dog">${poodle(9, 'sleep')}</div>`
-  : k === 'daheim' ? `<div class="sa-peek">${bunnyPeek()}</div>` : k === 'codex' ? `<div class="sa-pent"><svg viewBox="0 0 120 120">${pentagram(60, 60, 44, RED, false)}<g transform="translate(17 13) scale(.86)">${skull()}</g></svg></div>` : `<div class="sa-sc">${scales()}</div>`;
+  : k === 'daheim' ? `<div class="sa-peek">${bunnyPeek()}</div>` : k === 'codex' ? `<div class="sa-pent">${leviathan()}</div>` : `<div class="sa-sc">${scales()}</div>`;
 
 let A = null;                      // the app's side: at(i) → page, i(), n(), onTurn(i), label(), tab()
 const keep = { key: '', top: 0 };  // the open page's scroll position survives re-renders
@@ -390,7 +384,7 @@ const CSS = `
 /* section pages */
 .sec-head { display: flex; align-items: flex-end; gap: 10px; margin: 0 0 10px; }
 .sec-head h2 { flex: 1; margin: 0; font: 700 30px/1.1 'Dancing Script', Caveat, cursive; color: #5f7d5a; }
-.sec-head .sa-dog { width: 74px; } .sec-head .sa-peek { width: 56px; } .sec-head .sa-sc { width: 70px; } .sec-head .sa-pent { width: 78px; }
+.sec-head .sa-dog { width: 74px; } .sec-head .sa-peek { width: 56px; } .sec-head .sa-sc { width: 70px; } .sec-head .sa-pent { width: 70px; } .levi { overflow: visible; animation: bkSmoulder 3.6s ease-in-out infinite; } @keyframes bkSmoulder { 0%,100% { opacity: .85; filter: drop-shadow(0 0 3px rgba(255,140,30,.35)); } 50% { opacity: 1; filter: drop-shadow(0 0 9px rgba(255,150,40,.7)); } }
 .sec-head.plain { margin: 4px 4px 12px; }
 .sec-head.codex > div:first-child { flex: 1; } .bp-him .sec-head h2 { text-transform: uppercase; letter-spacing: .07em; line-height: 1.12; font: 400 30px Fell, Georgia, serif; color: #ff4a5c; text-shadow: 0 0 16px rgba(192,23,43,.35); }
 .bp-him .sec-title { color: #ff6b7a; font-family: Fell, Georgia, serif; }

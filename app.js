@@ -9,7 +9,7 @@ import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-11.6';
+const VERSION = '2026-10-11.7';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1151,6 +1151,7 @@ const A = {
   },
   vplace(el) { const x = vorrat().find(y => y.id === el.dataset.id); if (!x) return; S.vorratPlace = { ...(S.vorratPlace || {}), [Sh.norm(x.name)]: el.dataset.v }; closeModal(); commit(); },
   kcat(el) { ui.kcat = el.dataset.v; render(); },
+  xcat(el) { ui.xcat = el.dataset.v; render(); },
   ktab(el) {   // a thumb tab: turn to that section (backwards if it lies before, or when leaving a recipe)
     const to = el.dataset.v, from = KTABS.findIndex(([k]) => k === ksec()), ti = KTABS.findIndex(([k]) => k === to), wasR = !!ui.rid;
     if (to === ksec() && !wasR) return;
@@ -1538,7 +1539,7 @@ const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r =>
 // pregnancy: recipes with runny egg / cold smoked salmon get a note until the baby is here (gone by itself from February 2027)
 const PREG_LATER = ['vorrat-eggs-royale', 'vorrat-strammer-max-gurke', 'vorrat-spitzkohl-glasiert', 'ofenkartoffel'];
 const pregLater = r => PREG_LATER.includes(r.id) && today() < '2027-02-01';
-const loveTag = r => r.level === 'fancy' ? '⛧ aus dem Grimoire' : '🩷 mag sie';   // Claude's Vorrat recipes: fancy = his, einfach = hers
+const loveTag = r => r.level === 'fancy' ? '⛧ aus dem Grimoire' : '';   // Claude's fancy ones get their label; "mag sie" is gone (user)
 const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'][d.getMonth()]; };
 const recipeById = id => allRecipes().find(r => r.id === id);
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
@@ -1596,7 +1597,7 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
   return { all: rs.filter(x => !x.h.missing.length).map(x => x.r),
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
-const recipeRow = r => { const him = styleOf(r) === 'him'; return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr ? ' · ' + loveTag(r) : him ? ' · ⛧ aus dem Grimoire' : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
+const recipeRow = r => { const him = styleOf(r) === 'him'; return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : him ? ' · ⛧ aus dem Grimoire' : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
@@ -1662,13 +1663,16 @@ function viewJetzt() {   // per category: shopped for → all at home → only 1
     + withCtx(rows) + `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
 }
 // ✠ Codex Culinarius Infernalis: his fancy recipes; what the pantry already allows gets a stamp and comes first
-function viewCodex() {
-  const V = vorrat(), rs = allRecipes().filter(isCodex).map(r => ({ r, h: V.length ? haveFor(r, V) : { need: 1, missing: [1, 2, 3] } }));
+function viewCodex() {   // by category like Stöbern; per category: can be summoned now (stamp) → 1–2 missing → the rest
+  const V = vorrat(), all = allRecipes().filter(isCodex).map(r => ({ r, h: V.length ? haveFor(r, V) : { need: 1, missing: [1, 2, 3] } }));
   const rank = x => !x.h.missing.length ? 0 : x.h.missing.length <= 2 ? 1 : 2;
-  rs.sort((a, b) => rank(a) - rank(b));
-  const rows = rs.map(({ r, h }) => !h.missing.length ? stampRow(r, `<span class="rstamp pantry">✠ mit dem Vorrat beschwörbar</span>`) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
+  const counts = Object.fromEntries(K.CATS.map(([k]) => [k, all.filter(x => x.r.cat === k).length]));
+  const cat = counts[ui.xcat] ? ui.xcat : (K.CATS.find(([k]) => counts[k]) || ['haupt'])[0];
+  const rows = all.filter(x => x.r.cat === cat).sort((a, b) => rank(a) - rank(b))
+    .map(({ r, h }) => !h.missing.length ? stampRow(r, `<span class="rstamp pantry">✠ mit dem Vorrat beschwörbar</span>`) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
   return `<div class="sec-head codex"><h2>Culinarius<br>Infernalis</h2>${Bk.sectionArt('codex')}</div>`
-    + (rows ? withCtx(rows) : `<p class="muted">Noch leer. Nach dem nächsten Einkauf beschwört Claude hier neue Werke.</p>`);
+    + (all.length ? `<div class="chips ccats">${K.CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="xcat" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>` + withCtx(rows)
+      : `<p class="muted">Noch leer. Nach dem nächsten Einkauf beschwört Claude hier neue Werke.</p>`);
 }
 function viewNext() {
   let h = `<div class="rsrow"><input id="rsearch" class="rsearch" type="search" placeholder="🔎 Rezept suchen…" value="${esc(ui.rq || '')}" autocomplete="off" enterkeyhint="search"><button class="ricon" data-a="rphoto" aria-label="Rezept fotografieren">📷</button><button class="ricon" data-a="redit" aria-label="Eigenes Rezept schreiben">✏️</button></div>`;
@@ -1728,7 +1732,7 @@ function recipePage(r) {
   const d = Bk.deco(theme, r, { cooked, taste: tasteOf(r) }), him = theme === 'him';
   let h = d.side + d.stamp;
   h += `${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<h2 class="bp-title">${r.icon} ${esc(r.title)}</h2>
-    <p class="bp-meta">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr ? ' · ' + loveTag(r) : ''}${r.fav ? ' · 💛 mag sie' : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>
+    <p class="bp-meta">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>
     ${home ? `<span class="bp-tape">${him ? '✠ alles in der Speisekammer' : '🧊 alles daheim'}</span>` : ''}
     ${r.src ? `<p class="muted" style="margin:2px 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:4px 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.note ? `<p class="bp-note">${esc(r.note)}</p>` : ''}
     <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>`;
