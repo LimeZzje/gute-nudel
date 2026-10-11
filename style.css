@@ -351,7 +351,13 @@ textarea { width: 100%; border: 2px solid var(--line); border-radius: 12px; back
 .steps-ol { padding-left: 22px; margin: 6px 0 14px; }
 .steps-ol li { margin: 8px 0; line-height: 1.45; }
 .cookmode { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); padding: 20px 16px; min-height: 60vh; display: flex; flex-direction: column; }
-.cookmode .cstep { font-size: 26px; line-height: 1.4; font-weight: 700; flex: 1; margin: 20px 0; }
+.cookmode .cstep { font-size: 26px; line-height: 1.4; font-weight: 700; margin: 20px 0 12px; }
+.cookmode .cing { list-style: none; margin: 0 0 12px; padding: 12px 14px; background: var(--paper2); border-radius: 12px; font-size: 19px; line-height: 1.5; }
+.cookmode .cing b { display: inline-block; min-width: 3.6em; margin-right: 6px; }
+.cookmode .cing-all { margin-bottom: 10px; }
+.cookmode .cing-list { font-size: 17px; }
+.trip-title { font-weight: 800; font-size: 15px; color: var(--ink2); text-transform: uppercase; letter-spacing: .04em; margin: 26px 4px -8px; }
+.dochstamp { display: inline-block; margin-top: 4px; padding: 1px 8px; border: 2px solid var(--green); color: var(--green); border-radius: 6px; font-weight: 800; font-size: 13px; transform: rotate(-3deg); }
 
 /* ---------- handing tasks to the partner ---------- */
 .txt .tag, .pick .tag, .inc-t .tag, .list-plain .tag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 800; color: var(--accent); vertical-align: middle; }

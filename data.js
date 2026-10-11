@@ -289,6 +289,10 @@ export async function readVorratRezepte() {   // Claude's 5 easy + 5 fancy recip
   if (!configured(getCfg()) || !navigator.onLine) return null;
   try { return (await getJSON('rezepte/vorrat-rezepte.json')) || { recipes: [] }; } catch (e) { return null; }
 }
+export async function readVorratArchiv() {   // every set of those ever written ("Hätten wir kochen können"); null when offline
+  if (!configured(getCfg()) || !navigator.onLine) return null;
+  try { return (await getJSON('rezepte/vorrat-archiv.json')) || { sets: [] }; } catch (e) { return null; }
+}
 export async function readBook() {   // the shared recipe book Claude writes; null when offline/not set up
   if (!configured(getCfg()) || !navigator.onLine) return null;
   try { return (await getJSON('rezepte/buch.json')) || { recipes: [] }; } catch (e) { return null; }

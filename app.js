@@ -8,7 +8,7 @@ import { openGame } from './spiel.js';
 import * as E from './entspannen.js';
 import * as B from './baby.js';
 
-const VERSION = '2026-10-10.1';
+const VERSION = '2026-10-11.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1131,6 +1131,7 @@ const A = {
   },
   vorratdelm(el) { useVorrat([el.dataset.id]); closeModal(); commit(true); },
   cnext() { ui.cstep++; render(); },
+  cingall() { ui.cingAll = !ui.cingAll; render(); },
   cprev() { ui.cstep = Math.max(0, ui.cstep - 1); render(); },
   cookstop() { endCookMode(); render(); },
   steptimer(el) { const r = recipeById(ui.rid), i = el.dataset.i != null ? +el.dataset.i : ui.cstep, [, m] = cookSteps(r, sidesOf())[i]; phoneTimer(m); },
@@ -1487,14 +1488,24 @@ function cookModal(rid) {
 // My own copy with the same id shadows a book recipe (that's how she edits one); S.hiddenRecipes hides book recipes for me.
 const bookRecipes = () => { try { return (JSON.parse(localStorage.getItem('gn_book') || 'null') || { recipes: [] }).recipes || []; } catch (e) { return []; } };
 const vorratRecipes = () => { try { return (JSON.parse(localStorage.getItem('gn_vbook') || 'null') || { recipes: [] }).recipes || []; } catch (e) { return []; } };
+// "Hätten wir kochen können": every earlier Vorrat set, newest trip first, each recipe once (r.trip = when it was written).
+// Their `uses` ids belong to an old fridge, so "Jetzt kochen" matches them by name like any other recipe.
+function archRecipes() {
+  let sets = []; try { sets = (JSON.parse(localStorage.getItem('gn_varch') || 'null') || { sets: [] }).sets || []; } catch (e) {}
+  const seen = new Set(vorratRecipes().map(r => r.id)), out = [];
+  sets.slice().sort((a, b) => b.ts - a.ts).forEach(s => (s.recipes || []).forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); out.push({ ...r, uses: undefined, trip: s.ts }); } }));
+  return out;
+}
 const fixRec = r => ({ tags: [], ing: [], steps: [], icon: '🍽️', min: 0, cat: 'haupt', ...r });
 function allRecipes() {
   const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set(S.hiddenRecipes || []), free = r => !ids.has(r.id) && !hidden.has(r.id);
   return K.RECIPES.filter(free).concat(bookRecipes().filter(free).map(r => fixRec({ ...r, book: true })), mine.filter(r => !hidden.has(r.id)).map(r => fixRec({ ...r, own: true })),
-    vorratRecipes().filter(free).map(r => fixRec({ ...r, vr: true })));
+    vorratRecipes().filter(free).map(r => fixRec({ ...r, vr: true })), archRecipes().filter(free).map(r => fixRec({ ...r, vr: true, arch: true })));
 }
 // the original a changed recipe came from (built-in, photographed book or Claude's Vorrat), if any
-const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r => r.id === id) || vorratRecipes().find(r => r.id === id) || null;
+const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r => r.id === id) || vorratRecipes().find(r => r.id === id) || archRecipes().find(r => r.id === id) || null;
+const loveTag = r => r.level === 'fancy' ? '💙 mag er' : '🩷 mag sie';   // Claude's Vorrat recipes: fancy = his, einfach = hers
+const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'][d.getMonth()]; };
 const recipeById = id => allRecipes().find(r => r.id === id);
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
 // how much she'd want it: her favourites and what she rated well count more (and their kind), what she just had less,
@@ -1510,7 +1521,7 @@ function cookWeight(r) {
 function cookSuggest(n) { // weighted, no repeats; ui.sugSeed changes with "andere Vorschläge"
   let seed = (ui.sugSeed || 1) * 9973 + dayIndex();
   const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  let pool = allRecipes().filter(r => r.cat === 'haupt').map(r => [r, cookWeight(r)]).filter(([, w]) => w > 0);
+  let pool = allRecipes().filter(r => r.cat === 'haupt' && !r.arch).map(r => [r, cookWeight(r)]).filter(([, w]) => w > 0);
   const out = [];
   while (out.length < n && pool.length) {
     let x = rand() * pool.reduce((a, [, w]) => a + w, 0);
@@ -1551,7 +1562,7 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
   return { all: rs.filter(x => !x.h.missing.length).map(x => x.r),
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
-const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? (r.level === 'fancy' ? ' · ✨ fancy' : ' · 🧊 aus dem Vorrat') : r.book ? ' · 📷 aus dem Buch' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}</span>${plateHtml(r, [])}</button>`;
+const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? ' · ' + loveTag(r) : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.trip && (S.cook[r.id] || {}).n ? '<br><span class="dochstamp">✅ Doch gekocht!</span>' : ''}</span>${plateHtml(r, [])}</button>`;
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid) return viewRecipe();
@@ -1561,17 +1572,22 @@ function viewCook() {
   if (wait.length) h += `<div class="card"><h3>📷 Wird gerade umgeschrieben</h3>${wait.map(x => `<div class="shoprow"><span style="flex:1">${x.n} ${x.n === 1 ? 'Foto' : 'Fotos'}${x.note ? ' · „' + esc(x.note) + '“' : ''}<br><span class="muted">${x.up ? 'abgeschickt am ' + esc(shortDate(key(new Date(x.ts)))) : '⏳ wird noch hochgeladen…'}</span></span><button class="mini-btn" data-a="rinboxdel" data-id="${x.id}" aria-label="Zurückziehen">✕</button></div>`).join('')}
     <p class="hint">Claude macht daraus eine Kochbuch-Seite mit Zutaten und Schritten – sie taucht hier auf, sobald sie fertig ist.</p></div>`;
   { const cn = cookableNow(), n = cn.all.length; if (n || cn.almost.length) h += `<button class="card hcard dacard" data-a="ccat" data-v="da"><span class="hl-ic">✅</span><span class="hc-txt"><b>${n ? 'Alles daheim für ' + n + (n === 1 ? ' Gericht' : ' Gerichte') : 'Fast alles daheim'}</b><span class="muted">${cn.almost.length ? cn.almost.length + ' weitere, da fehlen nur 1–2 Sachen' : 'aus dem Kochbuch, mit dem was im Vorrat ist'}</span></span><span class="hc-go">›</span></button>`; }
-  { const vr = allRecipes().filter(r => r.vr); if (vr.length) h += `<button class="card hcard vrcard" data-a="ccat" data-v="vorrat"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was koch ich aus dem Vorrat?</b><span class="muted">${vr.length} Rezepte von Claude – aus dem, was ihr daheim habt</span></span><span class="hc-go">›</span></button>`; }
+  { const vr = vorratRecipes(); if (vr.length) h += `<button class="card hcard vrcard" data-a="ccat" data-v="vorrat"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was koch ich aus dem Vorrat?</b><span class="muted">${vr.length} Rezepte von Claude – aus dem, was ihr daheim habt</span></span><span class="hc-go">›</span></button>`; }
   h += `<div class="card"><h3>Was koch ich heute?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was dir schmeckt.</p>` +
     cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min. ' : ''}${tasteOf(r)}</span></span></button>`).join('') +
     `<button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
-  const ours = allRecipes().filter(isOurs), vr = allRecipes().filter(r => r.vr);
-  const cn = cookableNow(), cats = K.CATS.concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : [], cn.all.length || cn.almost.length ? [['da', '✅ Alles da']] : [], vr.length ? [['vorrat', '🧊 Aus dem Vorrat']] : []), cat = ui.ccat || 'haupt';
+  // Claude's recipes, also once she took one into the cookbook (then it's her copy) — hidden ones stay away
+  const ours = allRecipes().filter(isOurs), byId = x => { const r = recipeById(x.id); return r && { ...r, trip: x.trip }; };
+  const vr = vorratRecipes().map(byId).filter(Boolean), old = archRecipes().map(byId).filter(Boolean);
+  const cn = cookableNow(), cats = K.CATS.concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : [], cn.all.length || cn.almost.length ? [['da', '✅ Alles da']] : [], vr.length ? [['vorrat', '🧊 Aus dem Vorrat']] : [], old.length ? [['alt', '💭 Hätten wir kochen können']] : []), cat = ui.ccat || 'haupt';
+  const loveGroups = xs => [['einfach', '🩷 Mag sie'], ['fancy', '💙 Mag er']].map(([lv, l]) => { const ys = xs.filter(r => (r.level || 'einfach') === lv); return ys.length ? `<div class="sec-title">${l}</div>` + ys.map(recipeRow).join('') : ''; }).join('');
   h += `<div class="chips ccats">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours : cat === 'vorrat' || cat === 'da' ? [] : allRecipes().filter(r => r.cat === cat && !r.vr);
+  const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours : cat === 'vorrat' || cat === 'da' || cat === 'alt' ? [] : allRecipes().filter(r => r.cat === cat && !r.vr);
   if (cat === 'da') h += (cn.all.length ? `<div class="sec-title">✅ Alles daheim</div>` + cn.all.map(recipeRow).join('') : '<p class="muted">Für kein Rezept ist gerade alles da.</p>') +
     (cn.almost.length ? `<div class="sec-title">🛒 Fehlt nur wenig</div>` + cn.almost.map(recipeRow).join('') : '') + `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
-  else if (cat === 'vorrat') h += [['einfach', '😋 Schnell & lecker'], ['fancy', '✨ Fancy']].map(([lv, l]) => { const xs = vr.filter(r => (r.level || 'einfach') === lv); return xs.length ? `<div class="sec-title">${l}</div>` + xs.map(recipeRow).join('') : ''; }).join('');
+  else if (cat === 'vorrat') h += loveGroups(vr);
+  else if (cat === 'alt') h += `<p class="hint" style="margin-top:0">Was Claude euch aus früheren Einkäufen vorgeschlagen hat – die Gerichte, die ihr hättet kochen können. Habt ihr aber (vermutlich) nicht.</p>` +
+    [...new Set(old.map(r => r.trip))].map(t => `<div class="trip-title">🛒 Einkauf vom ${tripDate(t)}</div>` + loveGroups(old.filter(r => r.trip === t))).join('');
   else h += list.map(recipeRow).join('') || '<p class="muted">Noch nichts hier.</p>';
   if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
   return h;
@@ -1581,8 +1597,8 @@ function viewRecipe() {
   const sides = sidesOf(), c = S.cook[r.id];
   let h = `<button class="btn soft" data-a="cookhome" style="margin:4px 0 12px">← Kochbuch</button>`;
   h += `<div class="card">${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<div style="font-size:44px;line-height:1">${r.icon}</div><h2 class="hand" style="font-size:34px;margin:6px 0">${esc(r.title)}</h2>
-    <p class="muted" style="margin:0">${r.min ? '⏱ ' + r.min + ' Min. · ' : ''}für ${esc(r.serves || 2)}${isOurs(r) ? '' : ' · ganz einfach'}${r.fav ? ' · 💛 mag sie' : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>${r.src ? `<p class="muted" style="margin:4px 0 0">📚 ${esc(r.src)}</p>` : ''}${r.note ? `<p>${esc(r.note)}</p>` : ''}
-    <div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div></div>`;
+    <p class="muted" style="margin:0">${r.min ? '⏱ ' + r.min + ' Min. · ' : ''}für ${esc(r.serves || 2)}${r.vr ? ' · ' + loveTag(r) : isOurs(r) ? '' : ' · ganz einfach'}${r.fav ? ' · 💛 mag sie' : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>${r.src ? `<p class="muted" style="margin:4px 0 0">📚 ${esc(r.src)}</p>` : ''}${r.arch ? `<p class="muted" style="margin:4px 0 0">💭 Hätten wir nach dem Einkauf vom ${tripDate(r.trip)} kochen können${c && c.n ? ' – <b>und haben wir doch!</b> ✅' : ''}</p>` : ''}${r.note ? `<p>${esc(r.note)}</p>` : ''}
+    <div class="row" style="justify-content:flex-start;margin-top:8px"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}${r.vr ? `<button class="btn soft" data-a="rpromote" data-id="${r.id}">📖 Ins Kochbuch</button>` : ''}</div></div>`;
   if (r.plate) {
     const missing = Object.keys(K.PLATE).filter(k => !r.plate[k] && !sides.some(s => s.g === k));
     const want = Object.keys(K.PLATE).filter(k => !r.plate[k]);
@@ -1604,13 +1620,35 @@ function viewRecipe() {
   return h;
 }
 const cookSteps = (r, sides) => r.steps.concat(sides.map(s => ['Dazu – ' + s.title + ': ' + s.step[0], s.step[1]]));
+// cooking mode: the amounts a step needs, found by name ("Lachs salzen" → 2 Lachsfilets, 1 Prise Salz). Fuzzy on purpose;
+// whatever it misses is under "📋 Alle Zutaten". Words that only describe (kalte, gehackt, Dose …) don't count.
+const ING_SKIP = new Set('frisch frische frischer frisches kalt kalte kalter kaltes warm warme warmer weich weiche weicher gehackt gehackte gerieben geriebene geriebener gemahlen gemahlener getrocknet getrocknete klein kleine kleiner groß große großer grob fein feine etwas optional nach geschmack oder und für mit aus zum zur dose dosen packung packungen glas stück prise bund zehe zehen scheibe scheiben tk rote roter rotes weiße weißer grüne grüner schwarzer halbe ganze bio form'.split(' '));
+const ingWords = t => String(t || '').toLowerCase().replace(/\([^)]*\)/g, ' ').split(/[^a-zäöüß]+/).filter(Boolean);
+const ingStem = w => w.replace(/(en|er|es|n|e|s)$/, '');
+function stepIng(text, ing) {
+  const sw = ingWords(text), ss = sw.map(ingStem);
+  return ing.filter(([, n]) => n && ingWords(n).some(w => {
+    if (ING_SKIP.has(w)) return false;
+    const a = ingStem(w);
+    if (a.length < 4) return sw.includes(w) || a.length >= 2 && ss.includes(a);      // short words (Öl, Ei/Eier, Reis) only whole
+    // Lachs ↔ Lachsfilets, Salz ↔ salzen, Räucherlachs/Olivenöl/Rinderhack ↔ Lachs/Öl/Hack
+    return sw.some((x, k) => x.startsWith(a) || ss[k].length >= 4 && (a.startsWith(ss[k]) || a.endsWith(ss[k])) || x === 'öl' && w.endsWith('öl'));
+  }));
+}
+const ingLine = ([q, n, from]) => `<li><b>${esc(q || '')}</b> ${esc(n)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}</li>`;
 let wake = null;
 function viewCookMode() {
-  const r = recipeById(ui.rid), steps = cookSteps(r, sidesOf()), i = ui.cstep, [t, m] = steps[i] || ['', 0], last = i >= steps.length - 1;
+  const r = recipeById(ui.rid), sides = sidesOf(), steps = cookSteps(r, sides), i = ui.cstep, [t, m] = steps[i] || ['', 0], last = i >= steps.length - 1;
   if (!wake && navigator.wakeLock) navigator.wakeLock.request('screen').then(w => { wake = w; }).catch(() => {});   // the screen stays on while cooking
+  const side = sides[i - r.steps.length], need = stepIng(t, side ? side.ing : r.ing);
+  const all = r.ing.concat(...sides.map(s => s.ing.map(x => [x[0], x[1], s.title])));
   return `<div class="cookmode"><div class="muted" style="font-weight:800">${r.icon} ${esc(r.title)} · Schritt ${i + 1} von ${steps.length}</div>
     <div class="bar"><i style="width:${(i + 1) / steps.length * 100}%"></i></div>
     <p class="cstep">${esc(t)}</p>
+    ${need.length ? `<ul class="cing">${need.map(ingLine).join('')}</ul>` : ''}
+    <div style="flex:1"></div>
+    <button class="btn soft wide cing-all" data-a="cingall">📋 Alle Zutaten ${ui.cingAll ? '▴' : '▾'}</button>
+    ${ui.cingAll ? `<ul class="cing cing-list">${all.filter(x => x[1]).map(ingLine).join('')}</ul>` : ''}
     ${m ? `<button class="btn blue wide" data-a="cooktimer">⏰ Handy-Timer: ${m} Min.</button>` : ''}
     <div class="row" style="margin-top:18px">${i ? '<button class="btn soft" data-a="cprev">← Zurück</button>' : '<button class="btn soft" data-a="cookstop">Abbrechen</button>'}${last ? '<button class="btn green" data-a="cookdone">Fertig gekocht! 🎉</button>' : '<button class="btn" data-a="cnext">Weiter →</button>'}</div></div>`;
 }
@@ -1717,6 +1755,8 @@ const dropShots = id => { D.stashDel(id).catch(() => {}); };
 async function syncBook() {
   const vb = await D.readVorratRezepte();
   if (vb) { const j = JSON.stringify(vb), was = vorratRecipes().map(r => r.id + r.ts).join(); if (j !== localStorage.getItem('gn_vbook')) { localStorage.setItem('gn_vbook', j); if (vorratRecipes().map(r => r.id + r.ts).join() !== was) render(); } }   // redraw only when something visible changed (a redraw can swallow a tap)
+  const va = await D.readVorratArchiv();
+  if (va) { const j = JSON.stringify(va); if (j !== localStorage.getItem('gn_varch')) { localStorage.setItem('gn_varch', j); if (ui.qtab === 'kochbuch' && ui.cstep == null) render(); } }
   const b = await D.readBook(); if (!b) return;
   const j = JSON.stringify(b); if (j === localStorage.getItem('gn_book')) return;
   localStorage.setItem('gn_book', j);
@@ -1788,10 +1828,16 @@ Object.assign(A, {
     if (!e.title) { msg.textContent = 'Wie heißt das Rezept?'; return; }
     if (!e.ing.length) { msg.textContent = 'Mindestens eine Zutat, damit die Einkaufsliste weiß, was sie braucht.'; return; }
     const id = e.id || 'own-' + uid();
-    const keep = ['photo', 'pages', 'src', 'inbox', 'tags', 'fav', 'mini'].reduce((o, k) => (e[k] ? { ...o, [k]: e[k] } : o), {});
+    const keep = ['photo', 'pages', 'src', 'inbox', 'tags', 'fav', 'mini', 'level', 'promoted'].reduce((o, k) => (e[k] ? { ...o, [k]: e[k] } : o), {});
     const r = { id, cat: e.cat, title: e.title, icon: e.icon, min: e.min, serves: e.serves, ing: e.ing, steps: e.steps, note: e.note, ...(e.cat === 'haupt' ? { plate: e.plate } : {}), ...keep, ts: Date.now() };
     S.myRecipes = (S.myRecipes || []).filter(x => x.id !== id).concat([r]);
     closeModal(); ui.rid = id; ui.sides = []; ui.cstep = null; commit(); scrollTo(0, 0); toast('📖 Gespeichert');
+  },
+  rpromote(el) {   // a Claude Vorrat recipe she wants to keep for good → her own copy (same id: ratings stay), in the normal cookbook
+    const r = recipeById(el.dataset.id); if (!r || !r.vr) return;
+    const { vr, arch, trip, uses, ...keep } = r;
+    S.myRecipes = (S.myRecipes || []).filter(x => x.id !== r.id).concat([{ ...keep, promoted: true, ts: Date.now() }]);
+    commit(); toast('📖 Steht jetzt für immer im Kochbuch');
   },
   redel() {   // own recipe → gone; anything with an original → hidden for me (built-in, book, Vorrat)
     const e = ui.re, orig = origOf(e.id);
