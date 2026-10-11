@@ -9,7 +9,7 @@ import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-11.4';
+const VERSION = '2026-10-11.5';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -537,13 +537,14 @@ function questCard(q, active) {
     ${active ? `<div class="row"><button class="btn" data-a="questdone">Überlebt! +${C.REST_STARS} ⭐</button><button class="btn soft" data-a="questquit">Später</button></div>`
       : `<button class="btn wide" data-a="queststart" data-id="${q.id}">Quest annehmen</button>`}</div>`;
 }
-const QTABS = [['haushalt', '🔁 Routinen'], ['einkauf', '🛒 Einkaufsliste'], ['kochbuch', '📖 Kochbuch'], ['termine', '📅 Termine']];
+const QTABS = [['haushalt', '🔁 Routinen'], ['einkauf', '🛒 Einkaufs\u00ADliste'], ['vorrat', '🧊 Vorrat'], ['kochbuch', '📖 Kochbuch'], ['termine', '📅 Termine']];
 function viewRuhe() {
   if (ui.sub === 'cook') { ui.sub = null; ui.qtab = 'kochbuch'; }   // old way in: the cookbook was a sub-page
   if (!QTABS.some(([k]) => k === ui.qtab)) ui.qtab = 'haushalt';
-  if (ui.qtab === 'kochbuch' && ui.rid) return viewCook();          // a recipe / cooking mode: full page, no chips
-  const h = `<div class="chips qtabs four">${QTABS.map(([k, l]) => { const [ic, ...w] = l.split(' '); return `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}"><span class="qi">${ic}</span>${w.join(' ')}</button>`; }).join('')}</div>`;
+  if (ui.qtab === 'kochbuch' && ui.rid && ui.cstep != null) return viewCook();   // cooking mode: full page, no chips
+  const h = `<div class="chips qtabs four five">${QTABS.map(([k, l]) => { const [ic, ...w] = l.split(' '); return `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}"><span class="qi">${ic}</span>${w.join(' ')}</button>`; }).join('')}</div>`;
   if (ui.qtab === 'einkauf') return h + `<div class="card shoptab">${shopBody(null, true)}</div>`;
+  if (ui.qtab === 'vorrat') return h + `<div class="sec-head plain"><h2>Was ist daheim?</h2>${Bk.sectionArt('daheim')}</div>` + viewDaheim();
   if (ui.qtab === 'kochbuch') return h + viewCook();
   if (ui.qtab === 'termine') return h + viewTermine();
   return h + viewHaushalt();
@@ -1149,6 +1150,7 @@ const A = {
       <div class="row"><button class="btn soft" data-a="close">Abbrechen</button><button class="btn soft" data-a="vorratdelm" data-id="${esc(x.id)}" style="color:var(--danger)">Ist alle</button></div></div>`);
   },
   vplace(el) { const x = vorrat().find(y => y.id === el.dataset.id); if (!x) return; S.vorratPlace = { ...(S.vorratPlace || {}), [Sh.norm(x.name)]: el.dataset.v }; closeModal(); commit(); },
+  kcat(el) { ui.kcat = el.dataset.v; render(); },
   ktab(el) {   // a thumb tab: turn to that section (backwards if it lies before, or when leaving a recipe)
     const to = el.dataset.v, from = KTABS.findIndex(([k]) => k === ksec()), ti = KTABS.findIndex(([k]) => k === to), wasR = !!ui.rid;
     if (to === ksec() && !wasR) return;
@@ -1478,7 +1480,7 @@ function shopBody(item, inTab) {
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
     ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
       : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}
-    ${inTab ? `<button class="card hcard" data-a="ktabgo" data-v="daheim"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was ist daheim?</b><span class="muted">${vorrat().length} Sachen im Vorrat – im Kochbuch unter 🧊 Daheim</span></span><span class="hc-go">›</span></button>` : ''}`;
+    ${inTab ? `<button class="card hcard" data-a="go" data-tab="ruhe" data-q="vorrat"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was ist daheim?</b><span class="muted">${vorrat().length} Sachen im Vorrat – oben unter 🧊 Vorrat</span></span><span class="hc-go">›</span></button>` : ''}`;
 }
 function vorratHtml() {
   const V = vorrat();
@@ -1536,7 +1538,7 @@ const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r =>
 // pregnancy: recipes with runny egg / cold smoked salmon get a note until the baby is here (gone by itself from February 2027)
 const PREG_LATER = ['vorrat-eggs-royale', 'vorrat-strammer-max-gurke', 'vorrat-spitzkohl-glasiert', 'ofenkartoffel'];
 const pregLater = r => PREG_LATER.includes(r.id) && today() < '2027-02-01';
-const loveTag = r => r.level === 'fancy' ? '💙 mag er' : '🩷 mag sie';   // Claude's Vorrat recipes: fancy = his, einfach = hers
+const loveTag = r => r.level === 'fancy' ? '🕯️ aus dem Grimoire' : '🩷 mag sie';   // Claude's Vorrat recipes: fancy = his, einfach = hers
 const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'][d.getMonth()]; };
 const recipeById = id => allRecipes().find(r => r.id === id);
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
@@ -1553,7 +1555,7 @@ function cookWeight(r) {
 function cookSuggest(n) { // weighted, no repeats; ui.sugSeed changes with "andere Vorschläge"
   let seed = (ui.sugSeed || 1) * 9973 + dayIndex();
   const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  let pool = allRecipes().filter(r => r.cat === 'haupt' && !r.arch).map(r => [r, cookWeight(r)]).filter(([, w]) => w > 0);
+  let pool = allRecipes().filter(r => r.cat === 'haupt' && !r.arch && !isCodex(r)).map(r => [r, cookWeight(r)]).filter(([, w]) => w > 0);
   const out = [];
   while (out.length < n && pool.length) {
     let x = rand() * pool.reduce((a, [, w]) => a + w, 0);
@@ -1594,13 +1596,15 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
   return { all: rs.filter(x => !x.h.missing.length).map(x => x.r),
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
-const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? ' · ' + loveTag(r) : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.trip && (S.cook[r.id] || {}).n ? '<br><span class="dochstamp">✅ Doch gekocht!</span>' : ''}</span>${plateHtml(r, [])}</button>`;
+const recipeRow = r => { const him = styleOf(r) === 'him'; return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr ? ' · ' + loveTag(r) : him ? ' · 🕯️ aus seinem Grimoire' : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
 // page goes through the list it came from (ui.kctx). Each recipe page has its style: herStyle → warm, otherwise occult.
-const KTABS = [['daheim', 'Daheim', '#7ea7c4'], ['jetzt', 'Jetzt', '#84a76f'], ['next', 'Nächstes Mal', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c']];
-const SEC_TITLE = { daheim: 'Was ist daheim?', jetzt: 'Was koch ich jetzt?', next: 'Fürs nächste Mal', gekocht: 'Was wir gekocht haben' };
+const KTABS = [['jetzt', 'Kochen', '#84a76f'], ['next', 'Stöbern', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c'], ['codex', 'Codex Culinarius Infernalis', '#1a0d10']];
+const SEC_TITLE = { jetzt: 'Was koch ich jetzt?', next: 'Stöbern', gekocht: 'Was wir gekocht haben' };
+// Claude's fancy recipes live behind their own bookmark (Julia won't cook those) — out of Kochen, Stöbern and suggestions
+const isCodex = r => !!r.vr && r.level === 'fancy';
 // whose style: Claude's easy ones = hers, fancy = his; a photographed page = who took the photo; an own recipe = whose phone
 const styleOf = r => r.level === 'fancy' ? 'him' : r.level === 'einfach' ? 'her' : r.by === 'stefan' ? 'him' : 'her';
 const cookedLog = () => {   // both phones' "cooked" diary, one entry per dish and day, newest first
@@ -1616,7 +1620,7 @@ function kseq() {
 }
 const kidx = () => ui.rid ? 1 + Math.max(0, ((ui.kctx || []).includes(ui.rid) ? ui.kctx : [ui.rid]).indexOf(ui.rid)) : KTABS.findIndex(([k]) => k === ksec());
 function kpage(st) {   // one page of the book: {key, theme, html}
-  if (!st.rid) return { key: 'sec-' + st.sec, theme: 'her', html: sectionPage(st.sec) };
+  if (!st.rid) return { key: 'sec-' + st.sec, theme: st.sec === 'codex' ? 'him' : 'her', html: sectionPage(st.sec) };
   const r = recipeById(st.rid); if (!r) return { key: 'gone', theme: 'her', html: '<p class="muted">Das Rezept gibt es nicht mehr.</p>' };
   if (st.rid === ui.rid) return { key: 'r-' + r.id, theme: styleOf(r), html: recipePage(r) };
   const keepUi = [ui.sides, ui.ingPick, ui.ingExtra]; ui.sides = []; ui.ingPick = {}; ui.ingExtra = [];   // a neighbour page: fresh
@@ -1633,20 +1637,38 @@ function viewCook() {
   return Bk.frame({ tabs: KTABS, cur: ksec(), page: kpage(ui.rid ? { sec: ksec(), rid: ui.rid } : { sec: ksec() }), label: klabel() });
 }
 function sectionPage(k) {
-  const body = k === 'daheim' ? viewDaheim() : k === 'next' ? viewNext() : k === 'gekocht' ? viewGekocht() : viewJetzt();
+  if (k === 'codex') return viewCodex();
+  const body = k === 'next' ? viewNext() : k === 'gekocht' ? viewGekocht() : viewJetzt();
   return `<div class="sec-head"><h2>${SEC_TITLE[k]}</h2>${Bk.sectionArt(k)}</div>` + body;
 }
 // the list for the swipe-through: every recipe row on the page, in order
 const ctxOf = html => [...new Set([...html.matchAll(/data-a="recipe" data-id="([^"]+)"/g)].map(m => m[1]))].join(',');
 const withCtx = html => `<div data-ctx="${esc(ctxOf(html))}">${html}</div>`;
-function viewJetzt() {
-  let h = '';
-  const dishes = (S.dishes || []).map(x => recipeById(x.id)).filter(Boolean), cn = cookableNow();
-  if (dishes.length) h += `<div class="sec-title">🛒 Dafür eingekauft</div>` + dishes.map(recipeRow).join('');
-  if (cn.all.length) h += `<div class="sec-title">✅ Alles daheim</div>` + cn.all.map(recipeRow).join('');
-  if (cn.almost.length) h += `<div class="sec-title">🤏 Fehlt nur wenig</div>` + cn.almost.map(recipeRow).join('');
-  if (!h) return `<div class="card"><p style="margin:0">Gerade passt nichts zu dem, was daheim ist.</p><p class="muted">Schau unter <b>Daheim</b>, ob der Vorrat stimmt – oder plant unter <b>Nächstes Mal</b> den nächsten Einkauf.</p></div>`;
-  return withCtx(h) + `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
+const stampRow = (r, html) => recipeRow({ ...r, badge: html });
+const CAT_SHORT = { haupt: '🍽️ Haupt', salat: '🥗 Salat', dessert: '🍨 Dessert', drink: '🍹 Drinks' };   // one row of chips in the book
+function viewJetzt() {   // per category: shopped for → all at home → only 1–2 things missing
+  const cn = cookableNow(), dish = new Set((S.dishes || []).map(x => x.id)), home = new Set(cn.all.map(r => r.id));
+  const by = cat => {
+    const shop = (S.dishes || []).map(x => recipeById(x.id)).filter(r => r && r.cat === cat && !isCodex(r));
+    return shop.map(r => stampRow(r, `<span class="rstamp shop">🛒 eingekauft</span>`))
+      .concat(cn.all.filter(r => r.cat === cat && !dish.has(r.id) && !isCodex(r)).map(r => stampRow(r, `<span class="rstamp home">✅ alles daheim</span>`)))
+      .concat(cn.almost.filter(r => r.cat === cat && !dish.has(r.id) && !home.has(r.id) && !isCodex(r)).map(recipeRow));
+  };
+  const counts = Object.fromEntries(K.CATS.map(([k]) => [k, by(k).length]));
+  if (!Object.values(counts).some(Boolean)) return `<div class="card"><p style="margin:0">Gerade passt nichts zu dem, was daheim ist.</p><p class="muted">Schau oben unter <b>🧊 Vorrat</b>, ob alles stimmt – oder such dir unter <b>Stöbern</b> was für den nächsten Einkauf aus.</p></div>`;
+  const cat = counts[ui.kcat] ? ui.kcat : K.CATS.find(([k]) => counts[k])[0];
+  const rows = by(cat).join('');
+  return `<div class="chips ccats">${K.CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="kcat" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>`
+    + withCtx(rows) + `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
+}
+// ✠ Codex Culinarius Infernalis: his fancy recipes; what the pantry already allows gets a stamp and comes first
+function viewCodex() {
+  const V = vorrat(), rs = allRecipes().filter(isCodex).map(r => ({ r, h: V.length ? haveFor(r, V) : { need: 1, missing: [1, 2, 3] } }));
+  const rank = x => !x.h.missing.length ? 0 : x.h.missing.length <= 2 ? 1 : 2;
+  rs.sort((a, b) => rank(a) - rank(b));
+  const rows = rs.map(({ r, h }) => !h.missing.length ? stampRow(r, `<span class="rstamp pantry">✠ mit dem Vorrat beschwörbar</span>`) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
+  return `<div class="sec-head codex"><div><div class="bp-kick">Codex Culinarius Infernalis</div><h2>Seine Werke</h2><p class="muted" style="margin:2px 0 0">Die aufwendigen Rezepte – für besondere Abende.</p></div>${Bk.sectionArt('codex')}</div>`
+    + (rows ? withCtx(rows) : `<p class="muted">Noch leer. Nach dem nächsten Einkauf beschwört Claude hier neue Werke.</p>`);
 }
 function viewNext() {
   let h = `<input id="rsearch" class="rsearch" type="search" placeholder="🔎 Rezept suchen…" value="${esc(ui.rq || '')}" autocomplete="off" enterkeyhint="search"><div id="rresults">${searchHtml()}</div>`;
@@ -1654,11 +1676,11 @@ function viewNext() {
   h += `<div class="card"><h3>Was hättet ihr gern?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was euch schmeckt.</p><div data-ctx="">` +
     cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min. ' : ''}${tasteOf(r)}</span></span></button>`).join('') +
     `</div><button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
-  const ours = allRecipes().filter(isOurs), cats = K.CATS.concat([['fav', '💛 Lieblinge'], ['her', '🩷 Mag sie'], ['him', '💙 Mag er']], ours.length ? [['ours', '📷 Unsere']] : []);
+  const ours = allRecipes().filter(isOurs), cats = K.CATS.map(([k, l]) => [k, CAT_SHORT[k] || l]).concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : []);
   const cat = cats.some(([k]) => k === ui.ccat) ? ui.ccat : 'haupt';
   h += `<div class="chips ccats">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours
-    : cat === 'her' || cat === 'him' ? allRecipes().filter(r => r.vr && styleOf(r) === cat) : allRecipes().filter(r => r.cat === cat);
+  const list = (cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours
+    : allRecipes().filter(r => r.cat === cat)).filter(r => !isCodex(r));
   const rows = list.map(recipeRow).join(''); h += rows ? withCtx(rows) : '<p class="muted">Noch nichts hier.</p>';
   if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
   h += `<div class="sec-title">Neues Rezept</div><div class="toolrow"><button class="btn blue" data-a="rphoto">📷 Rezept fotografieren</button><button class="btn soft" data-a="redit">✏️ Eigenes Rezept</button></div>`;
@@ -1669,7 +1691,7 @@ function viewNext() {
 }
 function searchHtml() {   // every recipe; title, ingredients and tags count
   const q = Sh.norm(ui.rq || ''); if (!q) return '';
-  const hits = allRecipes().filter(r => (r.title + ' ' + r.ing.map(x => x[1]).join(' ') + ' ' + r.tags.join(' ')).toLowerCase().includes(q));
+  const hits = allRecipes().filter(r => !isCodex(r) && (r.title + ' ' + r.ing.map(x => x[1]).join(' ') + ' ' + r.tags.join(' ')).toLowerCase().includes(q));
   const rows = hits.slice(0, 40).map(recipeRow).join(''); return rows ? withCtx(rows) : '<p class="muted">Nichts gefunden.</p>';
 }
 function viewGekocht() {

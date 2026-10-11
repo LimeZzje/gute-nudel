@@ -19,71 +19,36 @@ const dateLat = ts => { const d = new Date(ts); return roman(d.getDate()) + '. '
 const SAGE = ['#7f9c6e', '#93ad7f', '#6b8a5c', '#a5bb8f'], ROSE = '#e7a2a9', GOLD = '#c9a45c';
 
 // a soft, curly blob of fur: overlapping curls on the outline and inside, two-tone like their poodle
-function fluff(cx, cy, rx, ry, r, cols, curl = 0.3, dark = '#3d3430', line = '') {
-  const C = [];   // [x, y, radius, colour, opacity, curl?]
-  const n = Math.max(8, Math.round((rx + ry) / 4.2));
-  C.push([cx, cy, 0, cols[0], 1, false, rx * .92, ry * .92]);
-  for (let i = 0; i < n; i++) {
-    const a = i / n * Math.PI * 2 + r() * .3, rr = Math.min(rx, ry) * (.24 + r() * .12);
-    C.push([cx + Math.cos(a) * rx * .86, cy + Math.sin(a) * ry * .86, rr, cols[r() < .7 ? 0 : 1 + Math.floor(r() * (cols.length - 1))], 1, false]);
-  }
-  const m = Math.round(rx * ry / 120);
-  for (let i = 0; i < m; i++) {
-    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * .78, rr = 3 + r() * 2.6;
-    C.push([cx + Math.cos(a) * rx * d, cy + Math.sin(a) * ry * d, rr, pick(cols, r), .45, r() < curl]);
-  }
-  const shape = (c, grow, fill) => c[6] ? `<ellipse cx="${f1(c[0])}" cy="${f1(c[1])}" rx="${f1(c[6] + grow)}" ry="${f1(c[7] + grow)}" fill="${fill}"/>` : `<circle cx="${f1(c[0])}" cy="${f1(c[1])}" r="${f1(c[2] + grow)}" fill="${fill}"/>`;
-  let s = line ? C.filter(c => c[4] === 1).map(c => shape(c, 1.4, line)).join('') : '';   // a soft outline so light fur reads on light paper
-  for (const c of C) {
-    s += c[4] === 1 ? shape(c, 0, c[3]) : `<circle cx="${f1(c[0])}" cy="${f1(c[1])}" r="${f1(c[2])}" fill="${c[3]}" opacity=".45"/>`;
-    if (c[5]) s += `<path d="M${f1(c[0] - c[2] * .6)},${f1(c[1])} a${f1(c[2] * .6)},${f1(c[2] * .6)} 0 1 1 ${f1(c[2] * .9)},${f1(c[2] * .5)}" fill="none" stroke="${dark}" stroke-opacity=".28" stroke-width=".9" stroke-linecap="round"/>`;
-  }
-  return s;
+// their poodle, just the head (user: minimal, aesthetic): a calm flat illustration in the photo's colours — cream face,
+// apricot topknot, dark grey ears with an apricot top, blue-grey neck, tan harness strap. `sleep` closes the eyes.
+// cloud(): an ellipse with soft scalloped edges = curly fur without the noise
+function cloud(cx, cy, rx, ry, n, rot = 0) {
+  const P = Array.from({ length: n }, (_, i) => { const a = (i / n * 360 + rot) * Math.PI / 180; return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]; });
+  return 'M' + P.map((p, i) => { const q = P[(i + 1) % n], d = Math.hypot(q[0] - p[0], q[1] - p[1]) * .56; return (i ? '' : f1(p[0]) + ',' + f1(p[1]) + ' ') + `A${f1(d)},${f1(d)} 0 0 1 ${f1(q[0])},${f1(q[1])}`; }).join(' ') + 'Z';
 }
-// their poodle (user's photo: cream/apricot curls, blue-grey neck and chest, dark grey ears with an apricot top, dark tail,
-// tan harness with a D-ring), sitting a bit turned to the right, tongue out. `mood`: 'sit' | 'sleep'
-const CREAM = ['#f2e8d8', '#ece0cc', '#f7efe3', '#e4d3b8'], APRI = ['#e3c7a0', '#d8b689', '#ecd5b3', '#f0e2cc'],
-  GREY = ['#a9a7a8', '#9b989b', '#b6b4b4', '#8f8d92'], DARK = ['#55504f', '#4a4545', '#625c5a', '#403c3c'];
 function poodle(seed = 7, mood = 'sit') {
-  const r = rng(seed), CL = '#9c8a6e', OL = '#cdb898', OD = '#2f2b2b', HAUNCH = ['#e8dac3', '#e0d0b5', '#ece0cc', '#d9c7aa'];
-  if (mood === 'sleep') {
-    return `<svg viewBox="0 0 240 130" class="poodle sleep" aria-hidden="true">
-      <ellipse cx="120" cy="120" rx="104" ry="7" fill="#000" opacity=".08"/>
-      <g class="breath">${fluff(212, 104, 22, 10, r, DARK, .3, '#222')}${fluff(140, 88, 78, 32, r, CREAM, .35, CL, '#cdb898')}${fluff(190, 100, 26, 18, r, CREAM, .35, CL, '#cdb898')}
-      ${fluff(80, 96, 22, 12, r, CREAM, .35, CL, '#cdb898')}${fluff(108, 72, 22, 18, r, GREY, .3, '#555')}
-      <path d="M120,62 C126,80 126,104 120,116" fill="none" stroke="#c9a87e" stroke-width="7" stroke-linecap="round"/>
-      ${fluff(66, 70, 30, 26, r, CREAM, .35, CL, '#cdb898')}${fluff(58, 50, 20, 13, r, APRI, .35, CL, '#cdb898')}${fluff(36, 80, 17, 11, r, CREAM, .3, CL, '#cdb898')}
-      <ellipse cx="22" cy="80" rx="5" ry="4" fill="#1e1a18"/>
-      <path d="M50,68 q6,4 12,0" fill="none" stroke="#2b2420" stroke-width="2" stroke-linecap="round"/>
-      <g>${fluff(84, 84, 12, 24, r, DARK, .3, '#222')}${fluff(84, 62, 10, 8, r, APRI, .3, CL)}</g></g>
-      <g class="zzz" font-family="Caveat,cursive" fill="#8a7a70"><text x="20" y="40" font-size="16">z</text><text x="8" y="26" font-size="20">z</text><text x="-4" y="10" font-size="24">Z</text></g></svg>`;
-  }
-  return `<svg viewBox="0 0 200 270" class="poodle" aria-hidden="true">
-    <ellipse cx="112" cy="262" rx="84" ry="7" fill="#000" opacity=".08"/>
-    <g class="tail">${fluff(166, 250, 26, 11, r, DARK, .3, '#222', OD)}</g>
-    ${fluff(136, 222, 33, 34, r, HAUNCH, .35, CL, OL)}
-    ${fluff(102, 190, 36, 52, r, CREAM, .35, CL, OL)}
-    ${fluff(154, 253, 16, 8, r, HAUNCH, .2, CL, OL)}
-    ${fluff(88, 222, 11, 36, r, CREAM, .3, CL, OL)}${fluff(115, 222, 11, 36, r, CREAM, .3, CL, OL)}
-    ${fluff(86, 256, 13, 7, r, CREAM, .2, CL, OL)}${fluff(117, 256, 13, 7, r, CREAM, .2, CL, OL)}
-    <path d="M80,258 v-3 M86,258 v-4 M92,258 v-3 M111,258 v-3 M117,258 v-4 M123,258 v-3" stroke="${CL}" stroke-opacity=".45" stroke-width="1"/>
-    ${fluff(101, 134, 24, 32, r, GREY, .3, '#555', '#8a888b')}${fluff(101, 160, 22, 12, r, GREY, .3, '#555')}
-    <g class="harness"><path d="M80,146 C86,160 94,168 101,172 C108,168 116,160 122,146" fill="none" stroke="#c9a87e" stroke-width="8" stroke-linecap="round"/>
-    <path d="M80,146 C86,160 94,168 101,172 C108,168 116,160 122,146" fill="none" stroke="#a8865c" stroke-width="1" stroke-dasharray="2 2" opacity=".8"/>
-    <rect x="91" y="166" width="20" height="50" rx="8" fill="#c9a87e"/><rect x="94" y="170" width="14" height="42" rx="5" fill="none" stroke="#e6d2b3" stroke-width="1" stroke-dasharray="2 2"/>
-    <rect x="94" y="178" width="14" height="6" rx="1.5" fill="#3a3533"/><path d="M96,194 h10 l-2,8 h-6 z" fill="none" stroke="#cfd3d6" stroke-width="2"/></g>
-    <g class="head">
-      ${fluff(132, 96, 11, 23, r, DARK, .3, '#222', OD)}
-      ${fluff(104, 82, 30, 30, r, CREAM, .35, CL, OL)}
-      ${fluff(100, 52, 25, 16, r, APRI, .35, CL, OL)}
-      ${fluff(125, 98, 16, 12, r, CREAM, .3, CL, OL)}${fluff(120, 106, 11, 6, r, APRI, .3, CL)}
-      <ellipse cx="136" cy="93" rx="6.4" ry="5.2" fill="#1e1a18"/><ellipse cx="134.4" cy="91.4" rx="2" ry="1.2" fill="#fff" opacity=".5"/>
-      <path d="M116,104 C122,109 130,108 135,102" fill="#5a2c33" stroke="#2b2420" stroke-width="1.3" stroke-linecap="round"/>
-      <path class="tongue" d="M123,105 C121,117 132,119 133,110 C133,106 130,104 126,104 Z" fill="#e88b98" stroke="#c9677a" stroke-width=".8"/>
-      <ellipse cx="107" cy="80" rx="3.3" ry="3.5" fill="#2a2321"/><circle cx="108.1" cy="78.8" r="1.1" fill="#fff"/>
-      <ellipse cx="122" cy="78" rx="2.9" ry="3.1" fill="#2a2321"/><circle cx="123" cy="77" r=".9" fill="#fff"/>
-      <g class="ear">${fluff(76, 104, 16, 27, r, DARK, .3, '#222', OD)}${fluff(78, 78, 14, 10, r, APRI, .3, CL, OL)}</g>
-    </g></svg>`;
+  const sleep = mood === 'sleep', L = '#cdb898', W = 1.4;
+  return `<svg viewBox="0 0 120 124" class="poodle${sleep ? ' sleep' : ''}" aria-hidden="true">
+    <g class="${sleep ? 'breath' : 'head'}">
+    <path d="M38,92 C46,104 76,106 86,92 L92,124 L32,124 Z" fill="#a9a7a8"/>
+    <path d="${cloud(62, 108, 26, 9, 9, 10)}" fill="#a9a7a8" stroke="#8f8d90" stroke-width="1"/>
+    <path d="M34,112 C48,121 76,121 90,112" fill="none" stroke="#c9a87e" stroke-width="7" stroke-linecap="round"/>
+    <path d="M34,112 C48,121 76,121 90,112" fill="none" stroke="#e6d2b3" stroke-width="1" stroke-dasharray="2 2.4"/>
+    <g class="ear2"><path d="${cloud(88, 66, 9, 19, 9, 0)}" fill="#55504f" stroke="#3d3939" stroke-width="${W}"/></g>
+    <path d="${cloud(60, 64, 28, 29, 15, 6)}" fill="#f3eadb" stroke="${L}" stroke-width="${W}"/>
+    <path d="${cloud(58, 36, 22, 13, 11, 0)}" fill="#e6cba5" stroke="#d2b48a" stroke-width="${W}"/>
+    <path d="${cloud(77, 74, 15, 11, 9, 20)}" fill="#f6efe4" stroke="${L}" stroke-width="${W}"/>
+    <ellipse cx="66" cy="77" rx="5" ry="3" fill="#eaa1aa" opacity=".35"/>
+    <ellipse cx="89" cy="69" rx="6" ry="4.8" fill="#2a2422"/><ellipse cx="87.6" cy="67.6" rx="1.8" ry="1" fill="#fff" opacity=".55"/>
+    ${sleep ? `<path d="M56,60 q4,3 8,0 M71,58 q3.4,2.6 6.8,0" fill="none" stroke="#2a2422" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M74,82 q5,2 9,-1" fill="none" stroke="#7a6a60" stroke-width="1.3" stroke-linecap="round"/>`
+    : `<g class="eyes"><ellipse cx="60" cy="59" rx="3.2" ry="3.5" fill="#2a2422"/><circle cx="61.2" cy="57.8" r="1.1" fill="#fff"/>
+      <ellipse cx="75" cy="57" rx="2.8" ry="3.1" fill="#2a2422"/><circle cx="76" cy="56" r=".9" fill="#fff"/></g>
+      <path d="M70,82 C76,87 84,86 90,78" fill="#5a2c33" stroke="#2a2422" stroke-width="1.2" stroke-linecap="round"/>
+      <path class="tongue" d="M77,84 C76,94 85,95 86,87 C86,84 83,82 80,83 Z" fill="#e88b98" stroke="#c9677a" stroke-width=".8"/>`}
+    <g class="ear"><path d="${cloud(34, 72, 12, 23, 11, 0)}" fill="#55504f" stroke="#3d3939" stroke-width="${W}"/>
+      <path d="${cloud(36, 50, 11, 8, 8, 0)}" fill="#e6cba5" stroke="#d2b48a" stroke-width="${W}"/></g>
+    </g>${sleep ? `<g class="zzz" font-family="Caveat,cursive" fill="#8a7a70"><text x="96" y="36" font-size="13">z</text><text x="104" y="24" font-size="16">z</text><text x="110" y="10" font-size="19">Z</text></g>` : ''}</svg>`;
 }
 
 // Hase peeking over an edge (ears twitch); or hopping along (side view)
@@ -261,8 +226,8 @@ export function deco(theme, r, o = {}) {
   };
 }
 // a little picture for the top of each section page
-export const sectionArt = k => k === 'jetzt' ? `<div class="sa-dog">${poodle(7)}</div>` : k === 'gekocht' ? `<div class="sa-sleep">${poodle(9, 'sleep')}</div>`
-  : k === 'daheim' ? `<div class="sa-peek">${bunnyPeek()}</div>` : `<div class="sa-sc">${scales()}</div>`;
+export const sectionArt = k => k === 'jetzt' ? `<div class="sa-dog">${poodle(7)}</div>` : k === 'gekocht' ? `<div class="sa-dog">${poodle(9, 'sleep')}</div>`
+  : k === 'daheim' ? `<div class="sa-peek">${bunnyPeek()}</div>` : k === 'codex' ? `<div class="sa-pent"><svg viewBox="0 0 120 120">${pentagram(60, 60, 44, RED, false)}<g transform="translate(25 22) scale(.7)">${goat()}</g></svg></div>` : `<div class="sa-sc">${scales()}</div>`;
 
 let A = null;                      // the app's side: at(i) → page, i(), n(), onTurn(i), label(), tab()
 const keep = { key: '', top: 0 };  // the open page's scroll position survives re-renders
@@ -396,7 +361,20 @@ const CSS = `
 /* section pages */
 .sec-head { display: flex; align-items: flex-end; gap: 10px; margin: 0 0 10px; }
 .sec-head h2 { flex: 1; margin: 0; font: 700 30px/1.1 'Dancing Script', Caveat, cursive; color: #5f7d5a; }
-.sec-head .sa-dog { width: 64px; } .sec-head .sa-sleep { width: 110px; } .sec-head .sa-peek { width: 56px; } .sec-head .sa-sc { width: 70px; }
+.sec-head .sa-dog { width: 74px; } .sec-head .sa-peek { width: 56px; } .sec-head .sa-sc { width: 70px; } .sec-head .sa-pent { width: 78px; }
+.sec-head.plain { margin: 4px 4px 12px; }
+.sec-head.codex > div:first-child { flex: 1; } .bp-him .sec-head h2 { font: 400 30px Fell, Georgia, serif; color: #ff4a5c; text-shadow: 0 0 16px rgba(192,23,43,.35); }
+.bp-him .sec-title { color: #ff6b7a; font-family: Fell, Georgia, serif; }
+/* the Codex bookmark: black with a subtle brimstone glow */
+.cb-tab[data-v="codex"] { background: linear-gradient(180deg, #2a0f13, #12080a); color: #ff6a4a; font-family: Fell, Georgia, serif; font-weight: 400; font-size: 12.5px; letter-spacing: .06em; text-shadow: 0 0 6px rgba(255,90,40,.6); animation: bkBrim 3.2s ease-in-out infinite; }
+@keyframes bkBrim { 0%,100% { box-shadow: 2px 2px 6px rgba(0,0,0,.2), 0 0 6px rgba(255,80,20,.25); } 50% { box-shadow: 2px 2px 6px rgba(0,0,0,.2), 0 0 14px 2px rgba(255,110,30,.45); } }
+/* rows: his recipes in the occult look, stamps on the rows */
+.recipe-row.row-him { background: linear-gradient(135deg, #1d1416, #110c0d); color: #f1e8dc; border: 1px solid rgba(192,23,43,.45); }
+.recipe-row.row-him b { font-family: Fell, Georgia, serif; font-weight: 400; font-size: 1.08em; color: #ff8593; } .recipe-row.row-him .muted { color: #bba99b; }
+.rstamp { display: inline-block; margin-top: 4px; padding: 1px 8px; border: 2px solid currentColor; border-radius: 6px; font-weight: 800; font-size: 12.5px; transform: rotate(-2deg); }
+.rstamp.shop { color: #3f7fbf; } .rstamp.home { color: #4f9a5b; } .rstamp.pantry { color: #ff6a4a; border-style: double; border-width: 3px; font-family: Fell, Georgia, serif; font-weight: 400; font-size: 13.5px; }
+.bp .ccats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -4px 10px; padding: 2px 4px; } .bp .ccats::-webkit-scrollbar { display: none; } .bp .ccats .chip { flex: none; white-space: nowrap; }
+.ccats .chip:disabled { opacity: .4; } .ccats .chip .cnt { font-size: .8em; opacity: .7; }
 /* shared bits of a recipe page */
 .bp-ing { list-style: none; padding: 0; margin: 0; }
 .bp-go { display: block; width: 100%; margin: 14px 0 4px; }
@@ -431,11 +409,11 @@ const CSS = `
 @keyframes bkHop { 0% { left: -60px; transform: translateY(0); } 4%,12%,20%,28%,36%,44%,52%,60%,68%,76%,84%,92% { transform: translateY(-16px); } 8%,16%,24%,32%,40%,48%,56%,64%,72%,80%,88%,96% { transform: translateY(0); } 100% { left: 105%; } }
 .bunny .ears { transform-origin: 44px 44px; animation: bkTwitch 4s ease-in-out infinite; }
 @keyframes bkTwitch { 0%,86%,100% { transform: rotate(0); } 90% { transform: rotate(-6deg); } 94% { transform: rotate(4deg); } }
-.poodle .tail { transform-origin: 144px 250px; animation: bkWag .5s ease-in-out infinite alternate; }
-@keyframes bkWag { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
-.poodle .head { transform-origin: 102px 130px; animation: bkTilt 6s ease-in-out infinite; } @keyframes bkTilt { 0%,70%,100% { transform: rotate(0); } 78%,88% { transform: rotate(-7deg); } }
-.poodle .tongue { animation: bkPant .45s ease-in-out infinite alternate; transform-origin: 127px 105px; } @keyframes bkPant { to { transform: scaleY(1.12); } }
-.poodle.sleep .breath { transform-origin: 120px 120px; animation: bkBreath 3.4s ease-in-out infinite; } @keyframes bkBreath { 50% { transform: scale(1.025, 1.04); } }
+.poodle .head { transform-origin: 60px 110px; animation: bkTilt 7s ease-in-out infinite; } @keyframes bkTilt { 0%,70%,100% { transform: rotate(0); } 78%,88% { transform: rotate(-6deg); } }
+.poodle .eyes { transform-origin: 68px 58px; animation: bkBlink 5s infinite; } @keyframes bkBlink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+.poodle .ear { transform-origin: 36px 48px; animation: bkEar 7s ease-in-out infinite; } @keyframes bkEar { 0%,70%,100% { transform: rotate(0); } 80% { transform: rotate(6deg); } }
+.poodle .tongue { animation: bkPant .45s ease-in-out infinite alternate; transform-origin: 81px 84px; } @keyframes bkPant { to { transform: scaleY(1.12); } }
+.poodle.sleep .breath { transform-origin: 60px 120px; animation: bkBreath 3.4s ease-in-out infinite; } @keyframes bkBreath { 50% { transform: scale(1.015, 1.03); } }
 .zzz text { animation: bkZ 3.4s ease-in-out infinite; opacity: 0; } .zzz text:nth-child(2) { animation-delay: .6s; } .zzz text:nth-child(3) { animation-delay: 1.2s; }
 @keyframes bkZ { 20%,70% { opacity: .9; } 100% { opacity: 0; transform: translate(-6px,-8px); } }
 .scales .beam { transform-origin: 60px 22px; animation: bkSwing 5s ease-in-out infinite; } @keyframes bkSwing { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }

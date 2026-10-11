@@ -748,6 +748,7 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .qtabs.four { display: grid; grid-template-columns: repeat(4, 1fr); }
 .qtabs.four .chip { display: grid; justify-items: center; padding: 5px 2px; font-size: 12px; line-height: 1.2; }
 .qtabs.four .chip .qi { font-size: 19px; }
+.qtabs.five { grid-template-columns: repeat(5, 1fr); gap: 4px; } .qtabs.five .chip { font-size: 11.5px; white-space: normal; hyphens: manual; padding: 5px 1px; }
 
 /* ---------- 🍼 Babyerstausstattung event: soft night sky, warm pastels ---------- */
 :root { --bb1: #fff0e6; --bb2: #f1eaff; --bbink: #5b4552; --bbrose: #e57f97; --bbrose2: #fde3ea; --bbmoon: #f2c25a; --bbcloud: #ffffff; --bbline: #f0dcd6; --bbtile: rgba(255, 255, 255, .72); }
