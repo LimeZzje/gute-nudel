@@ -7,8 +7,9 @@ import * as Car from './car.js';
 import { openGame } from './spiel.js';
 import * as E from './entspannen.js';
 import * as B from './baby.js';
+import * as Bk from './book.js';
 
-const VERSION = '2026-10-11.2';
+const VERSION = '2026-10-11.3';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -64,6 +65,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     thanks: (S.thanks || []).filter(t => Date.now() - t.ts < MONTH),
     stats: myStats(),
     vorrat: vorratPost(),
+    cooked: (S.cookLog || []).slice(-300),
     baby: S.babyMine || {},
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
@@ -176,6 +178,7 @@ async function syncPost() {
     if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
     if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; }
+    if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; }
     let babyNews = 0;
     if (p.baby && JSON.stringify(p.baby) !== JSON.stringify(S.partnerBaby || {})) { S.partnerBaby = p.baby; babyNews = babyReconcile().add; changed = true; }
     const pc = Car.raw(p.car);
@@ -285,7 +288,13 @@ function dedupeChoreItems() { // one open to-do per chore; none for chores that 
   const cids = new Set(S.chores.map(c => c.id)), one = new Set();
   S.items = S.items.filter(i => !i.chore || (cids.has(i.chore) && !(i.where === 'heute' && (one.has(i.chore) || !one.add(i.chore)))));
 }
+// 📅 Gekocht (2026-10-11): before the diary existed only "last cooked" was kept per dish → one "zuletzt" entry each, once
+function backfillCookLog() {
+  if (S.cookLog) return;
+  S.cookLog = Object.entries(S.cook || {}).filter(([, c]) => c && c.last).map(([rid, c]) => ({ id: 'old-' + rid, rid, day: c.last, ts: new Date(c.last + 'T19:00').getTime(), taste: c.taste, old: true }));
+}
 function scheduleChores() {
+  backfillCookLog();
   dedupeChoreItems();
   const d = today();
   let added = 0;
@@ -1127,8 +1136,18 @@ const A = {
     const x = vorrat().find(y => y.id === el.dataset.id); if (!x) return;
     modal(`<div style="text-align:left"><h2 style="text-align:center">🧊 ${esc(x.name)}</h2><p class="muted">Wie viel ist noch da?</p>
       <form class="add" data-f="vorratset" data-id="${esc(x.id)}"><input name="t" value="${esc(x.left ? fmtQty(x.left) : '')}" placeholder="z.B. 250 g, 3 Stück, 1 Dose" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Speichern">✓</button></form>
+      <p class="muted" style="margin:12px 0 6px">Wo liegt es?</p><div class="chips">${PLACES.map(([k, ic, l]) => `<button class="chip ${placeOf(x) === k ? 'on' : ''}" data-a="vplace" data-id="${esc(x.id)}" data-v="${k}">${ic} ${l}</button>`).join('')}</div>
       <div class="row"><button class="btn soft" data-a="close">Abbrechen</button><button class="btn soft" data-a="vorratdelm" data-id="${esc(x.id)}" style="color:var(--danger)">Ist alle</button></div></div>`);
   },
+  vplace(el) { const x = vorrat().find(y => y.id === el.dataset.id); if (!x) return; S.vorratPlace = { ...(S.vorratPlace || {}), [Sh.norm(x.name)]: el.dataset.v }; closeModal(); commit(); },
+  ktab(el) { ui.ktab = el.dataset.v; ui.rq = ''; render(); scrollTo(0, 0); },
+  ktabgo(el) { ui.tab = 'ruhe'; ui.qtab = 'kochbuch'; ui.rid = null; ui.rbook = null; ui.ktab = el.dataset.v; render(); scrollTo(0, 0); },
+  bookopen(el) {   // "neue Seiten" opens at the first page of the current Vorrat set, otherwise where she left off
+    const who = el.dataset.who, pages = bookPages(who), first = pages.findIndex(p => p.cur);
+    ui.rbook = { who, page: el.dataset.cur && first >= 0 ? Bk.pageOf(pages, first) : bookPageSaved()[who] || 0 }; render(); scrollTo(0, 0);
+  },
+  bookclose() { ui.rbook = null; render(); scrollTo(0, 0); },
+  bookrecipe(el) { ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; render(); scrollTo(0, 0); },
   vorratdelm(el) { useVorrat([el.dataset.id]); closeModal(); commit(true); },
   cnext() { ui.cstep++; render(); },
   cingall() { ui.cingAll = !ui.cingAll; render(); },
@@ -1143,6 +1162,7 @@ const A = {
   taste(el) {
     const r = recipeById(ui.rid), v = +el.dataset.v, c = S.cook[r.id] || { n: 0 };
     S.cook[r.id] = { n: c.n + 1, last: today(), taste: v };
+    (S.cookLog = S.cookLog || []).push({ id: uid(), rid: r.id, title: r.title, icon: r.icon, day: today(), ts: Date.now(), taste: v });
     endCookMode(); closeModal();
     // the "Kochen" chore on today's page counts as done
     const k = S.items.find(i => i.where === 'heute' && i.chore && ((S.chores.find(x => x.id === i.chore) || {}).tools || []).includes('recipes'));
@@ -1449,7 +1469,7 @@ function shopBody(item, inTab) {
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
     ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
       : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}
-    ${inTab ? vorratHtml() : ''}`;
+    ${inTab ? `<button class="card hcard" data-a="ktabgo" data-v="daheim"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was ist daheim?</b><span class="muted">${vorrat().length} Sachen im Vorrat – im Kochbuch unter 🧊 Daheim</span></span><span class="hc-go">›</span></button>` : ''}`;
 }
 function vorratHtml() {
   const V = vorrat();
@@ -1566,34 +1586,108 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
 const recipeRow = r => `<button class="card recipe-row" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${r.vr ? ' · ' + loveTag(r) : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.trip && (S.cook[r.id] || {}).n ? '<br><span class="dochstamp">✅ Doch gekocht!</span>' : ''}</span>${plateHtml(r, [])}</button>`;
+// ---------- the Kochbuch (restructured 2026-10-11): four questions, four tabs ----------
+// 🧊 Daheim = what's home · 🍳 Jetzt = what can I cook now · 🛒 Nächstes Mal = what do we want next · 📅 Gekocht = what we had.
+// Claude's Vorrat recipes live in two books (book.js): hers (einfach + her 💛 favourites), his (fancy).
+const KTABS = [['daheim', '🧊', 'Daheim'], ['jetzt', '🍳', 'Jetzt'], ['next', '🛒', 'Nächstes Mal'], ['gekocht', '📅', 'Gekocht']];
+// where each book was left open: this phone only (a convenience, not worth a backup)
+const bookPageSaved = () => { try { return JSON.parse(localStorage.getItem('gn_bookpage') || '{}'); } catch (e) { return {}; } };
+const saveBookPage = i => { if (!ui.rbook) return; ui.rbook.page = i; try { localStorage.setItem('gn_bookpage', JSON.stringify({ ...bookPageSaved(), [ui.rbook.who]: i })); } catch (e) {} };
+const vbookTs = () => { try { return (JSON.parse(localStorage.getItem('gn_vbook') || 'null') || {}).ts || Date.now(); } catch (e) { return Date.now(); } };   // no date = the newest pages
+// a book = its recipes in the order they came in (it grows like a diary); her favourites from the start open hers
+function bookPages(who) {
+  const hidden = new Set(S.hiddenRecipes || []), cur = new Set(vorratRecipes().map(r => r.id)), seen = new Set(), out = [];
+  const add = (id, ts) => { if (seen.has(id) || hidden.has(id)) return; const r = recipeById(id); if (!r) return; seen.add(id); out.push({ r, ts, cur: cur.has(id) }); };
+  if (who === 'her') allRecipes().filter(r => r.fav).forEach(r => add(r.id, 0));
+  const claude = archRecipes().map(r => ({ id: r.id, level: r.level, ts: r.trip })).concat(vorratRecipes().map(r => ({ id: r.id, level: r.level, ts: vbookTs() })));
+  claude.filter(x => (x.level === 'fancy') === (who === 'him')).sort((x, y) => x.ts - y.ts).forEach(x => add(x.id, x.ts));
+  return out;
+}
+const cookedLog = () => {   // both phones' "cooked" diary, one entry per dish and day, newest first
+  const all = [...(S.cookLog || []), ...(S.partnerCooked || [])], seen = new Set();
+  return all.sort((a, b) => b.ts - a.ts).filter(x => { const k = x.rid + '|' + x.day; if (seen.has(k)) return false; seen.add(k); return true; });
+};
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid) return viewRecipe();
+  if (ui.rbook) return viewRecipeBook();
+  const t = KTABS.some(([k]) => k === ui.ktab) ? ui.ktab : 'jetzt';
+  let h = `<div class="chips ktabs">${KTABS.map(([k, ic, l]) => `<button class="chip ${t === k ? 'on' : ''}" data-a="ktab" data-v="${k}"><span class="qi">${ic}</span>${l}</button>`).join('')}</div>`;
+  return h + (t === 'daheim' ? viewDaheim() : t === 'next' ? viewNext() : t === 'gekocht' ? viewGekocht() : viewJetzt());
+}
+const bookCover = (who, n, label) => `<button class="bkcover bk-${who}" data-a="bookopen" data-who="${who}"${label ? ' data-cur="1"' : ''}>${Bk.coverArt(who)}<span class="bkc-label">${label || (n + (n === 1 ? ' Seite' : ' Seiten'))}</span></button>`;
+function viewJetzt() {
   let h = '';
-  h += `<div class="toolrow"><button class="btn blue" data-a="rphoto">📷 Rezept fotografieren</button><button class="btn soft" data-a="redit">✏️ Eigenes Rezept</button></div>`;
+  const dishes = (S.dishes || []).map(x => recipeById(x.id)).filter(Boolean);
+  if (dishes.length) h += `<div class="sec-title">🛒 Dafür eingekauft</div>` + dishes.map(recipeRow).join('');
+  const vr = vorratRecipes(), nHer = vr.filter(r => r.level !== 'fancy').length, nHim = vr.length - nHer;
+  if (vr.length) h += `<div class="sec-title">✍️ Neu aus eurem Vorrat</div><p class="muted" style="margin:-4px 4px 10px">Claude hat ${vr.length === 1 ? 'eine neue Seite' : vr.length + ' neue Seiten'} in eure Bücher geschrieben – alles daheim.</p>
+    <div class="bkshelf">${nHer ? bookCover('her', nHer, nHer === 1 ? '1 neue Seite' : nHer + ' neue Seiten') : ''}${nHim ? bookCover('him', nHim, nHim === 1 ? '1 neue Seite' : nHim + ' neue Seiten') : ''}</div>`;
+  const cn = cookableNow();
+  if (cn.all.length) h += `<div class="sec-title">✅ Alles daheim</div>` + cn.all.map(recipeRow).join('');
+  if (cn.almost.length) h += `<div class="sec-title">🤏 Fehlt nur wenig</div>` + cn.almost.map(recipeRow).join('');
+  if (!dishes.length && !vr.length && !cn.all.length && !cn.almost.length) h += `<div class="card"><p style="margin:0">Gerade passt nichts zu dem, was daheim ist.</p><p class="muted">Schau unter <b>🧊 Daheim</b>, ob der Vorrat stimmt – oder plant unter <b>🛒 Nächstes Mal</b> den nächsten Einkauf.</p></div>`;
+  else h += `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
+  return h;
+}
+function viewNext() {
+  let h = `<input id="rsearch" class="rsearch" type="search" placeholder="🔎 Rezept suchen…" value="${esc(ui.rq || '')}" autocomplete="off" enterkeyhint="search"><div id="rresults">${searchHtml()}</div>`;
+  if (ui.rq) return h;
+  const her = bookPages('her').length, him = bookPages('him').length;
+  if (her || him) h += `<div class="bkshelf">${her ? bookCover('her', her) : ''}${him ? bookCover('him', him) : ''}</div>`;
+  h += `<div class="card"><h3>Was hättet ihr gern?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was euch schmeckt – fürs nächste Mal einkaufen.</p>` +
+    cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min. ' : ''}${tasteOf(r)}</span></span></button>`).join('') +
+    `<button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
+  const ours = allRecipes().filter(isOurs), cats = K.CATS.concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : []);
+  const cat = cats.some(([k]) => k === ui.ccat) ? ui.ccat : 'haupt';
+  h += `<div class="chips ccats">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
+  const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours : allRecipes().filter(r => r.cat === cat && !r.vr);
+  h += list.map(recipeRow).join('') || '<p class="muted">Noch nichts hier.</p>';
+  if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
+  h += `<div class="sec-title">Neues Rezept</div><div class="toolrow"><button class="btn blue" data-a="rphoto">📷 Rezept fotografieren</button><button class="btn soft" data-a="redit">✏️ Eigenes Rezept</button></div>`;
   const wait = (S.recipeInbox || []).filter(x => !x.del);
   if (wait.length) h += `<div class="card"><h3>📷 Wird gerade umgeschrieben</h3>${wait.map(x => `<div class="shoprow"><span style="flex:1">${x.n} ${x.n === 1 ? 'Foto' : 'Fotos'}${x.note ? ' · „' + esc(x.note) + '“' : ''}<br><span class="muted">${x.up ? 'abgeschickt am ' + esc(shortDate(key(new Date(x.ts)))) : '⏳ wird noch hochgeladen…'}</span></span><button class="mini-btn" data-a="rinboxdel" data-id="${x.id}" aria-label="Zurückziehen">✕</button></div>`).join('')}
     <p class="hint">Claude macht daraus eine Kochbuch-Seite mit Zutaten und Schritten – sie taucht hier auf, sobald sie fertig ist.</p></div>`;
-  { const cn = cookableNow(), n = cn.all.length; if (n || cn.almost.length) h += `<button class="card hcard dacard" data-a="ccat" data-v="da"><span class="hl-ic">✅</span><span class="hc-txt"><b>${n ? 'Alles daheim für ' + n + (n === 1 ? ' Gericht' : ' Gerichte') : 'Fast alles daheim'}</b><span class="muted">${cn.almost.length ? cn.almost.length + ' weitere, da fehlen nur 1–2 Sachen' : 'aus dem Kochbuch, mit dem was im Vorrat ist'}</span></span><span class="hc-go">›</span></button>`; }
-  { const vr = vorratRecipes(); if (vr.length) h += `<button class="card hcard vrcard" data-a="ccat" data-v="vorrat"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was koch ich aus dem Vorrat?</b><span class="muted">${vr.length} Rezepte von Claude – aus dem, was ihr daheim habt</span></span><span class="hc-go">›</span></button>`; }
-  h += `<div class="card"><h3>Was koch ich heute?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was dir schmeckt.</p>` +
-    cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min. ' : ''}${tasteOf(r)}</span></span></button>`).join('') +
-    `<button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
-  // Claude's recipes, also once she took one into the cookbook (then it's her copy) — hidden ones stay away
-  const ours = allRecipes().filter(isOurs), byId = x => { const r = recipeById(x.id); return r && { ...r, trip: x.trip }; };
-  const vr = vorratRecipes().map(byId).filter(Boolean), old = archRecipes().map(byId).filter(Boolean);
-  const cn = cookableNow(), cats = K.CATS.concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : [], cn.all.length || cn.almost.length ? [['da', '✅ Alles da']] : [], vr.length ? [['vorrat', '🧊 Aus dem Vorrat']] : [], old.length ? [['alt', '💭 Hätten wir kochen können']] : []), cat = ui.ccat || 'haupt';
-  const loveGroups = xs => [['einfach', '🩷 Mag sie'], ['fancy', '💙 Mag er']].map(([lv, l]) => { const ys = xs.filter(r => (r.level || 'einfach') === lv); return ys.length ? `<div class="sec-title">${l}</div>` + ys.map(recipeRow).join('') : ''; }).join('');
-  h += `<div class="chips ccats">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const list = cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours : cat === 'vorrat' || cat === 'da' || cat === 'alt' ? [] : allRecipes().filter(r => r.cat === cat && !r.vr);
-  if (cat === 'da') h += (cn.all.length ? `<div class="sec-title">✅ Alles daheim</div>` + cn.all.map(recipeRow).join('') : '<p class="muted">Für kein Rezept ist gerade alles da.</p>') +
-    (cn.almost.length ? `<div class="sec-title">🛒 Fehlt nur wenig</div>` + cn.almost.map(recipeRow).join('') : '') + `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
-  else if (cat === 'vorrat') h += loveGroups(vr);
-  else if (cat === 'alt') h += `<p class="hint" style="margin-top:0">Was Claude euch aus früheren Einkäufen vorgeschlagen hat – die Gerichte, die ihr hättet kochen können. Habt ihr aber (vermutlich) nicht.</p>` +
-    [...new Set(old.map(r => r.trip))].map(t => `<div class="trip-title">🛒 Einkauf vom ${tripDate(t)}</div>` + loveGroups(old.filter(r => r.trip === t))).join('');
-  else h += list.map(recipeRow).join('') || '<p class="muted">Noch nichts hier.</p>';
-  if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
   return h;
+}
+function searchHtml() {   // every recipe, also the ones in the books; title, ingredients and tags count
+  const q = Sh.norm(ui.rq || ''); if (!q) return '';
+  const hits = allRecipes().filter(r => (r.title + ' ' + r.ing.map(x => x[1]).join(' ') + ' ' + r.tags.join(' ')).toLowerCase().includes(q));
+  return hits.slice(0, 40).map(recipeRow).join('') || '<p class="muted">Nichts gefunden.</p>';
+}
+function viewGekocht() {
+  const L = cookedLog();
+  if (!L.length) return `<div class="card"><p style="margin:0">Hier entsteht euer Koch-Tagebuch.</p><p class="muted">Nach „Fertig gekocht! 🎉“ landet jedes Gericht hier – mit Datum und wie’s geschmeckt hat.</p></div>`;
+  const n = {}; L.forEach(x => { n[x.rid] = (n[x.rid] || 0) + 1; });
+  const top = Object.entries(n).filter(([, c]) => c > 1).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  let h = top.length ? `<div class="card"><h3>🏆 Am öftesten</h3>${top.map(([rid, c]) => { const x = L.find(y => y.rid === rid), r = recipeById(rid) || x; return `<button class="pick" data-a="recipe" data-id="${esc(rid)}"><span style="font-size:24px">${r.icon || '🍽️'}</span><span style="flex:1">${esc(r.title || '')}</span><b>${c}×</b></button>`; }).join('')}</div>` : '';
+  let month = '';
+  for (const x of L) {
+    const d = new Date(x.day + 'T12:00'), m = d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }), r = recipeById(x.rid);
+    if (m !== month) { month = m; h += `<div class="sec-title">${esc(m)}</div>`; }
+    const taste = x.taste ? K.TASTE.find(t => t[2] === x.taste)[0] : '';
+    h += `<button class="card diaryrow" ${r ? `data-a="recipe" data-id="${esc(x.rid)}"` : 'disabled'}><span class="dd">${x.old ? '<span class="muted">zuletzt</span>' : d.toLocaleDateString('de-DE', { weekday: 'short' })}<b>${d.getDate()}.</b></span><span class="ri">${(r || x).icon || '🍽️'}</span><span class="rt"><b>${esc((r || x).title || '')}</b></span><span class="dt">${taste}</span></button>`;
+  }
+  return h + `<p class="hint">Antippen = Rezept, von dort direkt wieder auf die Einkaufsliste.</p>`;
+}
+// 🧊 Daheim: the Vorrat, sorted by where it sits (from the shop sections; moved by hand = remembered)
+const PLACES = [['kuehl', '🧀', 'Kühlschrank'], ['obst', '🍎', 'Obst & Gemüse'], ['tk', '❄️', 'Tiefkühler'], ['schrank', '🥫', 'Vorratsschrank']];
+const placeOf = x => { const k = Sh.norm(x.name); if ((S.vorratPlace || {})[k]) return S.vorratPlace[k];
+  const sec = Sh.classify(x.name, S.shopLearn || {}); return sec === 'kuehl' || sec === 'fleisch' ? 'kuehl' : sec === 'obst' ? 'obst' : sec === 'tk' ? 'tk' : 'schrank'; };
+function viewDaheim() {
+  const V = vorrat();
+  let h = `<form class="add" data-f="vorratadd"><input name="t" placeholder="Hab ich daheim… z.B. 500 g Nudeln" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Zum Vorrat">+</button></form>`;
+  if (!V.length) return h + `<div class="card"><p style="margin:0">Noch nichts eingetragen.</p><p class="muted">Nach dem Einkaufen in der Einkaufsliste „✅ Alles eingekauft!“ drücken – dann ist alles hier. Oder oben eintragen, was eh da ist.</p></div>`;
+  for (const [k, ic, l] of PLACES) {
+    const xs = V.filter(x => placeOf(x) === k).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    if (!xs.length) continue;
+    h += `<div class="card vplace"><h3>${ic} ${l} <span class="muted">(${xs.length})</span></h3>${xs.map(x => `<div class="shoprow"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${x.left ? `<b class="qty">${esc(fmtQty(x.left))}</b>` : x.q ? `<b class="qty">${esc(x.q)}</b>` : ''}</button><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('')}</div>`;
+  }
+  return h + `<p class="hint">Tippen = Menge ändern oder umräumen · ✕ = aufgebraucht. „Jetzt kochen“ nimmt raus, was ein Rezept braucht.</p>`;
+}
+function viewRecipeBook() {
+  const pages = bookPages(ui.rbook.who);
+  return Bk.html(ui.rbook.who, pages.map(p => ({ ...p, cooked: (S.cook[p.r.id] || {}).n || cookedLog().some(x => x.rid === p.r.id), taste: tasteOf(p.r), preg: pregLater(p.r) })), ui.rbook.page || 0);
 }
 function viewRecipe() {
   const r = recipeById(ui.rid); if (!r) { ui.rid = null; return viewCook(); }
@@ -2295,8 +2389,7 @@ setInterval(() => {   // the countdown ticks without redrawing the page
 function babyBar() { const n = babyCount(), N = B.ITEMS.length; return `<span class="bbar"><i style="width:${n / N * 100}%"></i></span><span class="bc-n"><b>${n}</b> von ${N} bereit</span>`; }
 function babyCard() {
   if (!babyLive()) return '';
-  return `<button class="card babycard" data-a="baby">${BSKY}<span class="bc-eye">Bald bist du da, kleiner Mensch</span>
-    <span class="bc-t">Babyerstausstattung</span>${cdHtml()}${babyBar()}<span class="bc-go">Zur Liste ›</span></button>`;
+  return `<button class="card babycard" data-a="baby">${BSKY}    <span class="bc-t">Babyerstausstattung</span>${cdHtml()}${babyBar()}<span class="bc-go">Zur Liste ›</span></button>`;
 }
 function viewBaby() {
   if (!babyLive()) { ui.sub = null; return viewHome(); }
@@ -2351,6 +2444,7 @@ function render() {
   $('#main').innerHTML = VIEWS[ui.tab]();
   renderTop();
   loadRecPhotos();
+  Bk.mount(saveBookPage);
   if (refocus) { const i = document.querySelector(`form[data-f="${refocus}"] input`); if (i) i.focus(); }
   if (ui.tab === 'schaetze') {
     hydratePhotos($('#main'));
@@ -2373,6 +2467,7 @@ function goBack() {
     if (ui.cstep != null) { endCookMode(); render(); return; }
     ui.rid = null; ui.sides = []; render(); return;
   }
+  if (ui.tab === 'ruhe' && ui.qtab === 'kochbuch' && ui.rbook) { A.bookclose(); return; }
   if (ui.sub) { ui.sub = null; render(); scrollTo(0, 0); return; }
   if (ui.tab === 'relax' && !S.ritual && ui.rx.size) { A.rxback(); return; }
   if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
@@ -2386,6 +2481,11 @@ function bind() {
   const topH = () => document.documentElement.style.setProperty('--top-h', $('#top').getBoundingClientRect().height + 'px');
   topH(); if ('ResizeObserver' in window) new ResizeObserver(topH).observe($('#top')); else addEventListener('resize', topH);
   document.addEventListener('pointerdown', armBack, true);
+  document.addEventListener('input', e => {   // recipe search: only the results redraw (the keyboard stays open)
+    if (e.target.id !== 'rsearch') return;
+    const had = !!ui.rq; ui.rq = e.target.value; const res = $('#rresults');
+    if (!!ui.rq !== had) { render(); const i = $('#rsearch'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } else if (res) res.innerHTML = searchHtml();
+  });
   document.addEventListener('click', e => {
     const el = e.target.closest('[data-a]'); if (!el) return;
     const f = A[el.dataset.a]; if (f) { e.preventDefault(); f(el, e); }
@@ -2438,7 +2538,7 @@ function mergeStates(local, remote, base = null) {
     const seen = new Set();
     return a.concat(b).filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return !inBase || !inBase.has(x.id) || (inA.has(x.id) && inB.has(x.id)); });
   };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events'].forEach(k => { m[k] = join(k); });
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events', 'cookLog'].forEach(k => { m[k] = join(k); });
   m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)

@@ -1,4 +1,8 @@
 @font-face { font-family: 'Caveat'; src: url(fonts/caveat.woff2) format('woff2'); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: 'Dancing Script'; src: url(fonts/dancing.woff2) format('woff2'); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: 'Fraktur'; src: url(fonts/fraktur.woff2) format('woff2'); font-display: swap; }
+@font-face { font-family: 'Fell'; src: url(fonts/fell.woff2) format('woff2'); font-display: swap; }
+@font-face { font-family: 'Fell'; src: url(fonts/fell-i.woff2) format('woff2'); font-style: italic; font-display: swap; }
 @font-face { font-family: 'Nunito'; src: url(fonts/nunito.woff2) format('woff2'); font-weight: 200 1000; font-display: swap; }
 
 :root {
@@ -762,8 +766,8 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .bsky .bz { fill: none; stroke: var(--bbink); stroke-width: 2; stroke-linecap: round; opacity: .55; }
 @keyframes btw { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.8); } }
 .bc-eye { display: block; font: 700 22px/1.1 Caveat, cursive; color: var(--bbrose); }
-.bc-t { display: block; font-weight: 900; font-size: 22px; letter-spacing: -.01em; margin: 2px 0 10px; }
-.babycard.hero .bc-t { font-size: 26px; }
+.bc-t { display: block; font: 700 34px/1.15 'Dancing Script', 'Caveat', cursive; color: var(--bbrose); margin: 0 0 8px; }
+.babycard.hero .bc-t { font-size: 38px; }
 .bcd { display: flex; gap: 8px; justify-content: center; width: 100%; }
 .bcd-u { display: grid; justify-items: center; min-width: 64px; padding: 8px 6px 6px; border-radius: 16px; background: var(--bbtile); box-shadow: 0 1px 0 var(--bbline); }
 .bcd-u b { font-size: 26px; font-weight: 900; line-height: 1.05; font-variant-numeric: tabular-nums; }
@@ -812,3 +816,13 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .evlines li > span:first-child { font-size: 20px; line-height: 1.3; }
 @media (max-width: 370px) { .bcd { gap: 5px; } .bcd-u { min-width: 0; flex: 1; } .bcd-u b { font-size: 22px; } .bcd.big .bcd-u b { font-size: 26px; } }
 @media (prefers-reduced-motion: reduce) { .bsky .bs, .bcd-u.u-s { animation: none; } }
+
+/* ---------- Kochbuch (2026-10-11): 🧊 Daheim · 🍳 Jetzt · 🛒 Nächstes Mal · 📅 Gekocht ---------- */
+.chips.ktabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 2px 0 12px; }
+.chips.ktabs .chip { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 2px; font-size: 13px; line-height: 1.15; text-align: center; white-space: normal; }
+.chips.ktabs .chip .qi { font-size: 20px; }
+.rsearch { width: 100%; box-sizing: border-box; font: 600 17px Nunito, sans-serif; padding: 12px 16px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); margin: 0 0 12px; }
+.vplace h3 { margin: 0 0 6px; }
+.diaryrow { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; padding: 10px 14px; margin-bottom: 8px; color: var(--ink); font: inherit; cursor: pointer; }
+.diaryrow .dd { display: flex; flex-direction: column; align-items: center; min-width: 40px; font-size: 13px; color: var(--ink2); line-height: 1.1; }
+.diaryrow .dd b { font-size: 20px; color: var(--ink); } .diaryrow .ri { font-size: 26px; } .diaryrow .rt { flex: 1; } .diaryrow .dt { font-size: 22px; }
