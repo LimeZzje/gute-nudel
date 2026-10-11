@@ -155,13 +155,24 @@ const goat = (c = RED) => `<g fill="none" stroke="${c}" stroke-width="2" stroke-
   <path d="M46,78 Q50,82 54,78"/><path d="M45,86 Q50,100 55,86"/><path d="M50,36 L50,44" stroke-width="1.4"/>
   <path d="M41,49 l6,1.5 M59,49 l-6,1.5" stroke-width="2.6"/></g>
   <circle class="eye" cx="44" cy="51" r="1.4" fill="${c}"/><circle class="eye" cx="56" cy="51" r="1.4" fill="${c}"/>`;
-// the Leviathan cross (sulfur's alchemical sign: a double cross on the infinity sign), glowing like brimstone
-const leviathan = () => `<svg viewBox="0 0 120 130" class="levi" aria-hidden="true"><defs>
-  <linearGradient id="brim" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="118"><stop offset="0" stop-color="#ffe066"/><stop offset=".55" stop-color="#ffb02e"/><stop offset="1" stop-color="#ff6a1a"/></linearGradient>
-  <filter id="brimglow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-  <g fill="none" stroke="url(#brim)" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#brimglow)">
-  <path d="M60,8 V92"/><path d="M42,26 H78"/><path d="M34,48 H86"/>
-  <path d="M60,104 C52,92 30,92 30,104 C30,116 52,116 60,104 C68,92 90,92 90,104 C90,116 68,116 60,104 Z"/></g></svg>`;
+// the Leviathan cross (sulfur's alchemical sign: a double cross on the infinity sign) in brimstone: compact, diamond tips,
+// inside a ring of flame tongues, with a sulfur glow and embers drifting up
+const leviathan = () => {
+  const dia = (x, y) => `<path d="M${x},${y - 4.6} L${x + 4.6},${y} L${x},${y + 4.6} L${x - 4.6},${y} Z" fill="url(#brim)" stroke="none"/>`;
+  const flames = Array.from({ length: 24 }, (_, i) => `<path d="M0,-55 Q2.6,-59 0,-64.5 Q-2.6,-59 0,-55 Z" transform="rotate(${i * 15})"/>`).join('');
+  const embers = [[52, 4], [86, 1.2], [64, 2.4], [96, .6], [44, 3.2], [76, 1.8]].map(([x, d], i) => `<circle class="ember" style="--d:${d}s" cx="${x}" cy="${118 - i % 3 * 6}" r="${i % 2 ? 1.1 : 1.6}" fill="#ffb347"/>`).join('');
+  return `<svg viewBox="0 0 140 140" class="levi" aria-hidden="true"><defs>
+  <linearGradient id="brim" gradientUnits="userSpaceOnUse" x1="0" y1="20" x2="0" y2="122"><stop offset="0" stop-color="#fff1a8"/><stop offset=".45" stop-color="#ffc23a"/><stop offset="1" stop-color="#ff6a1a"/></linearGradient>
+  <radialGradient id="halo"><stop offset="0" stop-color="#ff8a2a" stop-opacity=".32"/><stop offset=".6" stop-color="#ff5a14" stop-opacity=".08"/><stop offset="1" stop-color="#ff5a14" stop-opacity="0"/></radialGradient>
+  <filter id="brimglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  <circle cx="70" cy="70" r="68" fill="url(#halo)"/>
+  <g transform="translate(70 70)" fill="#ff8a2a" opacity=".55" class="flames">${flames}</g>
+  <circle cx="70" cy="70" r="53" fill="none" stroke="url(#brim)" stroke-width="1.6" opacity=".85"/><circle cx="70" cy="70" r="49" fill="none" stroke="url(#brim)" stroke-width=".6" opacity=".55"/>
+  <g filter="url(#brimglow)"><g fill="none" stroke="url(#brim)" stroke-width="5" stroke-linecap="butt">
+  <path d="M70,27 V88"/><path d="M57,43 H83"/><path d="M50,59 H90"/>
+  <path d="M70,101 C64,92 46,91 46,101 C46,111 64,110 70,101 C76,92 94,91 94,101 C94,111 76,110 70,101 Z" stroke-width="4.6" stroke-linejoin="round"/></g>
+  ${dia(70, 24)}${dia(54.5, 43)}${dia(85.5, 43)}${dia(47.5, 59)}${dia(92.5, 59)}</g>${embers}</svg>`;
+};
 const candle = (x, y, h, i = 0) => `<g transform="translate(${x} ${y})">
   <ellipse class="glow" cx="0" cy="-${h + 10}" rx="26" ry="30" fill="url(#cglow)" style="--d:${i * .37}s"/>
   <path d="M-7,0 V-${h} Q-7,-${h + 3} -3,-${h + 2} Q0,-${h + 4} 3,-${h + 2} Q7,-${h + 3} 7,-${h} V0 Z" fill="${BONE}"/>
@@ -384,7 +395,10 @@ const CSS = `
 /* section pages */
 .sec-head { display: flex; align-items: flex-end; gap: 10px; margin: 0 0 10px; }
 .sec-head h2 { flex: 1; margin: 0; font: 700 30px/1.1 'Dancing Script', Caveat, cursive; color: #5f7d5a; }
-.sec-head .sa-dog { width: 74px; } .sec-head .sa-peek { width: 56px; } .sec-head .sa-sc { width: 70px; } .sec-head .sa-pent { width: 70px; } .levi { overflow: visible; animation: bkSmoulder 3.6s ease-in-out infinite; } @keyframes bkSmoulder { 0%,100% { opacity: .85; filter: drop-shadow(0 0 3px rgba(255,140,30,.35)); } 50% { opacity: 1; filter: drop-shadow(0 0 9px rgba(255,150,40,.7)); } }
+.sec-head .sa-dog { width: 74px; } .sec-head .sa-peek { width: 56px; } .sec-head .sa-sc { width: 70px; } .sec-head .sa-pent { width: 96px; margin: -10px -6px -8px 0; } .levi { overflow: visible; animation: bkSmoulder 3.6s ease-in-out infinite; } 
+.levi .ember { opacity: 0; animation: bkEmber 4.4s var(--d, 0s) ease-out infinite; } @keyframes bkEmber { 0% { opacity: 0; transform: translateY(0); } 15% { opacity: .95; } 100% { opacity: 0; transform: translate(4px, -84px); } }
+.levi .flames { transform-origin: 70px 70px; animation: bkSpin 90s linear infinite; }
+@keyframes bkSmoulder { 0%,100% { opacity: .85; filter: drop-shadow(0 0 3px rgba(255,140,30,.35)); } 50% { opacity: 1; filter: drop-shadow(0 0 9px rgba(255,150,40,.7)); } }
 .sec-head.plain { margin: 4px 4px 12px; }
 .sec-head.codex > div:first-child { flex: 1; } .bp-him .sec-head h2 { text-transform: uppercase; letter-spacing: .07em; line-height: 1.12; font: 400 30px Fell, Georgia, serif; color: #ff4a5c; text-shadow: 0 0 16px rgba(192,23,43,.35); }
 .bp-him .sec-title { color: #ff6b7a; font-family: Fell, Georgia, serif; }
@@ -449,6 +463,7 @@ const CSS = `
 .bp-him .bk-back { background: ${HIM_PAPER}; }
 .bp-him .bp { font: 400 17px/1.55 Georgia, 'Times New Roman', serif; }
 .bp-him .card { border: 1px solid rgba(192,23,43,.35); }
+.bp-him .chip { background: #241618; color: #e9dccd; border: 1px solid #3d2a2f; } .bp-him .chip.on { background: #3a1410; color: #ffd27a; border-color: #ff8a2a; box-shadow: 0 0 10px rgba(255,120,30,.35); } .bp-him .chip .cnt { color: inherit; }
 .bp-him .pick.on .box { background: #a3122a; border-color: #a3122a; color: #fff; }
 .bp-him .bp-kick { font: 400 15px Fraktur, serif; color: ${RED}; letter-spacing: .04em; }
 .bp-him .bp-title { font: 400 30px/1.15 Fell, Georgia, serif; color: #ff4a5c; margin: 6px 0 4px; text-shadow: 0 0 16px rgba(192,23,43,.35); }
