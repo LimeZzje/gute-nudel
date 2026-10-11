@@ -184,11 +184,11 @@ const candle = (x, y, h, i = 0) => `<g transform="translate(${x} ${y})">
 // drawn on top of each other (each one turned or mirrored) into a single glyph. The letters stand underneath.
 // the sigil wheel: the consonants sit around a circle; the line runs from letter to letter in the name's order,
 // starting with a small circle and ending with a bar
-const WHEEL = 'BCDFGHJKLMNPQRSTVWXZ'.split('');
+const WHEEL = 'BCDFGHJKLMNPQRSTVWXYZ'.split('');
 // the "star" of the dish: what comes before "mit", "auf", "&", ":" … (Kirschtomaten-Confit mit … → KRSCHTMTN CNFT)
 const starOf = title => String(title).split(/\s+(?:mit|auf|an|am|in|im|und|vom|von|aus|nach|zu|über|unter)\s+|\s*[,:–(]\s*|\s+&\s+/i)[0];
 const sigilWords = title => starOf(title).toUpperCase().replace(/ß/g, 'S').normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^A-Z]+/)
-  .map(w => w.replace(/[AEIOUY]/g, '').split('').filter(c => WHEEL.includes(c)).join('')).filter(Boolean);
+  .map(w => w.replace(/[AEIOU]/g, '').split('').filter(c => WHEEL.includes(c)).join('')).filter(Boolean);
 function sigil(name, size = 92) {
   const W = sigilWords(name), L = W.join('').split('').filter((c, i, a) => c !== a[i - 1]), pos = c => { const a = (WHEEL.indexOf(c) / WHEEL.length * 360 - 90) * Math.PI / 180; return [50 + Math.cos(a) * 33, 50 + Math.sin(a) * 33]; };
   const P = L.map(pos), [s0, e] = [P[0] || [50, 50], P[P.length - 1] || [50, 50]], prev = P[P.length - 2] || [50, 50];
@@ -403,6 +403,9 @@ const CSS = `
 .sec-head.codex > div:first-child { flex: 1; } .bp-him .sec-head h2 { text-transform: uppercase; letter-spacing: .07em; line-height: 1.12; font: 400 30px Fell, Georgia, serif; color: #ff4a5c; text-shadow: 0 0 16px rgba(192,23,43,.35); }
 .bp-him .sec-title { color: #ff6b7a; font-family: Fell, Georgia, serif; }
 /* the Codex bookmark: black with a subtle brimstone glow */
+.cb-tab[data-v="herb"] { background: linear-gradient(180deg, #7f9c6e, #5f7d5a); font-family: 'Dancing Script', Caveat, cursive; font-size: 16px; font-weight: 700; letter-spacing: .02em; animation: bkLeaf 4.2s ease-in-out infinite; }
+@keyframes bkLeaf { 0%,100% { box-shadow: 2px 2px 6px rgba(0,0,0,.15), 0 0 5px rgba(170,210,140,.25); } 50% { box-shadow: 2px 2px 6px rgba(0,0,0,.15), 0 0 12px 2px rgba(170,215,140,.55); } }
+.rstamp.herb { color: #5f8a4f; border-style: dashed; }
 .cb-tab[data-v="codex"] { background: linear-gradient(180deg, #2a0f13, #12080a); color: #ff6a4a; font-family: Fell, Georgia, serif; font-weight: 400; font-size: 12.5px; letter-spacing: .06em; text-shadow: 0 0 6px rgba(255,90,40,.6); animation: bkBrim 3.2s ease-in-out infinite; }
 @keyframes bkBrim { 0%,100% { box-shadow: 2px 2px 6px rgba(0,0,0,.2), 0 0 6px rgba(255,80,20,.25); } 50% { box-shadow: 2px 2px 6px rgba(0,0,0,.2), 0 0 14px 2px rgba(255,110,30,.45); } }
 /* rows: his recipes in the occult look, stamps on the rows */

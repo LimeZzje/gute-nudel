@@ -9,7 +9,7 @@ import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-11.8';
+const VERSION = '2026-10-11.9';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1151,7 +1151,7 @@ const A = {
   },
   vplace(el) { const x = vorrat().find(y => y.id === el.dataset.id); if (!x) return; S.vorratPlace = { ...(S.vorratPlace || {}), [Sh.norm(x.name)]: el.dataset.v }; closeModal(); commit(); },
   kcat(el) { ui.kcat = el.dataset.v; render(); },
-  xcat(el) { ui.xcat = el.dataset.v; render(); },
+  shelfcat(el) { ui[el.dataset.k] = el.dataset.v; render(); },
   ktab(el) {   // a thumb tab: turn to that section (backwards if it lies before, or when leaving a recipe)
     const to = el.dataset.v, from = KTABS.findIndex(([k]) => k === ksec()), ti = KTABS.findIndex(([k]) => k === to), wasR = !!ui.rid;
     if (to === ksec() && !wasR) return;
@@ -1602,10 +1602,11 @@ const recipeRow = r => { const him = styleOf(r) === 'him'; return `<button class
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
 // page goes through the list it came from (ui.kctx). Each recipe page has its style: herStyle → warm, otherwise occult.
-const KTABS = [['jetzt', 'Kochen', '#84a76f'], ['next', 'Stöbern', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c'], ['codex', 'Culinarius Infernalis', '#1a0d10']];
+const KTABS = [['jetzt', 'Kochen', '#84a76f'], ['next', 'Stöbern', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c'], ['herb', 'Herbarium', '#6f8f5e'], ['codex', 'Culinarius Infernalis', '#1a0d10']];
 const SEC_TITLE = { jetzt: 'Was koch ich jetzt?', next: 'Stöbern', gekocht: 'Was wir gekocht haben' };
 // Claude's fancy recipes live behind their own bookmark (Julia won't cook those) — out of Kochen, Stöbern and suggestions
 const isCodex = r => !!r.vr && r.level === 'fancy';
+const isHerb = r => !!r.vr && r.level !== 'fancy';   // 🌿 Herbarium: Claude's easy ones (also in Kochen/Stöbern — she cooks those)
 // whose style: Claude's easy ones = hers, fancy = his; a photographed page = who took the photo; an own recipe = whose phone
 const styleOf = r => r.level === 'fancy' ? 'him' : r.level === 'einfach' ? 'her' : r.by === 'stefan' ? 'him' : 'her';
 const cookedLog = () => {   // both phones' "cooked" diary, one entry per dish and day, newest first
@@ -1638,7 +1639,8 @@ function viewCook() {
   return Bk.frame({ tabs: KTABS, cur: ksec(), page: kpage(ui.rid ? { sec: ksec(), rid: ui.rid } : { sec: ksec() }), label: klabel() });
 }
 function sectionPage(k) {
-  if (k === 'codex') return viewCodex();
+  if (k === 'codex') return viewShelf('codex');
+  if (k === 'herb') return viewShelf('herb');
   const body = k === 'next' ? viewNext() : k === 'gekocht' ? viewGekocht() : viewJetzt();
   return `<div class="sec-head"><h2>${SEC_TITLE[k]}</h2>${Bk.sectionArt(k)}</div>` + body;
 }
@@ -1663,16 +1665,21 @@ function viewJetzt() {   // per category: shopped for → all at home → only 1
     + withCtx(rows) + `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
 }
 // ✠ Codex Culinarius Infernalis: his fancy recipes; what the pantry already allows gets a stamp and comes first
-function viewCodex() {   // by category like Stöbern; per category: can be summoned now (stamp) → 1–2 missing → the rest
-  const V = vorrat(), all = allRecipes().filter(isCodex).map(r => ({ r, h: V.length ? haveFor(r, V) : { need: 1, missing: [1, 2, 3] } }));
+// Claude's two shelves, same build: by category; per category what the Vorrat already allows (stamp) → 1–2 missing → the rest.
+// 'codex' = Culinarius Infernalis (his fancy ones, occult) · 'herb' = Herbarium (the easy ones, warm)
+function viewShelf(kind) {
+  const codex = kind === 'codex', key = codex ? 'xcat' : 'hcat';
+  const V = vorrat(), all = allRecipes().filter(codex ? isCodex : isHerb).map(r => ({ r, h: V.length ? haveFor(r, V) : { need: 1, missing: [1, 2, 3] } }));
   const rank = x => !x.h.missing.length ? 0 : x.h.missing.length <= 2 ? 1 : 2;
   const counts = Object.fromEntries(K.CATS.map(([k]) => [k, all.filter(x => x.r.cat === k).length]));
-  const cat = counts[ui.xcat] ? ui.xcat : (K.CATS.find(([k]) => counts[k]) || ['haupt'])[0];
+  const cat = counts[ui[key]] ? ui[key] : (K.CATS.find(([k]) => counts[k]) || ['haupt'])[0];
+  const stamp = codex ? `<span class="rstamp pantry">✠ mit dem Vorrat beschwörbar</span>` : `<span class="rstamp herb">🌿 mit dem Vorrat machbar</span>`;
   const rows = all.filter(x => x.r.cat === cat).sort((a, b) => rank(a) - rank(b))
-    .map(({ r, h }) => !h.missing.length ? stampRow(r, `<span class="rstamp pantry">✠ mit dem Vorrat beschwörbar</span>`) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
-  return `<div class="sec-head codex"><h2>Culinarius<br>Infernalis</h2>${Bk.sectionArt('codex')}</div>`
-    + (all.length ? `<div class="chips ccats">${K.CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="xcat" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>` + withCtx(rows)
-      : `<p class="muted">Noch leer. Nach dem nächsten Einkauf beschwört Claude hier neue Werke.</p>`);
+    .map(({ r, h }) => !h.missing.length ? stampRow(r, stamp) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
+  const head = codex ? `<div class="sec-head codex"><h2>Culinarius<br>Infernalis</h2>${Bk.sectionArt('codex')}</div>`
+    : `<div class="sec-head"><h2>Herbarium</h2>${Bk.sectionArt('jetzt')}</div><p class="muted" style="margin:-4px 2px 10px">Was Claude euch aus dem Vorrat geschrieben hat.</p>`;
+  return head + (all.length ? `<div class="chips ccats">${K.CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="shelfcat" data-k="${key}" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>` + withCtx(rows)
+    : `<p class="muted">Noch leer. Nach dem nächsten Einkauf ${codex ? 'beschwört Claude hier neue Werke' : 'wachsen hier neue Rezepte'}.</p>`);
 }
 function viewNext() {
   let h = `<div class="rsrow"><input id="rsearch" class="rsearch" type="search" placeholder="🔎 Rezept suchen…" value="${esc(ui.rq || '')}" autocomplete="off" enterkeyhint="search"><button class="ricon" data-a="rphoto" aria-label="Rezept fotografieren">📷</button><button class="ricon" data-a="redit" aria-label="Eigenes Rezept schreiben">✏️</button></div>`;
