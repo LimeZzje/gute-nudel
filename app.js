@@ -9,7 +9,7 @@ import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-11.5';
+const VERSION = '2026-10-11.6';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1538,7 +1538,7 @@ const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r =>
 // pregnancy: recipes with runny egg / cold smoked salmon get a note until the baby is here (gone by itself from February 2027)
 const PREG_LATER = ['vorrat-eggs-royale', 'vorrat-strammer-max-gurke', 'vorrat-spitzkohl-glasiert', 'ofenkartoffel'];
 const pregLater = r => PREG_LATER.includes(r.id) && today() < '2027-02-01';
-const loveTag = r => r.level === 'fancy' ? '🕯️ aus dem Grimoire' : '🩷 mag sie';   // Claude's Vorrat recipes: fancy = his, einfach = hers
+const loveTag = r => r.level === 'fancy' ? '⛧ aus dem Grimoire' : '🩷 mag sie';   // Claude's Vorrat recipes: fancy = his, einfach = hers
 const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'][d.getMonth()]; };
 const recipeById = id => allRecipes().find(r => r.id === id);
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
@@ -1596,12 +1596,12 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
   return { all: rs.filter(x => !x.h.missing.length).map(x => x.r),
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
-const recipeRow = r => { const him = styleOf(r) === 'him'; return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr ? ' · ' + loveTag(r) : him ? ' · 🕯️ aus seinem Grimoire' : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
+const recipeRow = r => { const him = styleOf(r) === 'him'; return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr ? ' · ' + loveTag(r) : him ? ' · ⛧ aus dem Grimoire' : r.book ? ' · 📷 aus dem Buch' : r.promoted ? ' · 📖 ins Kochbuch geholt' : r.own ? (origOf(r.id) ? ' · ✏️ angepasst' : ' · ✏️ eigenes') : ''}${r.fav ? ' · 💛 mag sie' : ''} ${tasteOf(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
 // page goes through the list it came from (ui.kctx). Each recipe page has its style: herStyle → warm, otherwise occult.
-const KTABS = [['jetzt', 'Kochen', '#84a76f'], ['next', 'Stöbern', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c'], ['codex', 'Codex Culinarius Infernalis', '#1a0d10']];
+const KTABS = [['jetzt', 'Kochen', '#84a76f'], ['next', 'Stöbern', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c'], ['codex', 'Culinarius Infernalis', '#1a0d10']];
 const SEC_TITLE = { jetzt: 'Was koch ich jetzt?', next: 'Stöbern', gekocht: 'Was wir gekocht haben' };
 // Claude's fancy recipes live behind their own bookmark (Julia won't cook those) — out of Kochen, Stöbern and suggestions
 const isCodex = r => !!r.vr && r.level === 'fancy';
@@ -1667,15 +1667,16 @@ function viewCodex() {
   const rank = x => !x.h.missing.length ? 0 : x.h.missing.length <= 2 ? 1 : 2;
   rs.sort((a, b) => rank(a) - rank(b));
   const rows = rs.map(({ r, h }) => !h.missing.length ? stampRow(r, `<span class="rstamp pantry">✠ mit dem Vorrat beschwörbar</span>`) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
-  return `<div class="sec-head codex"><div><div class="bp-kick">Codex Culinarius Infernalis</div><h2>Seine Werke</h2><p class="muted" style="margin:2px 0 0">Die aufwendigen Rezepte – für besondere Abende.</p></div>${Bk.sectionArt('codex')}</div>`
+  return `<div class="sec-head codex"><h2>Culinarius<br>Infernalis</h2>${Bk.sectionArt('codex')}</div>`
     + (rows ? withCtx(rows) : `<p class="muted">Noch leer. Nach dem nächsten Einkauf beschwört Claude hier neue Werke.</p>`);
 }
 function viewNext() {
-  let h = `<input id="rsearch" class="rsearch" type="search" placeholder="🔎 Rezept suchen…" value="${esc(ui.rq || '')}" autocomplete="off" enterkeyhint="search"><div id="rresults">${searchHtml()}</div>`;
+  let h = `<div class="rsrow"><input id="rsearch" class="rsearch" type="search" placeholder="🔎 Rezept suchen…" value="${esc(ui.rq || '')}" autocomplete="off" enterkeyhint="search"><button class="ricon" data-a="rphoto" aria-label="Rezept fotografieren">📷</button><button class="ricon" data-a="redit" aria-label="Eigenes Rezept schreiben">✏️</button></div>`;
+  const wait = (S.recipeInbox || []).filter(x => !x.del);
+  if (wait.length) h += `<div class="card"><h3>📷 Wird gerade umgeschrieben</h3>${wait.map(x => `<div class="shoprow"><span style="flex:1">${x.n} ${x.n === 1 ? 'Foto' : 'Fotos'}${x.note ? ' · „' + esc(x.note) + '“' : ''}<br><span class="muted">${x.up ? 'abgeschickt am ' + esc(shortDate(key(new Date(x.ts)))) : '⏳ wird noch hochgeladen…'}</span></span><button class="mini-btn" data-a="rinboxdel" data-id="${x.id}" aria-label="Zurückziehen">✕</button></div>`).join('')}
+    <p class="hint">Claude macht daraus eine Kochbuch-Seite mit Zutaten und Schritten – sie taucht hier auf, sobald sie fertig ist.</p></div>`;
+  h += `<div id="rresults">${searchHtml()}</div>`;
   if (ui.rq) return h;
-  h += `<div class="card"><h3>Was hättet ihr gern?</h3><p class="muted" style="margin-top:0">Ausgesucht nach dem, was euch schmeckt.</p><div data-ctx="">` +
-    cookSuggest(3).map(r => `<button class="pick" data-a="recipe" data-id="${r.id}"><span style="font-size:24px">${r.icon}</span><span>${esc(r.title)}<br><span class="muted">${r.min ? '⏱ ' + r.min + ' Min. ' : ''}${tasteOf(r)}</span></span></button>`).join('') +
-    `</div><button class="btn soft wide" data-a="cookreroll" style="margin-top:10px">🎲 Andere Vorschläge</button></div>`;
   const ours = allRecipes().filter(isOurs), cats = K.CATS.map(([k, l]) => [k, CAT_SHORT[k] || l]).concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : []);
   const cat = cats.some(([k]) => k === ui.ccat) ? ui.ccat : 'haupt';
   h += `<div class="chips ccats">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
@@ -1683,10 +1684,6 @@ function viewNext() {
     : allRecipes().filter(r => r.cat === cat)).filter(r => !isCodex(r));
   const rows = list.map(recipeRow).join(''); h += rows ? withCtx(rows) : '<p class="muted">Noch nichts hier.</p>';
   if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
-  h += `<div class="sec-title">Neues Rezept</div><div class="toolrow"><button class="btn blue" data-a="rphoto">📷 Rezept fotografieren</button><button class="btn soft" data-a="redit">✏️ Eigenes Rezept</button></div>`;
-  const wait = (S.recipeInbox || []).filter(x => !x.del);
-  if (wait.length) h += `<div class="card"><h3>📷 Wird gerade umgeschrieben</h3>${wait.map(x => `<div class="shoprow"><span style="flex:1">${x.n} ${x.n === 1 ? 'Foto' : 'Fotos'}${x.note ? ' · „' + esc(x.note) + '“' : ''}<br><span class="muted">${x.up ? 'abgeschickt am ' + esc(shortDate(key(new Date(x.ts)))) : '⏳ wird noch hochgeladen…'}</span></span><button class="mini-btn" data-a="rinboxdel" data-id="${x.id}" aria-label="Zurückziehen">✕</button></div>`).join('')}
-    <p class="hint">Claude macht daraus eine Kochbuch-Seite mit Zutaten und Schritten – sie taucht hier auf, sobald sie fertig ist.</p></div>`;
   return h;
 }
 function searchHtml() {   // every recipe; title, ingredients and tags count
@@ -1730,9 +1727,8 @@ function recipePage(r) {
   const home = V.length && r.ing.some(([, t]) => t && !isPantry(t)) && !haveFor(r, V).missing.length;
   const d = Bk.deco(theme, r, { cooked, taste: tasteOf(r) }), him = theme === 'him';
   let h = d.side + d.stamp;
-  if (him) h += `<div class="bp-kick">Codex Culinarius Infernalis</div>`;
   h += `${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<h2 class="bp-title">${r.icon} ${esc(r.title)}</h2>
-    <p class="bp-meta">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}für ${esc(r.serves || 2)}${him ? ' Seelen' : ''}${r.vr ? ' · ' + loveTag(r) : ''}${r.fav ? ' · 💛 mag sie' : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>
+    <p class="bp-meta">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr ? ' · ' + loveTag(r) : ''}${r.fav ? ' · 💛 mag sie' : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>
     ${home ? `<span class="bp-tape">${him ? '✠ alles in der Speisekammer' : '🧊 alles daheim'}</span>` : ''}
     ${r.src ? `<p class="muted" style="margin:2px 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:4px 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.note ? `<p class="bp-note">${esc(r.note)}</p>` : ''}
     <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>`;

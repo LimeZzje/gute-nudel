@@ -145,7 +145,7 @@ function pentagram(cx, cy, R, c = RED, ring = true) {
     ${ring ? `<circle cx="${cx}" cy="${cy}" r="${f1(R * 1.2)}" stroke-width="1"/><path id="ringp" d="M${cx - R * 1.09},${cy} a${f1(R * 1.09)},${f1(R * 1.09)} 0 1 1 ${f1(R * 2.18)},0 a${f1(R * 1.09)},${f1(R * 1.09)} 0 1 1 ${f1(-R * 2.18)},0" stroke="none"/>
     <text font-family="Fell, serif" font-size="${f1(R * .13)}" fill="${c}" stroke="none" letter-spacing="2"><textPath href="#ringp">${words}${words}</textPath></text>` : ''}
     <path d="M${o.map(q => f1(q[0]) + ',' + f1(q[1])).join(' L')} Z" stroke-width="2"/>
-    ${p.map((q, i) => `<text x="${f1(cx + (q[0] - cx) * 1.06)}" y="${f1(cy + (q[1] - cy) * 1.06 + R * .05)}" font-size="${f1(R * .13)}" text-anchor="middle" fill="${c}" stroke="none">${['☿', '♄', '♃', '♂', '♀'][i]}</text>`).join('')}</g>`;
+    ${!ring ? '' : p.map((q, i) => `<text x="${f1(cx + (q[0] - cx) * 1.06)}" y="${f1(cy + (q[1] - cy) * 1.06 + R * .05)}" font-size="${f1(R * .13)}" text-anchor="middle" fill="${c}" stroke="none">${['☿', '♄', '♃', '♂', '♀'][i]}</text>`).join('')}</g>`;
 }
 // a goat's head in red line art — the house mascot of the dark kitchen
 const goat = (c = RED) => `<g fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -155,6 +155,22 @@ const goat = (c = RED) => `<g fill="none" stroke="${c}" stroke-width="2" stroke-
   <path d="M46,78 Q50,82 54,78"/><path d="M45,86 Q50,100 55,86"/><path d="M50,36 L50,44" stroke-width="1.4"/>
   <path d="M41,49 l6,1.5 M59,49 l-6,1.5" stroke-width="2.6"/></g>
   <circle class="eye" cx="44" cy="51" r="1.4" fill="${c}"/><circle class="eye" cx="56" cy="51" r="1.4" fill="${c}"/>`;
+// a rabbit skull seen from above (user's wish, instead of the goat), snout down into the lower point of the pentagram:
+// small round braincase, the winged supraorbital processes, big eye holes inside the wide cheek arches, the long snout with
+// its two nasal bones and the lattice of little holes on the sides, nasal opening, the two incisors
+const skull = (c = RED) => `<g fill="none" stroke="${c}" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4">
+  <path d="M37,42 C24,40 14,45 14,53 C14,61 23,64 37,61" fill="#150c0e"/><path d="M63,42 C76,40 86,45 86,53 C86,61 77,64 63,61" fill="#150c0e"/>
+  <ellipse cx="27" cy="52" rx="9" ry="7.2" fill="#050304" stroke="none"/><ellipse cx="73" cy="52" rx="9" ry="7.2" fill="#050304" stroke="none"/>
+  <path d="M50,9 C61,9 67,15 67,24 C67,31 65,35 63,38 L37,38 C35,35 33,31 33,24 C33,15 39,9 50,9 Z" fill="#150c0e"/>
+  <path d="M37,38 C34,44 33,52 36,61 C38,71 42,82 45,92 L55,92 C58,82 62,71 64,61 C67,52 66,44 63,38 Z" fill="#150c0e"/>
+  <path d="M37.5,38.5 C31,37 25,37.5 20,40 C24,41 26,42 24,44 C28,43.5 31,43 35.5,44.5" fill="#150c0e" stroke-width="1.1"/>
+  <path d="M62.5,38.5 C69,37 75,37.5 80,40 C76,41 74,42 76,44 C72,43.5 69,43 64.5,44.5" fill="#150c0e" stroke-width="1.1"/>
+  <path d="M50,10 l-1.3,3.6 l2.4,3 l-2.4,3.2 l1.4,3.6 l-1.1,3.4 M38.5,38.4 C44,36.8 56,36.8 61.5,38.4" stroke-width=".9" opacity=".75"/>
+  <path d="M47,40 C46.4,55 46.6,70 47.6,84 M53,40 C53.6,55 53.4,70 52.4,84" stroke-width=".95"/>
+  ${[[39.5, 62, 1.4], [42, 66.5, 1.2], [39.8, 68.5, 1.05], [42.4, 72, .95], [41, 75.5, .85], [43.4, 78.5, .75]].map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${f1(r * 1.35)}" fill="#050304" stroke-width=".55"/><ellipse cx="${100 - x}" cy="${y}" rx="${r}" ry="${f1(r * 1.35)}" fill="#050304" stroke-width=".55"/>`).join('')}
+  <path d="M45.4,84 Q50,79.5 54.6,84 Q53.4,89.5 50,89.5 Q46.6,89.5 45.4,84 Z" fill="#050304"/>
+  <path d="M46.8,91.5 h2.9 v7.4 q-1.45,2.2 -2.9,0 Z M50.3,91.5 h2.9 v7.4 q-1.45,2.2 -2.9,0 Z" fill="#2a1a1c" stroke-width="1"/></g>
+  <circle class="eye" cx="27.5" cy="52.5" r="1.1" fill="${c}"/><circle class="eye" cx="72.5" cy="52.5" r="1.1" fill="${c}"/>`;
 const candle = (x, y, h, i = 0) => `<g transform="translate(${x} ${y})">
   <ellipse class="glow" cx="0" cy="-${h + 10}" rx="26" ry="30" fill="url(#cglow)" style="--d:${i * .37}s"/>
   <path d="M-7,0 V-${h} Q-7,-${h + 3} -3,-${h + 2} Q0,-${h + 4} 3,-${h + 2} Q7,-${h + 3} 7,-${h} V0 Z" fill="${BONE}"/>
@@ -162,39 +178,52 @@ const candle = (x, y, h, i = 0) => `<g transform="translate(${x} ${y})">
   <path d="M0,-${h + 2} v-4" stroke="#2a2124" stroke-width="1.2"/>
   <path class="flame" style="--d:${i * .29}s" d="M0,-${h + 21} C5,-${h + 13} 5,-${h + 7} 0,-${h + 5} C-5,-${h + 7} -5,-${h + 13} 0,-${h + 21} Z" fill="#ffcf6b"/>
   <path class="flame" style="--d:${i * .29}s" d="M0,-${h + 15} C2.4,-${h + 11} 2.4,-${h + 8} 0,-${h + 7} C-2.4,-${h + 8} -2.4,-${h + 11} 0,-${h + 15} Z" fill="#fff4d6"/></g>`;
-// every recipe gets its own sigil, drawn from its name
-function sigil(seed, size = 90) {
-  const r = rng(seed), n = 5 + Math.floor(r() * 4), R = 34, c = 50;
-  const pts = Array.from({ length: n }, (_, i) => { const a = (i / n * 360 + r() * 20 - 90) * Math.PI / 180, rr = R * (.45 + r() * .55); return [c + Math.cos(a) * rr, c + Math.sin(a) * rr]; });
-  const order = pts.map((_, i) => i).sort(() => r() - .5), path = order.map((i, k) => (k ? 'L' : 'M') + f1(pts[i][0]) + ',' + f1(pts[i][1])).join(' ');
-  const s = pts[order[0]], e = pts[order[order.length - 1]], ticks = Array.from({ length: 24 }, (_, i) => { const a = i * 15 * Math.PI / 180, r1 = i % 6 ? 44 : 41; return `M${f1(c + Math.cos(a) * r1)},${f1(c + Math.sin(a) * r1)} L${f1(c + Math.cos(a) * 46)},${f1(c + Math.sin(a) * 46)}`; }).join(' ');
-  return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" class="sigil" aria-hidden="true"><g fill="none" stroke="${RED}" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="50" cy="50" r="47" stroke-width="1"/><path d="${ticks}" stroke-width="1"/><g class="spin"><path d="${path}" stroke-width="1.8"/>
-    <circle cx="${f1(s[0])}" cy="${f1(s[1])}" r="3.2" stroke-width="1.4"/><path d="M${f1(e[0] - 4)},${f1(e[1] + 4)} L${f1(e[0] + 4)},${f1(e[1] - 4)}" stroke-width="1.8"/>
-    ${r() < .6 ? `<path d="M${f1(c - 6)},${c} h12 M${c},${f1(c - 6)} v12" stroke-width="1"/>` : `<circle cx="50" cy="50" r="${f1(6 + r() * 6)}" stroke-width="1"/>`}</g></g></svg>`;
+// a real sigil, made the classic way (user's choice): the recipe's name without vowels and repeated letters; those letters
+// drawn on top of each other (each one turned or mirrored) into a single glyph. The letters stand underneath.
+// the sigil wheel: the consonants sit around a circle; the line runs from letter to letter in the name's order,
+// starting with a small circle and ending with a bar
+const WHEEL = 'BCDFGHJKLMNPQRSTVWXZ'.split('');
+const sigilLetters = name => { const out = []; for (const c of String(name).toUpperCase().replace(/ß/g, 'S').normalize('NFD').replace(/[^A-Z]/g, '').replace(/[AEIOUY]/g, '')) if (WHEEL.includes(c) && out[out.length - 1] !== c && !out.includes(c)) out.push(c); return out.slice(0, 9); };
+function sigil(name, size = 92) {
+  const L = sigilLetters(name), pos = c => { const a = (WHEEL.indexOf(c) / WHEEL.length * 360 - 90) * Math.PI / 180; return [50 + Math.cos(a) * 33, 50 + Math.sin(a) * 33]; };
+  const P = L.map(pos), [s0, e] = [P[0], P[P.length - 1]], prev = P[P.length - 2] || [50, 50];
+  const ang = Math.atan2(e[1] - prev[1], e[0] - prev[0]), bx = Math.cos(ang + Math.PI / 2) * 5, by = Math.sin(ang + Math.PI / 2) * 5;
+  const rim = WHEEL.map((c, i) => { const a = (i / WHEEL.length * 360 - 90) * Math.PI / 180; return `<text x="${f1(50 + Math.cos(a) * 42)}" y="${f1(50 + Math.sin(a) * 42 + 2)}" text-anchor="middle" font-size="5.2" fill="${RED}" opacity="${L.includes(c) ? .95 : .35}">${c}</text>`; }).join('');
+  return `<figure class="sigil-fig"><svg viewBox="0 0 100 100" width="${size}" height="${size}" class="sigil" aria-hidden="true"><g fill="none" stroke="${RED}" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="50" cy="50" r="47.5" stroke-width=".9"/><circle cx="50" cy="50" r="37" stroke-width=".5" opacity=".5"/>
+    ${P.length > 1 ? `<polyline points="${P.map(p => f1(p[0]) + ',' + f1(p[1])).join(' ')}" stroke-width="1.8"/>` : ''}
+    <circle cx="${f1(s0[0])}" cy="${f1(s0[1])}" r="3" stroke-width="1.5"/><path d="M${f1(e[0] - bx)},${f1(e[1] - by)} L${f1(e[0] + bx)},${f1(e[1] + by)}" stroke-width="1.8"/></g>
+    <g font-family="Fell, Georgia, serif">${rim}</g></svg><figcaption>${L.join(' · ')}</figcaption></figure>`;
 }
+// how the dish really smells: only aromas of what's in it (and how it's cooked), sorted by how fleeting they are —
+// head notes fade first (citrus, herbs, onion), heart notes carry the dish (spices, meat, veg), base notes linger (roast, nut, cocoa)
+const AROMA = [
+  [/orange/, 'Orange', 0], [/zitron/, 'Zitrone', 0], [/limett/, 'Limette', 0], [/yuzu/, 'Yuzu', 0], [/basilikum/, 'Basilikum', 0], [/petersilie/, 'Petersilie', 0],
+  [/schnittlauch/, 'Schnittlauch', 0], [/dill/, 'Dill', 0], [/minze/, 'Minze', 0], [/koriander/, 'Koriander', 0], [/ingwer/, 'Ingwer', 0], [/knoblauch/, 'Knoblauch', 0],
+  [/zwiebel|lauch/, 'Zwiebel', 0], [/balsamico/, 'Balsamico', 0], [/essig/, 'Essig', 0], [/apfel/, 'Apfel', 0], [/tomate/, 'Tomate', 0], [/gurke/, 'Gurke', 0],
+  [/garnele|lachs|fisch|thunfisch/, 'Meer', 0], [/pfeffer/, 'Pfeffer', 0], [/chili/, 'Chili', 0],
+  [/lorbeer/, 'Lorbeer', 1], [/thymian/, 'Thymian', 1], [/rosmarin/, 'Rosmarin', 1], [/salbei/, 'Salbei', 1], [/curry/, 'Curry', 1], [/kreuzkümmel/, 'Kreuzkümmel', 1],
+  [/kümmel/, 'Kümmel', 1], [/paprika/, 'Paprika', 1], [/zimt/, 'Zimt', 1], [/muskat/, 'Muskat', 1], [/spinat/, 'Spinat', 1], [/kohl|kraut/, 'Kohl', 1],
+  [/hähnchen|huhn|pute/, 'Brathähnchen', 1], [/hack|rind|schwein|braten|wurst|würstchen|speck|schinken/, 'Gebratenes', 1], [/banane/, 'Banane', 1],
+  [/honig/, 'Honig', 1], [/sahne|milch|frischkäse|quark|schmand/, 'Sahne', 1], [/\beier?\b/, 'Ei', 1], [/kokos/, 'Kokos', 1],
+  [/schokolade|kakao/, 'Kakao', 2], [/vanille/, 'Vanille', 2], [/nüsse|nuss|mandel/, 'geröstete Nüsse', 2], [/champignon|pilz/, 'Pilze', 2],
+  [/käse|parmesan|feta|mozzarella/, 'Käse', 2], [/kartoffel/, 'Kartoffel', 2], [/brot|toast|brötchen|knödel|baguette/, 'Brot', 2], [/butter/, 'Butter', 2], [/reis/, 'Reis', 2],
+];
+function pyramid(r) {
+  const t = [[], [], []], add = (tier, n) => { if (!t[tier].includes(n)) t[tier].push(n); };
+  for (const [, name] of r.ing) { const n = String(name).toLowerCase(); for (const [re, note, tier] of AROMA) if (re.test(n)) { add(tier, note); break; } }
+  const steps = r.steps.map(s => s[0]).join(' ').toLowerCase();
+  if (/nussbraun|beurre noisette|braune butter/.test(steps) && t[2].includes('Butter')) t[2][t[2].indexOf('Butter')] = 'Nussbutter';
+  if (/anbrat|goldbraun|knusprig|rösten|röst|scharf an/.test(steps)) add(2, 'Röstaromen');
+  if (/karamell/.test(steps)) add(2, 'Karamell');
+  return t.map(x => x.slice(0, 4));
+}
+
 const seal = (text = 'PERACTUM', sub = '') => `<svg viewBox="0 0 120 120" class="seal" aria-hidden="true"><defs><radialGradient id="sg" cx="40%" cy="35%"><stop offset="0" stop-color="#d23a46"/><stop offset=".7" stop-color="#9c1424"/><stop offset="1" stop-color="#6e0b17"/></radialGradient></defs>
   <path d="${Array.from({ length: 18 }, (_, i) => { const a = i / 18 * Math.PI * 2, rr = i % 2 ? 50 : 56; return (i ? 'L' : 'M') + f1(60 + Math.cos(a) * rr) + ',' + f1(60 + Math.sin(a) * rr); }).join(' ')} Z" fill="url(#sg)"/>
   <circle cx="60" cy="60" r="38" fill="none" stroke="#5e0912" stroke-width="2.5" opacity=".7"/><circle cx="60" cy="60" r="31" fill="none" stroke="#e86b76" stroke-width="1" opacity=".5"/>
   <path d="M46,42 L74,78 M74,42 L46,78" stroke="#5e0912" stroke-width="4" stroke-linecap="round" opacity=".7"/><path d="M71,40 q8,2 6,10 l-6,-6 M46,42 v6 M42,42 v5 M50,42 v5" stroke="#5e0912" stroke-width="2" fill="none" opacity=".7"/>
   <text x="60" y="${sub ? 98 : 101}" text-anchor="middle" font-family="Fell, serif" font-size="11" fill="#f3c9cd" letter-spacing="1.5">${esc(text)}</text>${sub ? `<text x="60" y="30" text-anchor="middle" font-size="14">${esc(sub)}</text>` : ''}</svg>`;
-// a dish as a perfume: head / heart / base notes from what's in it
-const NOTES = [[/orange/, 'Bergamotte', 0], [/zitron|limett/, 'Zitrone', 0], [/tomat/, 'Tomatenblatt', 0], [/basilikum/, 'Basilikum', 0], [/petersilie|schnittlauch|dill/, 'Galbanum', 0],
-  [/apfel/, 'grüner Apfel', 0], [/garnele|fisch|lachs/, 'Meeresbrise', 0], [/pfeffer/, 'schwarzer Pfeffer', 0], [/knoblauch|zwiebel/, 'Schwefel (mutig)', 0], [/ei(er)?$|eier/, 'Aldehyde', 0],
-  [/lorbeer/, 'Lorbeer', 1], [/butter/, 'Iris-Butter', 1], [/curry|kardamom/, 'Safran', 1], [/zimt/, 'Zimt', 1], [/spinat|feldsalat|salat/, 'Veilchenblatt', 1], [/kohl/, 'grüner Tee', 1],
-  [/banane/, 'Banane', 1], [/honig/, 'Honig', 1], [/hähnchen|huhn/, 'Leder', 1], [/sahne|milch|quark|frischkäse/, 'Moschus', 1],
-  [/schokolade|kakao/, 'Kakao-Absolue', 2], [/nüsse|nuss/, 'Haselnuss', 2], [/champignon|pilz/, 'Waldboden', 2], [/kartoffel/, 'Vetiver', 2], [/balsamico/, 'Perubalsam', 2],
-  [/käse/, 'Ambra', 2], [/vanille/, 'Vanille', 2], [/kaffee/, 'Kaffee', 2], [/brot|toast|knödel|brötchen/, 'Toast-Akkord', 2], [/wurst|würstchen|speck/, 'Birkenteer', 2]];
-function pyramid(r) {
-  const t = [[], [], []];
-  for (const [, name] of r.ing) { const n = String(name).toLowerCase(); for (const [re, note, tier] of NOTES) if (re.test(n) && !t[tier].includes(note)) { t[tier].push(note); break; } }
-  const fb = [['Aldehyde', 'Rosa Pfeffer'], ['Weihrauch', 'Lorbeer'], ['Ambra', 'Labdanum']];
-  return t.map((x, i) => (x.length ? x : fb[i]).slice(0, 3));
-}
-function exif(r) {
-  const h = hash(r.id), F = ['1.4', '1.8', '2', '2.8', '4', '5.6'], T = ['1/30', '1/60', '1/125', '1/250'], I = [100, 200, 400, 800, 1600, 3200], L = [24, 35, 50, 85];
-  return `f/${F[h % F.length]} · ${T[(h >>> 3) % T.length]} s · ISO ${I[(h >>> 5) % I.length]} · ${L[(h >>> 8) % L.length]} mm`;
-}
 const MOTTO = [['Per ignem ad saporem.', 'Durchs Feuer zum Geschmack.'], ['Butyrum vincit omnia.', 'Butter besiegt alles.'], ['Memento mori, memento salis.', 'Denk an den Tod. Und ans Salz.'],
   ['Fames est optimus coquus.', 'Hunger ist der beste Koch.'], ['Coquo, ergo sum.', 'Ich koche, also bin ich.'], ['Ex tenebris sapor.', 'Aus der Dunkelheit: Geschmack.'],
   ['Nulla dies sine butyro.', 'Kein Tag ohne Butter.'], ['Carpe cenam.', 'Nutze das Abendessen.'], ['In nomine pfefferi.', 'Im Namen des Pfeffers.'],
@@ -219,15 +248,15 @@ export function deco(theme, r, o = {}) {
   }
   const [top, heart, base] = pyramid(r), [mo, tr] = MOTTO[(h >>> 6) % MOTTO.length];
   return {
-    side: `<div class="bp-sig">${sigil(h)}</div>`,
+    side: `<div class="bp-sig">${sigil(r.title)}</div>`,
     stamp: o.cooked ? `<div class="bp-seal">${seal('PERACTUM', o.taste)}</div>` : '',
-    foot: `<div class="bp-perf"><b>✠ Duftpyramide</b><div class="pyr"><span>Kopf</span><em>${top.map(esc).join(' · ')}</em><span>Herz</span><em>${heart.map(esc).join(' · ')}</em><span>Basis</span><em>${base.map(esc).join(' · ')}</em></div></div>
-      <div class="bp-exif"><span>◉ Belichtung</span> ${exif(r)}</div><p class="bp-motto">${mo} <span>${tr}</span></p>`,
+    foot: (top.length + heart.length + base.length ? `<div class="bp-perf"><b>✠ Duftpyramide</b><div class="pyr">${[['Kopf', top], ['Herz', heart], ['Basis', base]].filter(([, x]) => x.length).map(([l, x]) => `<span>${l}</span><em>${x.map(esc).join(' · ')}</em>`).join('')}</div><p class="pyr-note">So riecht es wirklich – aus den Zutaten, von flüchtig bis bleibend.</p></div>` : '')
+      + `<p class="bp-motto">${mo} <span>${tr}</span></p>`,
   };
 }
 // a little picture for the top of each section page
 export const sectionArt = k => k === 'jetzt' ? `<div class="sa-dog">${poodle(7)}</div>` : k === 'gekocht' ? `<div class="sa-dog">${poodle(9, 'sleep')}</div>`
-  : k === 'daheim' ? `<div class="sa-peek">${bunnyPeek()}</div>` : k === 'codex' ? `<div class="sa-pent"><svg viewBox="0 0 120 120">${pentagram(60, 60, 44, RED, false)}<g transform="translate(25 22) scale(.7)">${goat()}</g></svg></div>` : `<div class="sa-sc">${scales()}</div>`;
+  : k === 'daheim' ? `<div class="sa-peek">${bunnyPeek()}</div>` : k === 'codex' ? `<div class="sa-pent"><svg viewBox="0 0 120 120">${pentagram(60, 60, 44, RED, false)}<g transform="translate(17 13) scale(.86)">${skull()}</g></svg></div>` : `<div class="sa-sc">${scales()}</div>`;
 
 let A = null;                      // the app's side: at(i) → page, i(), n(), onTurn(i), label(), tab()
 const keep = { key: '', top: 0 };  // the open page's scroll position survives re-renders
@@ -363,7 +392,7 @@ const CSS = `
 .sec-head h2 { flex: 1; margin: 0; font: 700 30px/1.1 'Dancing Script', Caveat, cursive; color: #5f7d5a; }
 .sec-head .sa-dog { width: 74px; } .sec-head .sa-peek { width: 56px; } .sec-head .sa-sc { width: 70px; } .sec-head .sa-pent { width: 78px; }
 .sec-head.plain { margin: 4px 4px 12px; }
-.sec-head.codex > div:first-child { flex: 1; } .bp-him .sec-head h2 { font: 400 30px Fell, Georgia, serif; color: #ff4a5c; text-shadow: 0 0 16px rgba(192,23,43,.35); }
+.sec-head.codex > div:first-child { flex: 1; } .bp-him .sec-head h2 { text-transform: uppercase; letter-spacing: .07em; line-height: 1.12; font: 400 30px Fell, Georgia, serif; color: #ff4a5c; text-shadow: 0 0 16px rgba(192,23,43,.35); }
 .bp-him .sec-title { color: #ff6b7a; font-family: Fell, Georgia, serif; }
 /* the Codex bookmark: black with a subtle brimstone glow */
 .cb-tab[data-v="codex"] { background: linear-gradient(180deg, #2a0f13, #12080a); color: #ff6a4a; font-family: Fell, Georgia, serif; font-weight: 400; font-size: 12.5px; letter-spacing: .06em; text-shadow: 0 0 6px rgba(255,90,40,.6); animation: bkBrim 3.2s ease-in-out infinite; }
@@ -373,7 +402,9 @@ const CSS = `
 .recipe-row.row-him b { font-family: Fell, Georgia, serif; font-weight: 400; font-size: 1.08em; color: #ff8593; } .recipe-row.row-him .muted { color: #bba99b; }
 .rstamp { display: inline-block; margin-top: 4px; padding: 1px 8px; border: 2px solid currentColor; border-radius: 6px; font-weight: 800; font-size: 12.5px; transform: rotate(-2deg); }
 .rstamp.shop { color: #3f7fbf; } .rstamp.home { color: #4f9a5b; } .rstamp.pantry { color: #ff6a4a; border-style: double; border-width: 3px; font-family: Fell, Georgia, serif; font-weight: 400; font-size: 13.5px; }
-.bp .ccats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -4px 10px; padding: 2px 4px; } .bp .ccats::-webkit-scrollbar { display: none; } .bp .ccats .chip { flex: none; white-space: nowrap; }
+.bp .ccats { flex-wrap: wrap; margin: 0 0 10px; } .bp .ccats .chip { white-space: nowrap; }
+.rsrow { display: flex; gap: 6px; align-items: center; margin: 0 0 12px; } .rsrow .rsearch { margin: 0; flex: 1; min-width: 0; }
+.rsrow .ricon { flex: none; width: 46px; height: 46px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); font-size: 20px; cursor: pointer; }
 .ccats .chip:disabled { opacity: .4; } .ccats .chip .cnt { font-size: .8em; opacity: .7; }
 /* shared bits of a recipe page */
 .bp-ing { list-style: none; padding: 0; margin: 0; }
@@ -429,7 +460,8 @@ const CSS = `
 .bp-him .bp-title { font: 400 30px/1.15 Fell, Georgia, serif; color: #ff4a5c; margin: 6px 0 4px; text-shadow: 0 0 16px rgba(192,23,43,.35); }
 .bp-him .bp-meta { font-style: italic; color: var(--ink2); margin: 0 0 6px; }
 .bp-him .card h3 { font: 400 22px Fell, Georgia, serif; color: #ff6b7a; margin: 0 0 4px; } .bp-him .card h3::before { content: '✠ '; color: ${RED}; }
-.bp-him .bp-sig { float: right; margin: 0 -2px 6px 8px; } .bp-him .sigil .spin { transform-origin: 50px 50px; animation: bkSpin 60s linear infinite; }
+.bp-him .bp-sig { float: right; margin: 0 -2px 6px 8px; } .sigil-fig { margin: 0; text-align: center; width: 96px; } .sigil-fig figcaption { font: 11px/1.35 Fell, Georgia, serif; letter-spacing: .06em; color: #b98f95; margin-top: 2px; }
+.bp-him .pyr-note { margin: 6px 0 0; font-size: 13px; font-style: italic; color: var(--ink2); }
 @keyframes bkSpin { to { transform: rotate(360deg); } }
 .bp-him .bp-tape { display: inline-block; border: 1px solid rgba(192,23,43,.7); color: #f4c3c8; padding: 2px 10px; font-style: italic; margin: 2px 0 6px; }
 .bp-him .bp-note { font-style: italic; color: #d9cbbd; }
