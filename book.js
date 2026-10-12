@@ -166,7 +166,7 @@ const leviathan = () => {
   <radialGradient id="halo"><stop offset="0" stop-color="#ff8a2a" stop-opacity=".32"/><stop offset=".6" stop-color="#ff5a14" stop-opacity=".08"/><stop offset="1" stop-color="#ff5a14" stop-opacity="0"/></radialGradient>
   <filter id="brimglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
   <circle cx="70" cy="70" r="68" fill="url(#halo)"/>
-  <g transform="translate(70 70)" fill="#ff8a2a" opacity=".55" class="flames">${flames}</g>
+  <g transform="translate(70 70)"><g fill="#ff8a2a" opacity=".55" class="flames">${flames}</g></g>
   <circle cx="70" cy="70" r="53" fill="none" stroke="url(#brim)" stroke-width="1.6" opacity=".85"/><circle cx="70" cy="70" r="49" fill="none" stroke="url(#brim)" stroke-width=".6" opacity=".55"/>
   <g filter="url(#brimglow)"><g fill="none" stroke="url(#brim)" stroke-width="5" stroke-linecap="butt">
   <path d="M70,27 V88"/><path d="M57,43 H83"/><path d="M50,59 H90"/>
@@ -268,7 +268,7 @@ const keep = { key: '', top: 0 };  // the open page's scroll position survives r
 const pageEl = (p, cls) => `<div class="bk-page ${cls} bp-${p.theme}" data-key="${esc(p.key)}"><div class="bp">${p.html}</div></div>`;
 export function frame({ tabs, cur, page, label }) {
   return `<div class="cbook" id="cbook"><div class="cb-body"><div class="bk-stage" id="bkstage">${pageEl(page, 'cur')}</div>
-    <div class="cb-tabs">${tabs.map(([k, l, c]) => `<button class="cb-tab ${k === cur ? 'on' : ''}" data-a="ktab" data-v="${k}" style="--tc:${c}"><span>${l}</span></button>`).join('')}</div></div>
+    <div class="cb-tabs">${tabs.map(([k, l, c, cl], i) => `${cl && !(tabs[i - 1] || [])[3] ? '<span class="cb-claude" aria-hidden="true">✦ von Claude</span>' : ''}<button class="cb-tab ${k === cur ? 'on' : ''}${cl ? ' cl' : ''}" data-a="ktab" data-v="${k}" style="--tc:${c}"><span>${cl ? '✦ ' : ''}${l}</span></button>`).join('')}</div></div>
     <div class="bk-foot"><button data-bk="prev" aria-label="Zurückblättern">‹</button><span id="bkno">${esc(label)}</span><button data-bk="next" aria-label="Weiterblättern">›</button></div></div>`;
 }
 function fit() {   // the book fills the screen between the sub-tabs and the bottom bar; its pages scroll inside
@@ -388,6 +388,8 @@ const CSS = `
   box-shadow: 2px 2px 6px rgba(0,0,0,.15); opacity: .72; transform: translateX(-6px); transition: transform .2s, opacity .2s; text-shadow: 0 1px 1px rgba(0,0,0,.25); }
 .cb-tab span { writing-mode: vertical-rl; display: inline-block; }
 .cb-tab.on { opacity: 1; transform: translateX(0); width: 34px; }
+/* Claude's two shelves: a little gap and a handwritten "✦ von Claude" over them, so it's clear those are Claude's recipes */
+.cb-claude { margin: 10px 0 0; writing-mode: vertical-rl; align-self: center; font: 700 15px/1 Caveat, 'Dancing Script', cursive; color: #9a7bb8; letter-spacing: .04em; white-space: nowrap; border-left: 2px dashed rgba(154,123,184,.5); padding-left: 3px; }
 .bk-foot { display: flex; align-items: center; justify-content: space-between; padding: 6px 2px 0; gap: 8px; }
 .bk-foot button { border: 0; border-radius: 999px; width: 54px; height: 38px; font: 800 24px/1 Nunito, sans-serif; background: var(--paper2); color: var(--ink); cursor: pointer; }
 .bk-foot button:disabled { opacity: .3; }
@@ -397,7 +399,7 @@ const CSS = `
 .sec-head h2 { flex: 1; margin: 0; font: 700 30px/1.1 'Dancing Script', Caveat, cursive; color: #5f7d5a; }
 .sec-head .sa-dog { width: 74px; } .sec-head .sa-peek { width: 56px; } .sec-head .sa-sc { width: 70px; } .sec-head .sa-pent { width: 96px; margin: -10px -6px -8px 0; } .levi { overflow: visible; animation: bkSmoulder 3.6s ease-in-out infinite; } 
 .levi .ember { opacity: 0; animation: bkEmber 4.4s var(--d, 0s) ease-out infinite; } @keyframes bkEmber { 0% { opacity: 0; transform: translateY(0); } 15% { opacity: .95; } 100% { opacity: 0; transform: translate(4px, -84px); } }
-.levi .flames { transform-origin: 70px 70px; animation: bkSpin 90s linear infinite; }
+.levi .flames { transform-origin: 0 0; transform-box: view-box; animation: bkSpin 90s linear infinite; }   /* inner group: the spin must not replace the translate */
 @keyframes bkSmoulder { 0%,100% { opacity: .85; filter: drop-shadow(0 0 3px rgba(255,140,30,.35)); } 50% { opacity: 1; filter: drop-shadow(0 0 9px rgba(255,150,40,.7)); } }
 .sec-head.plain { margin: 4px 4px 12px; }
 .sec-head.codex > div:first-child { flex: 1; } .bp-him .sec-head h2 { text-transform: uppercase; letter-spacing: .07em; line-height: 1.12; font: 400 30px Fell, Georgia, serif; color: #ff4a5c; text-shadow: 0 0 16px rgba(192,23,43,.35); }

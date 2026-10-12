@@ -9,7 +9,7 @@ import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-11.10';
+const VERSION = '2026-10-12.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1159,6 +1159,7 @@ const A = {
     if (Bk.flipTo(kpage({ sec: to }), wasR || ti < from ? -1 : 1)) return;
     render(); scrollTo(0, 0);
   },
+  vrseen() { vrSeenAdd(vorratRecipes().map(r => r.id)); },
   ktabgo(el) { ui.tab = 'ruhe'; ui.qtab = 'kochbuch'; ui.rid = null; ui.ktab = el.dataset.v; render(); scrollTo(0, 0); },
   vorratdelm(el) { useVorrat([el.dataset.id]); closeModal(); commit(true); },
   cnext() { ui.cstep++; render(); },
@@ -1528,6 +1529,13 @@ function archRecipes() {
   sets.slice().sort((a, b) => b.ts - a.ts).forEach(s => (s.recipes || []).forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); out.push({ ...r, uses: undefined, trip: s.ts }); } }));
   return out;
 }
+// ✨ new from Claude (2026-10-12): the current set's recipes I haven't opened on their shelf yet → a card on Home.
+// S.vrSeen starts (once the archive is loaded) with every older set, so only the newest set counts as new the first time.
+const vrNew = () => { if (!S.vrSeen) return []; const seen = new Set(S.vrSeen); return vorratRecipes().filter(r => !seen.has(r.id)).map(r => ({ ...r, vr: true })); };
+function vrSeenAdd(ids, quiet) {
+  const had = new Set(S.vrSeen || []), add = ids.filter(id => !had.has(id)); if (!add.length && S.vrSeen) return;
+  S.vrSeen = [...had, ...add].slice(-400); S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); if (!quiet) render();
+}
 const fixRec = r => ({ tags: [], ing: [], steps: [], icon: '🍽️', min: 0, cat: 'haupt', ...r });
 function allRecipes() {
   const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set(S.hiddenRecipes || []), free = r => !ids.has(r.id) && !hidden.has(r.id);
@@ -1585,7 +1593,11 @@ function plateHtml(r, sides) {
   return '<span class="plate">' + Object.entries(K.PLATE).map(([k, [ic, l]]) => { const on = r.plate[k] || sides.some(s => s.g === k); return `<span class="pb ${on ? 'on' : ''}" title="${l}">${ic}</span>`; }).join('') + '</span>';
 }
 const tasteOf = r => { const c = S.cook[r.id]; return c && c.taste ? K.TASTE.find(t => t[2] === c.taste)[0] : ''; };
-const vMatch = (n, v) => n.length >= 3 && v.length >= 3 && (v.includes(n) || n.includes(v));
+// recipe ingredient ↔ Vorrat name: substring (Tomate ↔ Kirschtomaten), plus words too short for that matched by family
+// (2026-10-12, user: "1 Ei" was missing while "Eier (6)" sat in the Vorrat — "ei" is too short for the substring rule)
+const VFAM = { ei: 'eier', eier: 'eier', eigelb: 'eier', eiweiß: 'eier', eiweiss: 'eier', eiern: 'eier' };
+const vFams = t => t.split(/[^a-zäöüß]+/).map(w => VFAM[w]).filter(Boolean);
+const vMatch = (n, v) => (n.length >= 3 && v.length >= 3 && (v.includes(n) || n.includes(v))) || vFams(n).some(f => vFams(v).includes(f));
 function haveFor(r, V) { // → {need, missing[]} over the real ingredients (staples skipped); too little of something = missing
   const need = (r.ing || []).filter(([, t]) => t && !isPantry(t));
   return { need: need.length, missing: need.filter(([q, t]) => { const x = V.find(y => vMatch(Sh.norm(t), Sh.norm(y.name))), rq = parseQty(q);
@@ -1597,12 +1609,12 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
   return { all: rs.filter(x => !x.h.missing.length).map(x => x.r),
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
-const recipeRow = r => { const him = styleOf(r) === 'him' && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
+const recipeRow = r => { const him = isCodex(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
 // page goes through the list it came from (ui.kctx). Each recipe page has its style: herStyle → warm, otherwise occult.
-const KTABS = [['jetzt', 'Kochen', '#84a76f'], ['next', 'Stöbern', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c'], ['herb', 'Herbarium', '#6f8f5e'], ['codex', 'Culinarius Infernalis', '#1a0d10']];
+const KTABS = [['jetzt', 'Kochen', '#84a76f'], ['next', 'Stöbern', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c'], ['herb', 'Herbarium', '#6f8f5e', 1], ['codex', 'Culinarius', '#1a0d10', 1]]   // 1 = Claude's shelves (marked in the thumb index);
 const SEC_TITLE = { jetzt: 'Was koch ich jetzt?', next: 'Stöbern', gekocht: 'Was wir gekocht haben' };
 // Claude's fancy recipes live behind their own bookmark (Julia won't cook those) — out of Kochen, Stöbern and suggestions
 const isCodex = r => !!r.vr && r.level === 'fancy';
@@ -1670,6 +1682,7 @@ function viewJetzt() {   // per category: shopped for → all at home → only 1
 // 'codex' = Culinarius Infernalis (his fancy ones, occult) · 'herb' = Herbarium (the easy ones, warm)
 function viewShelf(kind) {
   const codex = kind === 'codex', key = codex ? 'xcat' : 'hcat';
+  const fresh = vrNew().filter(codex ? isCodex : isHerb).map(r => r.id); if (fresh.length) setTimeout(() => vrSeenAdd(fresh, true), 0);
   const V = vorrat(), all = allRecipes().filter(codex ? isCodex : isHerb).map(r => ({ r, h: V.length ? haveFor(r, V) : { need: 1, missing: [1, 2, 3] } }));
   const rank = x => !x.h.missing.length ? 0 : x.h.missing.length <= 2 ? 1 : 2;
   const counts = Object.fromEntries(K.CATS.map(([k]) => [k, all.filter(x => x.r.cat === k).length]));
@@ -1689,10 +1702,10 @@ function viewNext() {
     <p class="hint">Claude macht daraus eine Kochbuch-Seite mit Zutaten und Schritten – sie taucht hier auf, sobald sie fertig ist.</p></div>`;
   h += `<div id="rresults">${searchHtml()}</div>`;
   if (ui.rq) return h;
-  const ours = allRecipes().filter(isOurs), cats = K.CATS.map(([k, l]) => [k, CAT_SHORT[k] || l]).concat([['fav', '💛 Lieblinge']], ours.length ? [['ours', '📷 Unsere']] : []);
+  const ours = allRecipes().filter(isOurs), cats = K.CATS.map(([k, l]) => [k, CAT_SHORT[k] || l]).concat(ours.length ? [['ours', '📷 Unsere']] : []);
   const cat = cats.some(([k]) => k === ui.ccat) ? ui.ccat : 'haupt';
   h += `<div class="chips ccats">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
-  const list = (cat === 'fav' ? allRecipes().filter(r => (S.cook[r.id] || {}).taste === 3 || (r.fav && (S.cook[r.id] || {}).taste !== 1)) : cat === 'ours' ? ours
+  const list = (cat === 'ours' ? ours
     : allRecipes().filter(r => r.cat === cat)).filter(r => !isCodex(r));
   const rows = list.map(r => recipeRow(cat === 'ours' ? { ...r, plain: true } : r)).join(''); h += rows ? withCtx(rows) : '<p class="muted">Noch nichts hier.</p>';
   if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
@@ -1902,6 +1915,7 @@ async function syncBook() {
   if (vb) { const j = JSON.stringify(vb), was = vorratRecipes().map(r => r.id + r.ts).join(); if (j !== localStorage.getItem('gn_vbook')) { localStorage.setItem('gn_vbook', j); if (vorratRecipes().map(r => r.id + r.ts).join() !== was) render(); } }   // redraw only when something visible changed (a redraw can swallow a tap)
   const va = await D.readVorratArchiv();
   if (va) { const j = JSON.stringify(va); if (j !== localStorage.getItem('gn_varch')) { localStorage.setItem('gn_varch', j); if (ui.qtab === 'kochbuch' && ui.cstep == null) render(); } }
+  if (!S.vrSeen && localStorage.getItem('gn_varch') && localStorage.getItem('gn_vbook')) vrSeenAdd(archRecipes().map(r => r.id), true);
   const b = await D.readBook(); if (!b) return;
   const j = JSON.stringify(b); if (j === localStorage.getItem('gn_book')) return;
   localStorage.setItem('gn_book', j);
@@ -2324,13 +2338,17 @@ function homeLine(st) { // ONE sentence that fits right now (rotates by day amon
   const [ic, txt, tab] = canBuy ? out.find(x => x[2] === 'schaetze') : out[dayIndex() % out.length];
   return `<button class="card hcard homeline" data-a="go" data-tab="${tab}"><span class="hl-ic">${ic}</span><span class="hc-txt">${esc(txt)}</span><span class="hc-go">›</span></button>`;
 }
+function vrNewCard() {
+  const n = vrNew(), e = n.filter(isHerb).length, f = n.filter(isCodex).length; if (!n.length) return '';
+  return `<div class="card vrnew"><button class="hcard" data-a="ktabgo" data-v="${e ? 'herb' : 'codex'}"><span class="vn-ic" aria-hidden="true">✨</span><span class="hc-txt"><b>Neue Rezepte von Claude</b><span class="muted">${[e ? `🌿 ${e} im Herbarium` : '', f ? `✦ ${f} im Culinarius` : ''].filter(Boolean).join(' · ')}</span></span><span class="hc-go">›</span></button><button class="mini-btn" data-a="vrseen" aria-label="Gesehen">✕</button></div>`;
+}
 function viewHome() {
   if (ui.sub === 'baby') return viewBaby();
   if (ui.sub === 'events') return viewEvents();
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
-  h += incomingCard() + giftCards() + babyCard();
+  h += incomingCard() + giftCards() + babyCard() + vrNewCard();
   // today: the ring + the next few things, ticked right here
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
   h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
@@ -2609,6 +2627,7 @@ function mergeStates(local, remote, base = null) {
   m.fixes = [...new Set([].concat(newer.fixes || [], older.fixes || []))];
   m.favs = [...new Set([].concat(newer.favs || [], older.favs || []))];
   m.termSeen = newer.termSeen || older.termSeen ? [...new Set([].concat(newer.termSeen || [], older.termSeen || []))].slice(-300) : undefined;
+  m.vrSeen = newer.vrSeen || older.vrSeen ? [...new Set([].concat(older.vrSeen || [], newer.vrSeen || []))].slice(-400) : undefined;
   m.thanksSeen = [...new Set([].concat(newer.thanksSeen || [], older.thanksSeen || []))].slice(-200);
   m.cook = Object.assign({}, older.cook || {}, newer.cook || {});
   m.babyMine = B.mergeMine(older.babyMine, newer.babyMine);
@@ -2723,4 +2742,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { vorrat: () => vorrat(), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
+window.__gn = { vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
