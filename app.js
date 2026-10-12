@@ -9,7 +9,7 @@ import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-12.2';
+const VERSION = '2026-10-12.3';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1612,14 +1612,14 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
 // 🖍️ 1–3 crayon stars from minutes + number of steps (user's pick; visible only on the picture-book pages, CSS .kstars)
-const kidLevel = r => { const m = r.min || 0, n = (r.steps || []).length; return m > 45 || n >= 7 ? 3 : m <= 20 && n <= 4 ? 1 : 2; };
-const kidStars = r => { const k = kidLevel(r); return `<span class="kstars"><em>${'★'.repeat(k)}</em><i>${'★'.repeat(3 - k)}</i>${['kinderleicht', 'einfach', 'braucht etwas Zeit'][k - 1]}<br></span>`; };
-const recipeRow = r => { const him = isCodex(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.vr && !him ? kidStars(r) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
+const kidLevel = r => { const m = r.min || 0, n = (r.steps || []).length; return Math.min(3, (m <= 20 ? 1 : m <= 45 ? 2 : 3) + (n >= 9 ? 1 : 0)); };
+const kidStars = r => { const k = kidLevel(r); return `<span class="kstars"><em>${'★'.repeat(k)}</em><i>${'★'.repeat(3 - k)}</i>${['ganz schnell', 'gemütlich', 'braucht etwas Zeit'][k - 1]}<br></span>`; };
+const recipeRow = r => { const him = isCodex(r) && !r.plain, kid = isHerb(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : kid ? ' row-kid' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${kid ? kidStars(r) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
 // page goes through the list it came from (ui.kctx). Each recipe page has its style: herStyle → warm, otherwise occult.
-const KTABS = [['jetzt', 'Kochen', '#84a76f'], ['next', 'Stöbern', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c'], ['herb', 'Herbarium', '#6f8f5e', 1], ['codex', 'Culinarius', '#1a0d10', 1]]   // 1 = Claude's shelves (marked in the thumb index);
+const KTABS = [['jetzt', 'Kochen', '#84a76f'], ['next', 'Stöbern', '#d88e98'], ['gekocht', 'Gekocht', '#c9a45c'], ['herb', 'Kinderleicht', '#6f8f5e', 1], ['codex', 'Culinarius', '#1a0d10', 1]]   // 1 = Claude's shelves (marked in the thumb index);
 const SEC_TITLE = { jetzt: 'Was koch ich jetzt?', next: 'Stöbern', gekocht: 'Was wir gekocht haben' };
 // Claude's fancy recipes live behind their own bookmark (Julia won't cook those) — out of Kochen, Stöbern and suggestions
 const isCodex = r => !!r.vr && r.level === 'fancy';
@@ -1696,7 +1696,7 @@ function viewShelf(kind) {
   const rows = all.filter(x => x.r.cat === cat).sort((a, b) => rank(a) - rank(b))
     .map(({ r, h }) => !h.missing.length ? stampRow(r, stamp) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
   const head = codex ? `<div class="sec-head codex"><h2>Culinarius<br>Infernalis</h2>${Bk.sectionArt('codex')}</div>`
-    : `<div class="sec-head"><h2>Herbarium</h2>${Bk.sectionArt('herb')}</div><p class="muted" style="margin:-4px 2px 10px">Was Claude euch aus dem Vorrat geschrieben hat.</p>`;
+    : `<div class="sec-head"><h2>Kinderleicht</h2>${Bk.sectionArt('herb')}</div><p class="muted" style="margin:-4px 2px 10px">Was Claude euch aus dem Vorrat geschrieben hat.</p>`;
   return head + (all.length ? `<div class="chips ccats">${K.CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="shelfcat" data-k="${key}" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>` + withCtx(rows)
     : `<p class="muted">Noch leer. Nach dem nächsten Einkauf ${codex ? 'beschwört Claude hier neue Werke' : 'wachsen hier neue Rezepte'}.</p>`);
 }
@@ -2345,7 +2345,7 @@ function homeLine(st) { // ONE sentence that fits right now (rotates by day amon
 }
 function vrNewCard() {
   const n = vrNew(), e = n.filter(isHerb).length, f = n.filter(isCodex).length; if (!n.length) return '';
-  return `<div class="card vrnew"><button class="hcard" data-a="ktabgo" data-v="${e ? 'herb' : 'codex'}"><span class="vn-ic" aria-hidden="true">✨</span><span class="hc-txt"><b>Neue Rezepte von Claude</b><span class="muted">${[e ? `🌿 ${e} im Herbarium` : '', f ? `✦ ${f} im Culinarius` : ''].filter(Boolean).join(' · ')}</span></span><span class="hc-go">›</span></button><button class="mini-btn" data-a="vrseen" aria-label="Gesehen">✕</button></div>`;
+  return `<div class="card vrnew"><button class="hcard" data-a="ktabgo" data-v="${e ? 'herb' : 'codex'}"><span class="vn-ic" aria-hidden="true">✨</span><span class="hc-txt"><b>Neue Rezepte von Claude</b><span class="muted">${[e ? `🖍️ ${e} in Kinderleicht` : '', f ? `✦ ${f} im Culinarius` : ''].filter(Boolean).join(' · ')}</span></span><span class="hc-go">›</span></button><button class="mini-btn" data-a="vrseen" aria-label="Gesehen">✕</button></div>`;
 }
 function viewHome() {
   if (ui.sub === 'baby') return viewBaby();
@@ -2747,4 +2747,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
+window.__gn = { kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };

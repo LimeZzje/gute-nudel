@@ -169,7 +169,7 @@ const leviathan = () => {
   <g transform="translate(70 70)"><g fill="#ff8a2a" opacity=".55" class="flames">${flames}</g></g>
   <circle cx="70" cy="70" r="53" fill="none" stroke="url(#brim)" stroke-width="1.6" opacity=".85"/><circle cx="70" cy="70" r="49" fill="none" stroke="url(#brim)" stroke-width=".6" opacity=".55"/>
   <g filter="url(#brimglow)"><g fill="none" stroke="url(#brim)" stroke-width="5" stroke-linecap="butt">
-  <path d="M70,27 V88"/><path d="M57,43 H83"/><path d="M50,59 H90"/>
+  <path d="M70,27 V101"/><path d="M57,43 H83"/><path d="M50,59 H90"/>
   <path d="M70,101 C64,92 46,91 46,101 C46,111 64,110 70,101 C76,92 94,91 94,101 C94,111 76,110 70,101 Z" stroke-width="4.6" stroke-linejoin="round"/></g>
   ${dia(70, 24)}${dia(54.5, 43)}${dia(85.5, 43)}${dia(47.5, 59)}${dia(92.5, 59)}</g>${embers}</svg>`;
 };
@@ -260,7 +260,7 @@ export function deco(theme, r, o = {}) {
       + `<p class="bp-motto">${mo} <span>${tr}</span></p>`,
   };
 }
-// ---------- 🖍️ picture book ("kid", 2026-10-12, user's pick): Claude's easy recipes + the Herbarium shelf ----------
+// ---------- 🖍️ picture book ("kid", 2026-10-12, user's pick): Claude's easy recipes + their shelf "Kinderleicht" (internal key 'herb'), their rows everywhere ----------
 // crayon on drawing paper: a wobbly, waxy stroke (turbulence → displacement, speckled gaps), pastel crayons, Patrick Hand titles
 const CRAY = ['#e8645f', '#4a90d9', '#f2b632', '#5bb36a', '#9b6bd0', '#f08a3c'];
 const crayF = id => `<filter id="${id}" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="2" seed="3" result="w"/><feDisplacementMap in="SourceGraphic" in2="w" scale="3" result="d"/><feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="1" seed="7" result="g"/><feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.7" result="m"/><feComposite in="d" in2="m" operator="in"/></filter>`;
@@ -520,11 +520,11 @@ const CSS = `
 .bp-kid .sec-head h2, .bp-kid .bp-title { font: 400 36px/1.2 'Patrick Hand', Caveat, cursive; color: #3d3a4a; letter-spacing: .01em;
   text-decoration: underline wavy #f2b632; text-decoration-thickness: 3px; text-underline-offset: 9px; text-decoration-skip-ink: none; }
 .bp-kid .bp-title { font-size: 32px; margin: 4px 0 6px; }
-.bp-kid .card, .bp-kid .recipe-row { background: #fff; border: 11px solid transparent; border-image: ${crayBox(CRAY[1])} 18 stretch; border-radius: 0; box-shadow: none; }
-.bp-kid .recipe-row:nth-of-type(4n+2), .bp-kid .card:nth-of-type(4n+2) { border-image-source: ${crayBox(CRAY[0])}; transform: rotate(.5deg); }
-.bp-kid .recipe-row:nth-of-type(4n+3), .bp-kid .card:nth-of-type(4n+3) { border-image-source: ${crayBox(CRAY[3])}; transform: rotate(-.4deg); }
-.bp-kid .recipe-row:nth-of-type(4n), .bp-kid .card:nth-of-type(4n) { border-image-source: ${crayBox(CRAY[4])}; }
-.bp-kid .recipe-row b { font: 400 21px/1.15 'Patrick Hand', cursive; }
+.bp-kid .card, .recipe-row.row-kid { background: #fff; border: 11px solid transparent; border-image: ${crayBox(CRAY[1])} 18 stretch; border-radius: 0; box-shadow: none; }
+.recipe-row.row-kid:nth-of-type(4n+2), .bp-kid .card:nth-of-type(4n+2) { border-image-source: ${crayBox(CRAY[0])}; transform: rotate(.5deg); }
+.recipe-row.row-kid:nth-of-type(4n+3), .bp-kid .card:nth-of-type(4n+3) { border-image-source: ${crayBox(CRAY[3])}; transform: rotate(-.4deg); }
+.recipe-row.row-kid:nth-of-type(4n), .bp-kid .card:nth-of-type(4n) { border-image-source: ${crayBox(CRAY[4])}; }
+.recipe-row.row-kid b { font: 400 21px/1.15 'Patrick Hand', cursive; }
 .bp-kid .card h3 { font: 400 25px 'Patrick Hand', cursive; color: #4a90d9; margin: 0 0 4px; }
 .bp-kid .chip { font-family: 'Patrick Hand', Nunito, cursive; font-size: 17px; }
 .bp-kid .chip.on { background: #ffe27a; color: #3d3a4a; border-color: #f2b632; box-shadow: none; }
@@ -532,8 +532,8 @@ const CSS = `
 .bp-kid .bp-note { font: 400 20px/1.3 'Patrick Hand', cursive; color: #6d6880; margin: 6px 0; }
 .bp-kid .bp-tape { display: inline-block; font: 400 19px 'Patrick Hand', cursive; padding: 0 10px; margin: 2px 0 6px; background: linear-gradient(100deg, transparent 2%, rgba(255,226,122,.85) 4%, rgba(255,226,122,.7) 96%, transparent 98%); transform: rotate(-1.5deg); }
 .bp-kid .rstamp.herb { color: #3f8f4e; border: 2px solid #5bb36a; border-radius: 999px; font-family: 'Patrick Hand', cursive; font-size: 15px; }
-.kstars { display: none; } .bp-kid .kstars { display: inline; color: var(--ink2); font-weight: 700; white-space: nowrap; }
-.bp-kid .kstars em { font-style: normal; color: #f2a516; letter-spacing: 1px; } .bp-kid .kstars i { font-style: normal; color: #d9d4e4; letter-spacing: 1px; margin-right: 4px; }
+.kstars { display: none; } .row-kid .kstars, .bp-kid .kstars { display: inline; color: var(--ink2); font-weight: 700; white-space: nowrap; }
+.kstars em { font-style: normal; color: #f2a516; letter-spacing: 1px; } .kstars i { font-style: normal; color: #d9d4e4; letter-spacing: 1px; margin-right: 4px; }
 .kd-pic { float: right; width: 92px; height: 92px; margin: 0 0 8px 10px; border: 11px solid transparent; border-image: ${crayBox(CRAY[2])} 18 stretch; background: #fff8dc; display: grid; place-items: center; transform: rotate(3deg); box-sizing: border-box; }
 .kd-pic span { font-size: 40px; line-height: 1; animation: kdBob 3.4s ease-in-out infinite; } @keyframes kdBob { 50% { transform: translateY(-4px) rotate(-4deg); } }
 .kd-sticker { float: right; clear: right; margin: 0 6px 8px 8px; width: 82px; height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(-10deg);
@@ -551,7 +551,7 @@ const CSS = `
 .rnew.wax b { font: 400 8px/1 Fell, Georgia, serif; letter-spacing: .12em; margin-top: 2px; }
 .rnew.wax::after { content: ''; position: absolute; right: -4px; bottom: 6px; width: 10px; height: 9px; border-radius: 50% 60% 50% 40%; background: #8f1322; box-shadow: 0 2px 2px rgba(0,0,0,.4); }
 .rnew.kidnew { display: none; }
-.bp-kid .rnew.kidnew { display: flex; top: -18px; right: -16px; width: 54px; height: 54px; align-items: center; justify-content: center; transform: rotate(-12deg); background: #ffe27a; color: #c0392b; font: 400 16px/1 'Patrick Hand', cursive;
+.row-kid .rnew.kidnew { display: flex; top: -18px; right: -16px; width: 54px; height: 54px; align-items: center; justify-content: center; transform: rotate(-12deg); background: #ffe27a; color: #c0392b; font: 400 16px/1 'Patrick Hand', cursive;
   clip-path: polygon(50% 0, 61% 13%, 77% 6%, 80% 23%, 97% 25%, 89% 40%, 100% 52%, 87% 62%, 93% 79%, 76% 80%, 70% 96%, 55% 88%, 41% 100%, 33% 85%, 16% 91%, 16% 74%, 0 66%, 11% 52%, 2% 37%, 18% 31%, 17% 13%, 34% 15%); }
 .rnew.wax { display: none; } .bp-him .rnew.wax { display: flex; }
 @media (prefers-reduced-motion: reduce) { .cbook *, .cbook *::before { animation: none !important; } .bp-her .herb .lf, .bp-her .herb .fl { opacity: 1; } .bp-her .herb .stem { stroke-dashoffset: 0; } }
