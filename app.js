@@ -9,7 +9,7 @@ import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-12.1';
+const VERSION = '2026-10-12.2';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1531,7 +1531,7 @@ function archRecipes() {
 }
 // ✨ new from Claude (2026-10-12): the current set's recipes I haven't opened on their shelf yet → a card on Home.
 // S.vrSeen starts (once the archive is loaded) with every older set, so only the newest set counts as new the first time.
-const vrNew = () => { if (!S.vrSeen) return []; const seen = new Set(S.vrSeen); return vorratRecipes().filter(r => !seen.has(r.id)).map(r => ({ ...r, vr: true })); };
+const vrNew = () => { if (!S.vrSeen) return []; const seen = new Set(S.vrSeen); return vorratRecipes().filter(r => !seen.has(r.id) && !r.dupOf).map(r => ({ ...r, vr: true })); };
 function vrSeenAdd(ids, quiet) {
   const had = new Set(S.vrSeen || []), add = ids.filter(id => !had.has(id)); if (!add.length && S.vrSeen) return;
   S.vrSeen = [...had, ...add].slice(-400); S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); if (!quiet) render();
@@ -1540,7 +1540,7 @@ const fixRec = r => ({ tags: [], ing: [], steps: [], icon: '🍽️', min: 0, ca
 function allRecipes() {
   const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set(S.hiddenRecipes || []), free = r => !ids.has(r.id) && !hidden.has(r.id);
   return K.RECIPES.filter(free).concat(bookRecipes().filter(free).map(r => fixRec({ ...r, book: true })), mine.filter(r => !hidden.has(r.id)).map(r => fixRec({ ...r, own: true })),
-    vorratRecipes().filter(free).map(r => fixRec({ ...r, vr: true })), archRecipes().filter(free).map(r => fixRec({ ...r, vr: true, arch: true })));
+    vorratRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true })), archRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true, arch: true })));
 }
 // the original a changed recipe came from (built-in, photographed book or Claude's Vorrat), if any
 const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r => r.id === id) || vorratRecipes().find(r => r.id === id) || archRecipes().find(r => r.id === id) || null;
@@ -1549,7 +1549,9 @@ const PREG_LATER = ['vorrat-eggs-royale', 'vorrat-strammer-max-gurke', 'vorrat-s
 const pregLater = r => PREG_LATER.includes(r.id) && today() < '2027-02-01';
 const loveTag = r => r.level === 'fancy' ? '⛧ aus dem Grimoire' : '';   // Claude's fancy ones get their label; "mag sie" is gone (user)
 const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'][d.getMonth()]; };
-const recipeById = id => allRecipes().find(r => r.id === id);
+// a redundant Claude recipe (dupOf = the one we keep, set by `rezepte.py doppelt`, user 2026-10-12) is in no list,
+// but the diary and old ratings still find it
+const recipeById = id => allRecipes().find(r => r.id === id) || (r => r && fixRec({ ...r, vr: true }))(vorratRecipes().concat(archRecipes()).find(r => r.id === id));
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
 // how much she'd want it: her favourites and what she rated well count more (and their kind), what she just had less,
 // and what she didn't like never comes up again
@@ -1609,7 +1611,10 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
   return { all: rs.filter(x => !x.h.missing.length).map(x => x.r),
     almost: rs.filter(x => x.h.missing.length && x.h.missing.length <= 2 && x.h.need - x.h.missing.length >= 2).sort((a, b) => a.h.missing.length - b.h.missing.length).map(x => ({ ...x.r, miss: x.h.missing })) };
 }
-const recipeRow = r => { const him = isCodex(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}"><span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
+// 🖍️ 1–3 crayon stars from minutes + number of steps (user's pick; visible only on the picture-book pages, CSS .kstars)
+const kidLevel = r => { const m = r.min || 0, n = (r.steps || []).length; return m > 45 || n >= 7 ? 3 : m <= 20 && n <= 4 ? 1 : 2; };
+const kidStars = r => { const k = kidLevel(r); return `<span class="kstars"><em>${'★'.repeat(k)}</em><i>${'★'.repeat(3 - k)}</i>${['kinderleicht', 'einfach', 'braucht etwas Zeit'][k - 1]}<br></span>`; };
+const recipeRow = r => { const him = isCodex(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.vr && !him ? kidStars(r) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
@@ -1621,7 +1626,7 @@ const isCodex = r => !!r.vr && r.level === 'fancy';
 const isHerb = r => !!r.vr && r.level !== 'fancy';   // 🌿 Herbarium: Claude's easy ones (also in Kochen/Stöbern — she cooks those)
 // whose style: Claude's easy ones = hers, fancy = his; a photographed page = who took the photo; an own recipe = whose phone
 const ownerOf = r => r.by || (r.own && !origOf(r.id) ? D.me() : null);   // (an edited photo page keeps its photographer's `by`)   // own recipes live on their owner's phone
-const styleOf = r => r.level === 'fancy' ? 'him' : r.level === 'einfach' ? 'her' : ownerOf(r) === 'stefan' ? 'him' : 'her';
+const styleOf = r => r.level === 'fancy' ? 'him' : r.level === 'einfach' ? 'kid' : ownerOf(r) === 'stefan' ? 'him' : 'her';
 const cookedLog = () => {   // both phones' "cooked" diary, one entry per dish and day, newest first
   const all = [...(S.cookLog || []), ...(S.partnerCooked || [])], seen = new Set();
   return all.sort((a, b) => b.ts - a.ts).filter(x => { const k = x.rid + '|' + x.day; if (seen.has(k)) return false; seen.add(k); return true; });
@@ -1635,7 +1640,7 @@ function kseq() {
 }
 const kidx = () => ui.rid ? 1 + Math.max(0, ((ui.kctx || []).includes(ui.rid) ? ui.kctx : [ui.rid]).indexOf(ui.rid)) : KTABS.findIndex(([k]) => k === ksec());
 function kpage(st) {   // one page of the book: {key, theme, html}
-  if (!st.rid) return { key: 'sec-' + st.sec, theme: st.sec === 'codex' ? 'him' : 'her', html: sectionPage(st.sec) };
+  if (!st.rid) return { key: 'sec-' + st.sec, theme: st.sec === 'codex' ? 'him' : st.sec === 'herb' ? 'kid' : 'her', html: sectionPage(st.sec) };
   const r = recipeById(st.rid); if (!r) return { key: 'gone', theme: 'her', html: '<p class="muted">Das Rezept gibt es nicht mehr.</p>' };
   if (st.rid === ui.rid) return { key: 'r-' + r.id, theme: styleOf(r), html: recipePage(r) };
   const keepUi = [ui.sides, ui.ingPick, ui.ingExtra]; ui.sides = []; ui.ingPick = {}; ui.ingExtra = [];   // a neighbour page: fresh
@@ -1691,7 +1696,7 @@ function viewShelf(kind) {
   const rows = all.filter(x => x.r.cat === cat).sort((a, b) => rank(a) - rank(b))
     .map(({ r, h }) => !h.missing.length ? stampRow(r, stamp) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
   const head = codex ? `<div class="sec-head codex"><h2>Culinarius<br>Infernalis</h2>${Bk.sectionArt('codex')}</div>`
-    : `<div class="sec-head"><h2>Herbarium</h2>${Bk.sectionArt('jetzt')}</div><p class="muted" style="margin:-4px 2px 10px">Was Claude euch aus dem Vorrat geschrieben hat.</p>`;
+    : `<div class="sec-head"><h2>Herbarium</h2>${Bk.sectionArt('herb')}</div><p class="muted" style="margin:-4px 2px 10px">Was Claude euch aus dem Vorrat geschrieben hat.</p>`;
   return head + (all.length ? `<div class="chips ccats">${K.CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="shelfcat" data-k="${key}" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>` + withCtx(rows)
     : `<p class="muted">Noch leer. Nach dem nächsten Einkauf ${codex ? 'beschwört Claude hier neue Werke' : 'wachsen hier neue Rezepte'}.</p>`);
 }
@@ -1752,8 +1757,8 @@ function recipePage(r) {
   const home = V.length && r.ing.some(([, t]) => t && !isPantry(t)) && !haveFor(r, V).missing.length;
   const d = Bk.deco(theme, r, { cooked, taste: tasteOf(r) }), him = theme === 'him';
   let h = d.side + d.stamp;
-  h += `${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<h2 class="bp-title">${r.icon} ${esc(r.title)}</h2>
-    <p class="bp-meta">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>
+  h += `${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<h2 class="bp-title">${theme === 'kid' ? '' : r.icon + ' '}${esc(r.title)}</h2>
+    <p class="bp-meta">${theme === 'kid' ? kidStars(r) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>
     ${home ? `<span class="bp-tape">${him ? '✠ alles in der Speisekammer' : '🧊 alles daheim'}</span>` : ''}
     ${r.src ? `<p class="muted" style="margin:2px 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:4px 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.note ? `<p class="bp-note">${esc(r.note)}</p>` : ''}
     <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>`;
@@ -2742,4 +2747,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
+window.__gn = { recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };

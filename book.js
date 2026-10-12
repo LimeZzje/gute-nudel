@@ -242,6 +242,7 @@ const MOTTO = [['Per ignem ad saporem.', 'Durchs Feuer zum Geschmack.'], ['Butyr
 // the little extras on a recipe page, by style
 export function deco(theme, r, o = {}) {
   const h = hash(r.id);
+  if (theme === 'kid') return kidDeco(r, o, h);
   if (theme === 'her') {
     const P = PLANTS[h % PLANTS.length], k = (h >>> 3) % 3;
     return {
@@ -259,16 +260,37 @@ export function deco(theme, r, o = {}) {
       + `<p class="bp-motto">${mo} <span>${tr}</span></p>`,
   };
 }
+// ---------- 🖍️ picture book ("kid", 2026-10-12, user's pick): Claude's easy recipes + the Herbarium shelf ----------
+// crayon on drawing paper: a wobbly, waxy stroke (turbulence → displacement, speckled gaps), pastel crayons, Patrick Hand titles
+const CRAY = ['#e8645f', '#4a90d9', '#f2b632', '#5bb36a', '#9b6bd0', '#f08a3c'];
+const crayF = id => `<filter id="${id}" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="2" seed="3" result="w"/><feDisplacementMap in="SourceGraphic" in2="w" scale="3" result="d"/><feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="1" seed="7" result="g"/><feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.7" result="m"/><feComposite in="d" in2="m" operator="in"/></filter>`;
+const sun = () => `<svg viewBox="0 0 120 90" class="kd-sun" aria-hidden="true"><defs>${crayF('crs')}</defs><g filter="url(#crs)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g class="rays" stroke="${CRAY[2]}" stroke-width="3.4">${Array.from({ length: 10 }, (_, i) => `<path d="M0,-25 L0,-34" transform="translate(40 36) rotate(${i * 36})"/>`).join('')}</g>
+  <circle cx="40" cy="36" r="18" fill="#ffe27a" stroke="${CRAY[5]}" stroke-width="3"/><path d="M33,33 v2 M47,33 v2 M33,41 Q40,47 47,41" stroke="#8a4b1d" stroke-width="2.4"/>
+  <path class="cloud" d="M62,70 Q58,58 70,57 Q73,46 86,50 Q96,44 102,55 Q114,56 111,68 Q110,74 100,73 L70,74 Q62,75 62,70 Z" fill="#fff" stroke="${CRAY[1]}" stroke-width="3"/></g></svg>`;
+const meadow = h => { const fl = [0, 1, 2, 3].map(i => { const x = 24 + i * 70 + (h >>> i * 3) % 30, c = CRAY[(h >>> i * 2) % CRAY.length], y = 30 + (h >>> i) % 10;
+  return `<path d="M${x},74 Q${x - 3},${y + 20} ${x},${y}" stroke="${CRAY[3]}" stroke-width="2.6"/>${[0, 72, 144, 216, 288].map(a => `<ellipse cx="${x}" cy="${y - 7}" rx="4" ry="7" fill="${c}" stroke="${c}" stroke-width="1.5" transform="rotate(${a} ${x} ${y})"/>`).join('')}<circle cx="${x}" cy="${y}" r="3.6" fill="#ffe27a" stroke="${CRAY[5]}" stroke-width="1.5"/>`; }).join('');
+  const grass = Array.from({ length: 30 }, (_, i) => `M${i * 11 + 2},76 l${3 + i % 3},-${8 + (h >>> i % 20) % 8}`).join(' ');
+  return `<svg viewBox="0 0 330 80" class="kd-meadow" aria-hidden="true"><defs>${crayF('crm')}</defs><g filter="url(#crm)" fill="none" stroke-linecap="round"><path d="${grass}" stroke="${CRAY[3]}" stroke-width="2.6"/>${fl}
+  <g class="bug" transform="translate(${200 + h % 60} 64)"><circle r="6" fill="${CRAY[0]}" stroke="#3d3a4a" stroke-width="1.6"/><path d="M0,-6 V6" stroke="#3d3a4a" stroke-width="1.4"/><circle cx="-2.5" cy="-1" r="1.2" fill="#3d3a4a"/><circle cx="2.6" cy="2" r="1.2" fill="#3d3a4a"/></g></g></svg>`; };
+// the crayon box behind cards (border-image; works on iOS, no CSS filter needed)
+const crayBox = c => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><defs>${crayF('c').replace(/"/g, "'")}</defs><rect x='4' y='4' width='52' height='52' rx='14' fill='none' stroke='${c}' stroke-width='3.6' filter='url(#c)'/></svg>`)}")`;
+const kidDeco = (r, o, h) => ({
+  side: `<div class="kd-pic"><span>${esc(r.icon || '🍽️')}</span></div>`,
+  stamp: o.cooked ? `<div class="kd-sticker"><span>Lecker!</span><b>${o.taste || '★'}</b></div>` : '',
+  foot: `<div class="kd-foot">${meadow(h)}</div>`,
+});
+
 // a little picture for the top of each section page
 export const sectionArt = k => k === 'jetzt' ? `<div class="sa-dog">${poodle(7)}</div>` : k === 'gekocht' ? `<div class="sa-dog">${poodle(9, 'sleep')}</div>`
-  : k === 'daheim' ? `<div class="sa-peek">${bunnyPeek()}</div>` : k === 'codex' ? `<div class="sa-pent">${leviathan()}</div>` : `<div class="sa-sc">${scales()}</div>`;
+  : k === 'daheim' ? `<div class="sa-peek">${bunnyPeek()}</div>` : k === 'codex' ? `<div class="sa-pent">${leviathan()}</div>` : k === 'herb' ? `<div class="sa-sun">${sun()}</div>` : `<div class="sa-sc">${scales()}</div>`;
 
 let A = null;                      // the app's side: at(i) → page, i(), n(), onTurn(i), label(), tab()
 const keep = { key: '', top: 0 };  // the open page's scroll position survives re-renders
 const pageEl = (p, cls) => `<div class="bk-page ${cls} bp-${p.theme}" data-key="${esc(p.key)}"><div class="bp">${p.html}</div></div>`;
 export function frame({ tabs, cur, page, label }) {
   return `<div class="cbook" id="cbook"><div class="cb-body"><div class="bk-stage" id="bkstage">${pageEl(page, 'cur')}</div>
-    <div class="cb-tabs">${tabs.map(([k, l, c, cl], i) => `${cl && !(tabs[i - 1] || [])[3] ? '<span class="cb-claude" aria-hidden="true">✦ von Claude</span>' : ''}<button class="cb-tab ${k === cur ? 'on' : ''}${cl ? ' cl' : ''}" data-a="ktab" data-v="${k}" style="--tc:${c}"><span>${cl ? '✦ ' : ''}${l}</span></button>`).join('')}</div></div>
+    <div class="cb-tabs">${tabs.map(([k, l, c, cl], i) => `${cl && !(tabs[i - 1] || [])[3] ? '<span class="cb-gap" aria-hidden="true"></span>' : ''}<button class="cb-tab ${k === cur ? 'on' : ''}${cl ? ' cl' : ''}" data-a="ktab" data-v="${k}" style="--tc:${c}"><span>${cl ? '✦ ' : ''}${l}</span></button>`).join('')}</div></div>
     <div class="bk-foot"><button data-bk="prev" aria-label="Zurückblättern">‹</button><span id="bkno">${esc(label)}</span><button data-bk="next" aria-label="Weiterblättern">›</button></div></div>`;
 }
 function fit() {   // the book fills the screen between the sub-tabs and the bottom bar; its pages scroll inside
@@ -369,6 +391,7 @@ export function flipTo(page, dir) {
 // ---------- styles ----------
 const NOISE = (a, c = '0 0 0') => `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 ${c.split(' ')[0]} 0 0 0 0 ${c.split(' ')[1]} 0 0 0 0 ${c.split(' ')[2]} 0 0 0 ${a} 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")`;
 const HER_PAPER = `${NOISE(.07, '.35 .25 .1')}, linear-gradient(90deg, #efe3cf 0, #fbf5ea 4%, #fbf5ea 95%, #f2e8d6 100%)`;
+const KID_PAPER = `${NOISE(.045, '.3 .3 .4')}, linear-gradient(180deg, #e9f4ff 0, #fbfdff 170px, #fffef9 100%)`;
 const HIM_PAPER = `${NOISE(.16, '.5 .1 .12')}, radial-gradient(130% 100% at 30% 20%, #1e1517 0%, #141011 60%, #0d0a0b 100%)`;
 const CSS = `
 .cbook { display: flex; flex-direction: column; margin: 0 -6px; }
@@ -388,8 +411,7 @@ const CSS = `
   box-shadow: 2px 2px 6px rgba(0,0,0,.15); opacity: .72; transform: translateX(-6px); transition: transform .2s, opacity .2s; text-shadow: 0 1px 1px rgba(0,0,0,.25); }
 .cb-tab span { writing-mode: vertical-rl; display: inline-block; }
 .cb-tab.on { opacity: 1; transform: translateX(0); width: 34px; }
-/* Claude's two shelves: a little gap and a handwritten "✦ von Claude" over them, so it's clear those are Claude's recipes */
-.cb-claude { margin: 10px 0 0; writing-mode: vertical-rl; align-self: center; font: 700 15px/1 Caveat, 'Dancing Script', cursive; color: #9a7bb8; letter-spacing: .04em; white-space: nowrap; border-left: 2px dashed rgba(154,123,184,.5); padding-left: 3px; }
+.cb-gap { height: 14px; flex: none; }   /* Claude's two shelves sit a little apart (user: no label, just space) */
 .bk-foot { display: flex; align-items: center; justify-content: space-between; padding: 6px 2px 0; gap: 8px; }
 .bk-foot button { border: 0; border-radius: 999px; width: 54px; height: 38px; font: 800 24px/1 Nunito, sans-serif; background: var(--paper2); color: var(--ink); cursor: pointer; }
 .bk-foot button:disabled { opacity: .3; }
@@ -490,6 +512,48 @@ const CSS = `
 .bp-him .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: bkFlick .18s var(--d) ease-in-out infinite alternate; }
 @keyframes bkFlick { from { transform: scale(1, 1) skewX(-3deg); } to { transform: scale(.92, 1.08) skewX(3deg); } }
 .bp-him .bp-candles { display: flex; justify-content: space-between; margin: 6px 10px -6px; } .bp-him .bp-candles svg { width: 40px; height: 70px; overflow: visible; }
+/* 🖍️ picture book */
+.bp-kid .sec-head { margin-bottom: 18px; }
+.bp-kid { --card: #fff; --ink: #3d3a4a; --ink2: #6d6880; --line: #e6e1f0; --paper: #fffef9; --paper2: #f1effa; --shadow: none; color: var(--ink); background: ${KID_PAPER}; }
+.bp-kid .bk-back { background: ${KID_PAPER}; }
+.bp-kid .bp { font: 500 16px/1.5 Nunito, sans-serif; }
+.bp-kid .sec-head h2, .bp-kid .bp-title { font: 400 36px/1.2 'Patrick Hand', Caveat, cursive; color: #3d3a4a; letter-spacing: .01em;
+  text-decoration: underline wavy #f2b632; text-decoration-thickness: 3px; text-underline-offset: 9px; text-decoration-skip-ink: none; }
+.bp-kid .bp-title { font-size: 32px; margin: 4px 0 6px; }
+.bp-kid .card, .bp-kid .recipe-row { background: #fff; border: 11px solid transparent; border-image: ${crayBox(CRAY[1])} 18 stretch; border-radius: 0; box-shadow: none; }
+.bp-kid .recipe-row:nth-of-type(4n+2), .bp-kid .card:nth-of-type(4n+2) { border-image-source: ${crayBox(CRAY[0])}; transform: rotate(.5deg); }
+.bp-kid .recipe-row:nth-of-type(4n+3), .bp-kid .card:nth-of-type(4n+3) { border-image-source: ${crayBox(CRAY[3])}; transform: rotate(-.4deg); }
+.bp-kid .recipe-row:nth-of-type(4n), .bp-kid .card:nth-of-type(4n) { border-image-source: ${crayBox(CRAY[4])}; }
+.bp-kid .recipe-row b { font: 400 21px/1.15 'Patrick Hand', cursive; }
+.bp-kid .card h3 { font: 400 25px 'Patrick Hand', cursive; color: #4a90d9; margin: 0 0 4px; }
+.bp-kid .chip { font-family: 'Patrick Hand', Nunito, cursive; font-size: 17px; }
+.bp-kid .chip.on { background: #ffe27a; color: #3d3a4a; border-color: #f2b632; box-shadow: none; }
+.bp-kid .bp-meta { margin: 6px 0; color: var(--ink2); font-weight: 700; }
+.bp-kid .bp-note { font: 400 20px/1.3 'Patrick Hand', cursive; color: #6d6880; margin: 6px 0; }
+.bp-kid .bp-tape { display: inline-block; font: 400 19px 'Patrick Hand', cursive; padding: 0 10px; margin: 2px 0 6px; background: linear-gradient(100deg, transparent 2%, rgba(255,226,122,.85) 4%, rgba(255,226,122,.7) 96%, transparent 98%); transform: rotate(-1.5deg); }
+.bp-kid .rstamp.herb { color: #3f8f4e; border: 2px solid #5bb36a; border-radius: 999px; font-family: 'Patrick Hand', cursive; font-size: 15px; }
+.kstars { display: none; } .bp-kid .kstars { display: inline; color: var(--ink2); font-weight: 700; white-space: nowrap; }
+.bp-kid .kstars em { font-style: normal; color: #f2a516; letter-spacing: 1px; } .bp-kid .kstars i { font-style: normal; color: #d9d4e4; letter-spacing: 1px; margin-right: 4px; }
+.kd-pic { float: right; width: 92px; height: 92px; margin: 0 0 8px 10px; border: 11px solid transparent; border-image: ${crayBox(CRAY[2])} 18 stretch; background: #fff8dc; display: grid; place-items: center; transform: rotate(3deg); box-sizing: border-box; }
+.kd-pic span { font-size: 40px; line-height: 1; animation: kdBob 3.4s ease-in-out infinite; } @keyframes kdBob { 50% { transform: translateY(-4px) rotate(-4deg); } }
+.kd-sticker { float: right; clear: right; margin: 0 6px 8px 8px; width: 82px; height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(-10deg);
+  background: #ffe27a; clip-path: polygon(50% 0, 61% 13%, 77% 6%, 80% 23%, 97% 25%, 89% 40%, 100% 52%, 87% 62%, 93% 79%, 76% 80%, 70% 96%, 55% 88%, 41% 100%, 33% 85%, 16% 91%, 16% 74%, 0 66%, 11% 52%, 2% 37%, 18% 31%, 17% 13%, 34% 15%); }
+.kd-sticker span { font: 400 19px 'Patrick Hand', cursive; color: #8a4b1d; } .kd-sticker b { font-size: 18px; }
+.kd-foot { clear: both; margin-top: 12px; } .kd-meadow { width: 100%; display: block; } .kd-meadow .bug { animation: kdBug 9s ease-in-out infinite; } @keyframes kdBug { 50% { translate: -40px 0; } }
+.sec-head .sa-sun { width: 104px; margin: -10px -4px -6px 0; } .kd-sun .rays { transform-origin: 40px 36px; animation: bkSpin 40s linear infinite; } .kd-sun .cloud { animation: kdCloud 6s ease-in-out infinite; } @keyframes kdCloud { 50% { translate: -6px 0; } }
+.cb-tab[data-v="herb"] { background: linear-gradient(180deg, #8fd19a, #5bb36a); font: 400 18px/1 'Patrick Hand', cursive; letter-spacing: .03em; animation: none; text-shadow: 0 1px 0 rgba(0,0,0,.2); }
+.recipe-row { position: relative; }
+/* new = from the latest Vorrat set (user, 2026-10-12): a wax seal in the Culinarius, a crayon sticker in the picture book */
+.rnew { position: absolute; z-index: 2; pointer-events: none; }
+.rnew.wax { top: -9px; right: -7px; width: 50px; height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(14deg);
+  border-radius: 47% 53% 50% 50% / 54% 46% 54% 46%; background: radial-gradient(circle at 36% 30%, #e0505c 0, #a8182a 45%, #6e0b17 100%);
+  box-shadow: inset 0 0 0 4px rgba(0,0,0,.16), inset 0 0 0 5px rgba(255,140,140,.18), 0 3px 6px rgba(0,0,0,.55); color: #f3c3b0; font: 400 17px/1 Fell, Georgia, serif; text-shadow: 0 -1px 0 rgba(0,0,0,.45), 0 1px 0 rgba(255,190,170,.3); }
+.rnew.wax b { font: 400 8px/1 Fell, Georgia, serif; letter-spacing: .12em; margin-top: 2px; }
+.rnew.wax::after { content: ''; position: absolute; right: -4px; bottom: 6px; width: 10px; height: 9px; border-radius: 50% 60% 50% 40%; background: #8f1322; box-shadow: 0 2px 2px rgba(0,0,0,.4); }
+.rnew.kidnew { display: none; }
+.bp-kid .rnew.kidnew { display: flex; top: -18px; right: -16px; width: 54px; height: 54px; align-items: center; justify-content: center; transform: rotate(-12deg); background: #ffe27a; color: #c0392b; font: 400 16px/1 'Patrick Hand', cursive;
+  clip-path: polygon(50% 0, 61% 13%, 77% 6%, 80% 23%, 97% 25%, 89% 40%, 100% 52%, 87% 62%, 93% 79%, 76% 80%, 70% 96%, 55% 88%, 41% 100%, 33% 85%, 16% 91%, 16% 74%, 0 66%, 11% 52%, 2% 37%, 18% 31%, 17% 13%, 34% 15%); }
+.rnew.wax { display: none; } .bp-him .rnew.wax { display: flex; }
 @media (prefers-reduced-motion: reduce) { .cbook *, .cbook *::before { animation: none !important; } .bp-her .herb .lf, .bp-her .herb .fl { opacity: 1; } .bp-her .herb .stem { stroke-dashoffset: 0; } }
 `;
 if (typeof document !== 'undefined' && !document.getElementById('bkcss')) { const st = document.createElement('style'); st.id = 'bkcss'; st.textContent = CSS; document.head.appendChild(st); }
