@@ -492,6 +492,7 @@ const CSS = `
 .bp-him .card { border: 1px solid rgba(192,23,43,.35); }
 .bp-him .chip { background: #241618; color: #e9dccd; border: 1px solid #3d2a2f; } .bp-him .chip.on { background: #3a1410; color: #ffd27a; border-color: #ff8a2a; box-shadow: 0 0 10px rgba(255,120,30,.35); } .bp-him .chip .cnt { color: inherit; }
 .bp-him .pick.on .box { background: #a3122a; border-color: #a3122a; color: #fff; }
+.bp-him .btn:not(.soft) { color: #fff4e8; }   /* --card is nearly transparent here → filled buttons need their own text colour (the "+" was invisible) */
 .bp-him .bp-kick { font: 400 15px Fraktur, serif; color: ${RED}; letter-spacing: .04em; }
 .bp-him .bp-title { font: 400 30px/1.15 Fell, Georgia, serif; color: #ff4a5c; margin: 6px 0 4px; text-shadow: 0 0 16px rgba(192,23,43,.35); }
 .bp-him .bp-meta { font-style: italic; color: var(--ink2); margin: 0 0 6px; }
@@ -524,7 +525,8 @@ const CSS = `
 .recipe-row.row-kid:nth-of-type(4n+2), .bp-kid .card:nth-of-type(4n+2) { border-image-source: ${crayBox(CRAY[0])}; transform: rotate(.5deg); }
 .recipe-row.row-kid:nth-of-type(4n+3), .bp-kid .card:nth-of-type(4n+3) { border-image-source: ${crayBox(CRAY[3])}; transform: rotate(-.4deg); }
 .recipe-row.row-kid:nth-of-type(4n), .bp-kid .card:nth-of-type(4n) { border-image-source: ${crayBox(CRAY[4])}; }
-.recipe-row.row-kid b { font: 400 21px/1.15 'Patrick Hand', cursive; }
+.recipe-row.row-kid b { font: 400 19px/1.2 'Patrick Hand', cursive; }
+.recipe-row.row-kid { padding: 5px 4px; }   /* inside the 11px crayon border ≈ a normal card's 12/14px padding (user: same height as the other cards) */
 .bp-kid .card h3 { font: 400 25px 'Patrick Hand', cursive; color: #4a90d9; margin: 0 0 4px; }
 .bp-kid .chip { font-family: 'Patrick Hand', Nunito, cursive; font-size: 17px; }
 .bp-kid .chip.on { background: #ffe27a; color: #3d3a4a; border-color: #f2b632; box-shadow: none; }
