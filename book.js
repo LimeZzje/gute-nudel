@@ -289,7 +289,7 @@ let A = null;                      // the app's side: at(i) → page, i(), n(), 
 const keep = { key: '', top: 0 };  // the open page's scroll position survives re-renders
 const pageEl = (p, cls) => `<div class="bk-page ${cls} bp-${p.theme}" data-key="${esc(p.key)}"><div class="bp">${p.html}</div></div>`;
 export function frame({ tabs, cur, page, label }) {
-  return `<div class="cbook" id="cbook"><div class="cb-body"><div class="bk-stage" id="bkstage">${pageEl(page, 'cur')}</div>
+  return `<div class="cbook cb-top" id="cbook"><div class="cb-body"><div class="bk-stage" id="bkstage">${pageEl(page, 'cur')}</div>
     <div class="cb-tabs">${tabs.map(([k, l, c, cl], i) => `${cl && !(tabs[i - 1] || [])[3] ? '<span class="cb-gap" aria-hidden="true"></span>' : ''}<button class="cb-tab ${k === cur ? 'on' : ''}${cl ? ' cl' : ''}" data-a="ktab" data-v="${k}" style="--tc:${c}"><span>${cl ? '<i class="tk">✦ </i>' : ''}${l}</span></button>`).join('')}</div></div>
     <div class="bk-foot"><button data-bk="prev" aria-label="Zurückblättern">‹</button><span id="bkno">${esc(label)}</span><button data-bk="next" aria-label="Weiterblättern">›</button></div></div>`;
 }
@@ -297,11 +297,9 @@ function fit() {   // the book fills the screen between the sub-tabs and the bot
   const cb = document.getElementById('cbook'); if (!cb) return;
   const nav = document.getElementById('tabs'), top = cb.getBoundingClientRect().top + scrollY;
   cb.style.height = Math.max(300, innerHeight - top - (nav ? nav.offsetHeight : 0) - 6) + 'px';
-  // small phones (user, 2026-10-13): side bookmarks ran off the bottom and squeezed the page → bookmarks along the top edge instead
-  cb.classList.remove('cb-top');
-  const tabs = cb.querySelector('.cb-tabs'), body = cb.querySelector('.cb-body');
-  if (!(innerWidth < 390 || (tabs && body && tabs.scrollHeight > body.clientHeight))) return;
-  cb.classList.add('cb-top');
+  // bookmarks along the top edge (user, 2026-10-13: first only on small phones, then everywhere); narrow phones also get a roomier page
+  cb.classList.add('cb-top'); cb.classList.toggle('cb-narrow', innerWidth < 390);
+  const tabs = cb.querySelector('.cb-tabs'); if (!tabs) return;
   // labels shrink together until every one fits (no "Stöbe…")
   const spans = [...tabs.querySelectorAll('.cb-tab span')];
   for (let k = 1; k >= .7; k -= .05) { tabs.style.setProperty('--tk', k); if (!spans.some(x => x.scrollWidth > x.clientWidth + 1)) break; }
@@ -574,12 +572,12 @@ const CSS = `
 .cb-top .cb-tab[data-v="herb"] { font-size: calc(16px * var(--tk, 1)); letter-spacing: 0; } .cb-top .cb-tab[data-v="codex"] { font-size: calc(12.5px * var(--tk, 1)); letter-spacing: .02em; }
 .cb-top .cb-gap { height: auto; width: 6px; }
 .cb-top .bk-page { border-radius: 10px; }
-.cb-top .bp { padding: 14px 12px 20px 14px; }
-.cb-top .bp-title { font-size: 26px !important; }
-.cb-top .bp-her .bp-plant { width: 64px; } .cb-top .bp-her .bp-plant svg { width: 64px; height: 100px; } .cb-top .bp-her .bp-plant::before { left: 14px; }
-.cb-top .sigil-fig { width: 72px; } .cb-top .sigil-fig svg { width: 72px; height: auto; }
-.cb-top .kd-pic { width: 70px; height: 70px; border-width: 9px; } .cb-top .kd-pic span { font-size: 30px; }
-.cb-top .bp-her .bp-stamp, .cb-top .kd-sticker { width: 66px; height: 66px; } .cb-top .bp-him .bp-seal { width: 70px; }
+.cb-narrow .bp { padding: 14px 12px 20px 14px; }
+.cb-narrow .bp-title { font-size: 26px !important; }
+.cb-narrow .bp-her .bp-plant { width: 64px; } .cb-narrow .bp-her .bp-plant svg { width: 64px; height: 100px; } .cb-narrow .bp-her .bp-plant::before { left: 14px; }
+.cb-narrow .sigil-fig { width: 72px; } .cb-narrow .sigil-fig svg { width: 72px; height: auto; }
+.cb-narrow .kd-pic { width: 70px; height: 70px; border-width: 9px; } .cb-narrow .kd-pic span { font-size: 30px; }
+.cb-narrow .bp-her .bp-stamp, .cb-narrow .kd-sticker { width: 66px; height: 66px; } .cb-narrow .bp-him .bp-seal { width: 70px; }
 @media (prefers-reduced-motion: reduce) { .cbook *, .cbook *::before { animation: none !important; } .bp-her .herb .lf, .bp-her .herb .fl { opacity: 1; } .bp-her .herb .stem { stroke-dashoffset: 0; } }
 `;
 if (typeof document !== 'undefined' && !document.getElementById('bkcss')) { const st = document.createElement('style'); st.id = 'bkcss'; st.textContent = CSS; document.head.appendChild(st); }
