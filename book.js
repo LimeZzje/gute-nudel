@@ -290,8 +290,7 @@ const keep = { key: '', top: 0 };  // the open page's scroll position survives r
 const pageEl = (p, cls) => `<div class="bk-page ${cls} bp-${p.theme}" data-key="${esc(p.key)}"><div class="bp">${p.html}</div></div>`;
 export function frame({ tabs, cur, page, label }) {
   return `<div class="cbook cb-top" id="cbook"><div class="cb-body"><div class="bk-stage" id="bkstage">${pageEl(page, 'cur')}</div>
-    <div class="cb-tabs">${tabs.map(([k, l, c, cl], i) => `${cl && !(tabs[i - 1] || [])[3] ? '<span class="cb-gap" aria-hidden="true"></span>' : ''}<button class="cb-tab ${k === cur ? 'on' : ''}${cl ? ' cl' : ''}" data-a="ktab" data-v="${k}" style="--tc:${c}"><span>${cl ? '<i class="tk">✦ </i>' : ''}${l}</span></button>`).join('')}</div></div>
-    <div class="bk-foot"><button data-bk="prev" aria-label="Zurückblättern">‹</button><span id="bkno">${esc(label)}</span><button data-bk="next" aria-label="Weiterblättern">›</button></div></div>`;
+    <div class="cb-tabs">${tabs.map(([k, l, c, cl], i) => `${cl && !(tabs[i - 1] || [])[3] ? '<span class="cb-gap" aria-hidden="true"></span>' : ''}<button class="cb-tab ${k === cur ? 'on' : ''}${cl ? ' cl' : ''}" data-a="ktab" data-v="${k}" style="--tc:${c}"><span>${cl ? '<i class="tk">✦ </i>' : ''}${l}</span></button>`).join('')}</div></div></div>`;
 }
 function fit() {   // the book fills the screen between the sub-tabs and the bottom bar; its pages scroll inside
   const cb = document.getElementById('cbook'); if (!cb) return;
@@ -314,11 +313,6 @@ export function mount(api) {
   cur.addEventListener('scroll', () => { keep.top = cur.scrollTop; }, { passive: true });
   syncChrome();
   if (st._m) return; st._m = true;
-  const book = document.getElementById('cbook');
-  book.addEventListener('click', e => {
-    const b = e.target.closest('[data-bk]'); if (!b) return;
-    e.preventDefault(); e.stopPropagation(); turn(b.dataset.bk === 'next' ? 1 : -1);
-  }, true);
   let g = null;
   st.addEventListener('pointerdown', e => { if (busy || e.button || e.target.closest('input,textarea,select')) return; g = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, dir: 0 }; });
   st.addEventListener('pointermove', e => {
@@ -344,11 +338,8 @@ export function mount(api) {
   };
   st.addEventListener('pointerup', up); st.addEventListener('pointercancel', () => { if (g && g.flip) g.flip.finish(false); g = null; });
 }
-function syncChrome() {   // page label + which thumb tab sticks out
-  const no = document.getElementById('bkno'); if (no && A) no.textContent = A.label();
+function syncChrome() {   // which thumb tab sticks out (the ‹ label › bar is gone, user 2026-10-13: swipe/edge taps turn pages)
   if (A) document.querySelectorAll('.cb-tab').forEach(b => b.classList.toggle('on', b.dataset.v === A.tab()));
-  const p = document.querySelector('[data-bk="prev"]'), n = document.querySelector('[data-bk="next"]');
-  if (p && A) p.disabled = A.i() <= 0; if (n && A) n.disabled = A.i() >= A.n() - 1;
 }
 let busy = false;
 // dir 1: the open page turns away to the left, `page` lies under it · dir -1: `page` comes back over the open one
@@ -418,10 +409,6 @@ const CSS = `
 .cb-tab span { writing-mode: vertical-rl; display: inline-block; }
 .cb-tab.on { opacity: 1; transform: translateX(0); width: 34px; }
 .cb-gap { height: 14px; flex: none; }   /* Claude's two shelves sit a little apart (user: no label, just space) */
-.bk-foot { display: flex; align-items: center; justify-content: space-between; padding: 6px 2px 0; gap: 8px; }
-.bk-foot button { border: 0; border-radius: 999px; width: 54px; height: 38px; font: 800 24px/1 Nunito, sans-serif; background: var(--paper2); color: var(--ink); cursor: pointer; }
-.bk-foot button:disabled { opacity: .3; }
-#bkno { font: 700 14px Nunito, sans-serif; color: var(--ink2); text-align: center; flex: 1; white-space: nowrap; overflow: hidden; }
 /* section pages */
 .sec-head { display: flex; align-items: flex-end; gap: 10px; margin: 0 0 10px; }
 .sec-head h2 { flex: 1; margin: 0; font: 700 30px/1.1 'Dancing Script', Caveat, cursive; color: #5f7d5a; }
