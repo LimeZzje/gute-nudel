@@ -290,13 +290,21 @@ const keep = { key: '', top: 0 };  // the open page's scroll position survives r
 const pageEl = (p, cls) => `<div class="bk-page ${cls} bp-${p.theme}" data-key="${esc(p.key)}"><div class="bp">${p.html}</div></div>`;
 export function frame({ tabs, cur, page, label }) {
   return `<div class="cbook" id="cbook"><div class="cb-body"><div class="bk-stage" id="bkstage">${pageEl(page, 'cur')}</div>
-    <div class="cb-tabs">${tabs.map(([k, l, c, cl], i) => `${cl && !(tabs[i - 1] || [])[3] ? '<span class="cb-gap" aria-hidden="true"></span>' : ''}<button class="cb-tab ${k === cur ? 'on' : ''}${cl ? ' cl' : ''}" data-a="ktab" data-v="${k}" style="--tc:${c}"><span>${cl ? '✦ ' : ''}${l}</span></button>`).join('')}</div></div>
+    <div class="cb-tabs">${tabs.map(([k, l, c, cl], i) => `${cl && !(tabs[i - 1] || [])[3] ? '<span class="cb-gap" aria-hidden="true"></span>' : ''}<button class="cb-tab ${k === cur ? 'on' : ''}${cl ? ' cl' : ''}" data-a="ktab" data-v="${k}" style="--tc:${c}"><span>${cl ? '<i class="tk">✦ </i>' : ''}${l}</span></button>`).join('')}</div></div>
     <div class="bk-foot"><button data-bk="prev" aria-label="Zurückblättern">‹</button><span id="bkno">${esc(label)}</span><button data-bk="next" aria-label="Weiterblättern">›</button></div></div>`;
 }
 function fit() {   // the book fills the screen between the sub-tabs and the bottom bar; its pages scroll inside
   const cb = document.getElementById('cbook'); if (!cb) return;
   const nav = document.getElementById('tabs'), top = cb.getBoundingClientRect().top + scrollY;
-  cb.style.height = Math.max(420, innerHeight - top - (nav ? nav.offsetHeight : 0) - 6) + 'px';
+  cb.style.height = Math.max(300, innerHeight - top - (nav ? nav.offsetHeight : 0) - 6) + 'px';
+  // small phones (user, 2026-10-13): side bookmarks ran off the bottom and squeezed the page → bookmarks along the top edge instead
+  cb.classList.remove('cb-top');
+  const tabs = cb.querySelector('.cb-tabs'), body = cb.querySelector('.cb-body');
+  if (!(innerWidth < 390 || (tabs && body && tabs.scrollHeight > body.clientHeight))) return;
+  cb.classList.add('cb-top');
+  // labels shrink together until every one fits (no "Stöbe…")
+  const spans = [...tabs.querySelectorAll('.cb-tab span')];
+  for (let k = 1; k >= .7; k -= .05) { tabs.style.setProperty('--tk', k); if (!spans.some(x => x.scrollWidth > x.clientWidth + 1)) break; }
 }
 let resizeOn = false;
 export function mount(api) {
@@ -415,7 +423,7 @@ const CSS = `
 .bk-foot { display: flex; align-items: center; justify-content: space-between; padding: 6px 2px 0; gap: 8px; }
 .bk-foot button { border: 0; border-radius: 999px; width: 54px; height: 38px; font: 800 24px/1 Nunito, sans-serif; background: var(--paper2); color: var(--ink); cursor: pointer; }
 .bk-foot button:disabled { opacity: .3; }
-#bkno { font: 700 14px Nunito, sans-serif; color: var(--ink2); text-align: center; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#bkno { font: 700 14px Nunito, sans-serif; color: var(--ink2); text-align: center; flex: 1; white-space: nowrap; overflow: hidden; }
 /* section pages */
 .sec-head { display: flex; align-items: flex-end; gap: 10px; margin: 0 0 10px; }
 .sec-head h2 { flex: 1; margin: 0; font: 700 30px/1.1 'Dancing Script', Caveat, cursive; color: #5f7d5a; }
@@ -556,6 +564,22 @@ const CSS = `
 .row-kid .rnew.kidnew { display: flex; top: -18px; right: -16px; width: 54px; height: 54px; align-items: center; justify-content: center; transform: rotate(-12deg); background: #ffe27a; color: #c0392b; font: 400 16px/1 'Patrick Hand', cursive;
   clip-path: polygon(50% 0, 61% 13%, 77% 6%, 80% 23%, 97% 25%, 89% 40%, 100% 52%, 87% 62%, 93% 79%, 76% 80%, 70% 96%, 55% 88%, 41% 100%, 33% 85%, 16% 91%, 16% 74%, 0 66%, 11% 52%, 2% 37%, 18% 31%, 17% 13%, 34% 15%); }
 .rnew.wax { display: none; } .bp-him .rnew.wax { display: flex; }
+/* small phones: bookmarks along the top edge, the page gets the full width, the floating pictures shrink */
+.cb-top .cb-body { flex-direction: column; }
+.cb-top .cb-tabs { order: -1; flex-direction: row; align-items: flex-end; width: auto; padding: 0 8px; gap: 3px; height: 38px; }
+.cb-top .cb-tab { flex: 1 1 auto; min-width: 0; height: 38px; padding: 0 4px; border-radius: 10px 10px 0 0; transform: translateY(5px); font-size: calc(13px * var(--tk, 1)); letter-spacing: 0; box-shadow: 0 -1px 4px rgba(0,0,0,.12); }
+.cb-top .cb-tab.on { transform: translateY(0); width: auto; }
+.cb-top .cb-tab span { writing-mode: horizontal-tb; display: block; white-space: nowrap; overflow: hidden; }
+.cb-tab .tk { font-style: normal; } .cb-top .cb-tab .tk { display: none; }
+.cb-top .cb-tab[data-v="herb"] { font-size: calc(16px * var(--tk, 1)); letter-spacing: 0; } .cb-top .cb-tab[data-v="codex"] { font-size: calc(12.5px * var(--tk, 1)); letter-spacing: .02em; }
+.cb-top .cb-gap { height: auto; width: 6px; }
+.cb-top .bk-page { border-radius: 10px; }
+.cb-top .bp { padding: 14px 12px 20px 14px; }
+.cb-top .bp-title { font-size: 26px !important; }
+.cb-top .bp-her .bp-plant { width: 64px; } .cb-top .bp-her .bp-plant svg { width: 64px; height: 100px; } .cb-top .bp-her .bp-plant::before { left: 14px; }
+.cb-top .sigil-fig { width: 72px; } .cb-top .sigil-fig svg { width: 72px; height: auto; }
+.cb-top .kd-pic { width: 70px; height: 70px; border-width: 9px; } .cb-top .kd-pic span { font-size: 30px; }
+.cb-top .bp-her .bp-stamp, .cb-top .kd-sticker { width: 66px; height: 66px; } .cb-top .bp-him .bp-seal { width: 70px; }
 @media (prefers-reduced-motion: reduce) { .cbook *, .cbook *::before { animation: none !important; } .bp-her .herb .lf, .bp-her .herb .fl { opacity: 1; } .bp-her .herb .stem { stroke-dashoffset: 0; } }
 `;
 if (typeof document !== 'undefined' && !document.getElementById('bkcss')) { const st = document.createElement('style'); st.id = 'bkcss'; st.textContent = CSS; document.head.appendChild(st); }
