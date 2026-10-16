@@ -37,7 +37,7 @@ export function freshState() {
     relaxRate: {},         // ritual id -> 1 😕 | 2 🙂 | 3 😍 (latest rating)
     preps: {},             // id -> [bool]
     quest: null,           // active quest id
-    chores: [],            // recurring chores: {id, icon, name, every (days) | week [0..6], reward, last (day), skip (day)}
+    chores: [],            // recurring chores: {id, icon, name, every (days) | week [0..6], reward, last (day), skip (day), moved {orig, to} (⏭ this once a day later)}
     gifts: [],             // chore rewards waiting today
     shop: [],              // her shopping list: {id, text, done, from, sec?}
     shopStore: 'standard', shopOrder: {}, shopLearn: {}, pantry: [],   // pantry: ingredients she usually has at home (learned)   // chosen store, her own section order per store, sections she corrected

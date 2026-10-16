@@ -9,7 +9,7 @@ import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-13.3';
+const VERSION = '2026-10-16.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -252,6 +252,10 @@ function checkPromotion() { // a new division (or tier) → a celebration, once
 // ---------- recurring chores: due ones land on today's page by themselves ----------
 const daysBetween = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
 function choreDue(c, d) {
+  if (c.moved) {   // ⏭ moved one day on: due on the new day, not in between; the rhythm itself stays untouched
+    if (d === c.moved.to) return c.last !== d;
+    if (d >= c.moved.orig && d < c.moved.to) return false;
+  }
   if ((c.skip && c.skip > d) || c.last === d) return false;
   if (c.week && c.week.length) return c.week.includes(parse(d).getDay());
   return !c.last || daysBetween(c.last, d) >= (c.every || 7);
@@ -265,6 +269,11 @@ function choreWhen(c) { // "heute", "morgen", "in 3 Tagen", "Mo"
   }
   return '–';
 }
+// done on day d: a moved one counts for its planned day, so "alle N Tage" keeps its gaps (weekday plans just go on)
+function choreDone(c, d) {
+  c.last = c.moved && c.moved.to === d && !(c.week && c.week.length) ? c.moved.orig : d;
+  c.moved = null;
+}
 function choreNext(c) { // the next day it is due (today, if it still is)
   const d = today(), doneToday = S.log.some(e => e.day === d && e.chore === c.id);
   for (let n = doneToday ? 1 : 0; n <= 400; n++) { const k = addDays(d, n); if (choreDue(c, k)) return k; }
@@ -272,7 +281,8 @@ function choreNext(c) { // the next day it is due (today, if it still is)
 }
 // "alle N Tage" from a chosen day: due on that day, then every N days (as if it was last done N days before)
 function setChoreNext(c, k) {
-  c.last = addDays(k, -(c.every || 7)); c.skip = null;
+  if (c.moved && c.moved.to === k && !(c.week && c.week.length)) return scheduleChores();   // still the moved day → plan untouched
+  c.last = addDays(k, -(c.every || 7)); c.skip = null; c.moved = null;
   if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
   scheduleChores();
 }
@@ -299,6 +309,7 @@ function scheduleChores() {
   const d = today();
   let added = 0;
   for (const c of S.chores) {
+    if (c.moved && c.moved.to < d) c.moved = null;   // the moved day is over (not done → it's just overdue, like any other)
     if (!choreDue(c, d) || S.items.some(i => i.chore === c.id) || S.log.some(e => e.day === d && e.chore === c.id)) continue;
     S.items.push({ id: choreItemId(c.id, d), text: c.name, where: 'heute', created: Date.now(), chore: c.id });
     added++;
@@ -467,9 +478,9 @@ function tick(id, el) {
   setTimeout(() => {
     S.items = S.items.filter(i => i !== it);
     const ch = it.chore && S.chores.find(c => c.id === it.chore);
-    S.log.push({ id: uid(), text: it.text, kind: 'task', day: today(), ts: Date.now(), stars, ...(it.did ? { did: it.did, from: it.from } : {}), ...(ch ? { chore: ch.id, prevLast: ch.last || null } : {}) });
+    S.log.push({ id: uid(), text: it.text, kind: 'task', day: today(), ts: Date.now(), stars, ...(it.did ? { did: it.did, from: it.from } : {}), ...(ch ? { chore: ch.id, prevLast: ch.last || null, prevMoved: ch.moved || null } : {}) });
     earn(stars);
-    if (ch) { ch.last = today(); if (ch.reward) S.gifts.push({ id: uid(), cid: ch.id, day: today(), icon: ch.icon, name: ch.name, reward: ch.reward }); }
+    if (ch) { choreDone(ch, today()); if (ch.reward) S.gifts.push({ id: uid(), cid: ch.id, day: today(), icon: ch.icon, name: ch.name, reward: ch.reward }); }
     const combo = S.combo && S.combo.iid === it.id && S.combo.phase === 'work' && C.COMBOS.find(c => c.id === S.combo.id);
     if (combo) S.combo.phase = 'reward';
     afterWork(n + 1, answerDone(it));
@@ -576,7 +587,7 @@ function choreWeek(off = 0) {   // off: 0 = this week, 1 = next week …
       if (d === t && doneToday) continue;
       if (!choreDue(x, d)) continue;
       if (out[d]) out[d].push({ c, st: d === t ? 'due' : 'plan' });
-      x.last = d;
+      choreDone(x, d);
     }
   }
   return { days, out, t };
@@ -952,7 +963,7 @@ const A = {
     const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
     S.log = S.log.filter(x => x !== e); S.stars = Math.max(0, S.stars - e.stars); S.earned = Math.max(0, S.earned - e.stars);
     if (e.kind === 'task') S.items.unshift({ id: e.chore ? choreItemId(e.chore, e.day) : uid(), text: e.text, where: 'heute', created: Date.now(), ...(e.did ? { did: e.did, from: e.from } : {}), ...(e.chore ? { chore: e.chore } : {}) });
-    if (e.chore) { const c = S.chores.find(x => x.id === e.chore); if (c) c.last = e.prevLast || null; S.gifts = S.gifts.filter(g => !(g.cid === e.chore && g.day === e.day)); }
+    if (e.chore) { const c = S.chores.find(x => x.id === e.chore); if (c) { c.last = e.prevLast || null; c.moved = e.prevMoved || null; } S.gifts = S.gifts.filter(g => !(g.cid === e.chore && g.day === e.day)); }
     let post = false;
     if (e.did && S.answered[e.did]) { S.answered[e.did] = { status: 'ok', ts: Date.now() }; post = true; }
     S.today.celebrated = false; S.today.closed = false; commit(post);
@@ -982,7 +993,7 @@ const A = {
     S.items = S.items.filter(i => !ui.dpicks.has(i.id));
     const listOf = i => { const c = i.chore && S.chores.find(x => x.id === i.chore); return c && (c.tools || []).includes('list') && S.shop.some(x => !x.done) ? S.shop.filter(x => !x.done).map(x => x.text) : (i.list ? i.list.filter(x => !x.done).map(x => x.text) : null); };
     picked.forEach(i => { const list = listOf(i); S.sent.push({ id: uid(), text: i.text, today: !!ui.dtoday, ts: Date.now(), status: 'wartet', ...(list ? { list } : {}) }); });
-    picked.forEach(i => { const c = i.chore && S.chores.find(x => x.id === i.chore); if (c) c.last = today(); });   // handed over counts as handled
+    picked.forEach(i => { const c = i.chore && S.chores.find(x => x.id === i.chore); if (c) choreDone(c, today()); });   // handed over counts as handled
     S.log.push({ id: uid(), text: picked.length + (picked.length === 1 ? ' Aufgabe' : ' Aufgaben') + ' an ' + pn() + ' abgegeben', kind: 'delegate', n: picked.length, day: today(), ts: Date.now(), stars: 1 }); earn(1);
     closeModal(); commit(true);
     modal(`<h2>Abgegeben!</h2><p>Nicht alles allein machen zu müssen, ist auch eine Stärke.</p><p>+1 gute Nudel Stern ⭐</p><p class="muted">${esc(pn())} sieht ${picked.length === 1 ? 'die Aufgabe' : 'die Aufgaben'} beim nächsten Öffnen der App.</p><div class="row"><button class="btn" data-a="close">💛</button></div>`);
@@ -1048,8 +1059,9 @@ const A = {
   },
   choreskip(el) {
     const it = S.items.find(i => i.id === el.dataset.id), c = it && S.chores.find(x => x.id === it.chore); if (!it) return;
-    if (c) c.skip = addDays(today(), 1);
-    S.items = S.items.filter(i => i !== it); commit(); toast('Heute nicht – morgen wieder 🔁');
+    const d = today();   // only this one time moves a day on; moved again → still counts from the first planned day
+    if (c) c.moved = { orig: c.moved && c.moved.to === d ? c.moved.orig : d, to: addDays(d, 1) };
+    S.items = S.items.filter(i => i !== it); commit(); toast('Auf morgen verschoben – der Plan bleibt 🔁');
   },
   choredel(el) {
     const c = S.chores.find(x => x.id === el.dataset.id); if (!c) return;
@@ -2748,4 +2760,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores };
+window.__gn = { kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores, choreDue, choreDone };
