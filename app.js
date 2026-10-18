@@ -1232,6 +1232,37 @@ const A = {
   shopwipe() { ui.shopWipe = !ui.shopWipe; shopAgain(); },
   shopwipeyes() { S.shop = []; ui.shopWipe = false; commit(); shopAgain(); toast('Einkaufsliste geleert 🛒'); },
   shopclear() { S.shop = S.shop.filter(x => !x.done); commit(); shopModal(null, true); },
+  picnic() { ui.picShown = false; ui.picOpen = null; if (picLS.tok) picSearchAll(); else { ui.pic = { step: 'login' }; picModal(); } },
+  async piclogin() {
+    const email = $('#pic-mail').value.trim(), password = $('#pic-pw').value;
+    if (!email || !password) { ui.pic.msg = 'E-Mail und Passwort, bitte.'; return picModal(); }
+    Object.assign(ui.pic, { busy: true, msg: '' }); picModal();
+    try {
+      picLS.tok = '';
+      const r = await pic('/login', { email, password });
+      if (r.need2fa) { await pic('/2fa/send', {}); ui.pic = { step: 'code' }; return picModal(); }
+      picSearchAll();
+    } catch (e) { Object.assign(ui.pic, { busy: false, step: 'login', msg: e.auth ? 'E-Mail oder Passwort stimmt nicht.' : 'Hat nicht geklappt: ' + e.message }); picModal(); }
+  },
+  async picverify() {
+    const otp = $('#pic-otp').value.trim(); if (!otp) return;
+    Object.assign(ui.pic, { busy: true, msg: '' }); picModal();
+    try { const r = await pic('/2fa/verify', { otp }); if (!r.ok) throw new Error('Code stimmt nicht'); picSearchAll(); }
+    catch (e) { Object.assign(ui.pic, { busy: false, step: e.auth ? 'login' : 'code', msg: e.auth ? 'Bitte nochmal anmelden.' : e.message }); picModal(); }
+  },
+  picskip(el) { const r = ui.pic.rows[+el.dataset.v]; r.skip = !r.skip; picModal(); },
+  picopen(el) { ui.picOpen = ui.picOpen === +el.dataset.v ? null : +el.dataset.v; picModal(); },
+  picpick(el) { const r = ui.pic.rows[+el.dataset.v]; r.pick = r.hits[+el.dataset.k]; r.skip = false; ui.picOpen = null; picModal(); },
+  async picgo() {
+    const todo = ui.pic.rows.filter(r => r.pick && !r.skip), map = picLS.map;
+    ui.pic.busy = true; picModal();
+    let added = 0;
+    try {
+      for (const r of todo) { await pic('/add', { id: r.pick.id, n: 1 }); added++; map[Sh.norm(itemName(r.x))] = r.pick; }
+      picLS.map = map; ui.pic = { step: 'done', added }; picModal();
+    } catch (e) { picLS.map = map; ui.pic = { step: e.auth ? 'login' : 'done', added, msg: e.auth ? 'Bitte nochmal anmelden.' : `Nach ${added} Sachen hat's gehakt: ${e.message}` }; picModal(); }
+  },
+  piclogout() { picLS.tok = ''; ui.pic = { step: 'login' }; picModal(); toast('Von Picnic abgemeldet'); },
   itemlist(el) { const it = S.items.find(i => i.id === el.dataset.id); if (it && it.list) shopModal(it); },
   cook(el) { ui.cookEdit = false; cookModal(el.dataset.id || null); },
   cookedit(el) { ui.cookEdit = true; cookModal(el.dataset.id); },
@@ -1465,6 +1496,80 @@ function phoneTimer(mins) {
     <p class="muted" style="text-align:left">🗣️ Am schnellsten: <b>„Hey Google, Timer ${hm}“</b><br>⏱️ Oder: <b>Uhr-App → Timer</b></p>
     <div class="row"><button class="btn" data-a="close">Ist gestellt ✓</button></div>`);
 }
+// 🧺 Picnic (2026-10-18): fill her Picnic cart from the open list. Picnic blocks browser calls from other sites (CORS),
+// so everything goes through our tiny Cloudflare Worker (E:\GuteNudel-picnic\worker, stores nothing). She logs in here once;
+// the password is never stored – only Picnic's login token, on THIS phone (localStorage, not in S, so it never syncs).
+// Her picks are remembered per item name (gn_picnic_map), so "Zwiebeln" finds the same product next time. Ordering stays in the Picnic app.
+const PICNIC = localStorage.getItem('gn_picnic_api') || 'https://gute-nudel-picnic.gutenudel.workers.dev';   // tests point it at a fake worker
+const picLS = { get tok() { return localStorage.getItem('gn_picnic_tok') || ''; }, set tok(v) { v ? localStorage.setItem('gn_picnic_tok', v) : localStorage.removeItem('gn_picnic_tok'); },
+  get map() { try { return JSON.parse(localStorage.getItem('gn_picnic_map') || '{}'); } catch { return {}; } }, set map(v) { localStorage.setItem('gn_picnic_map', JSON.stringify(v)); } };
+async function pic(path, body) {
+  const r = await fetch(PICNIC + path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...(picLS.tok ? { 'x-picnic-auth': picLS.tok } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const t = r.headers.get('x-picnic-auth'); if (t) picLS.tok = t;
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { picLS.tok = ''; throw Object.assign(new Error('auth'), { auth: true }); }
+  if (!r.ok) throw new Error(j.error || 'Picnic antwortet nicht');
+  return j;
+}
+const euro = c => typeof c === 'number' ? (c / 100).toFixed(2).replace('.', ',') + ' €' : '';
+function picModal() {
+  const P = ui.pic || {};
+  let h = '<h2 style="text-align:center">🧺 Bei Picnic bestellen</h2>';
+  if (P.step === 'login' || !picLS.tok && P.step !== 'code') {
+    h += `<p class="muted" style="margin-top:0">Einmal mit deinem Picnic-Konto anmelden. Das Passwort wird nicht gespeichert – nur ein Anmelde-Schlüssel bleibt auf diesem Handy.</p>
+      <input id="pic-mail" type="email" placeholder="E-Mail" autocomplete="username" style="width:100%;margin-bottom:8px">
+      <input id="pic-pw" type="password" placeholder="Passwort" autocomplete="current-password" style="width:100%">
+      <p id="pic-msg" class="hint" style="color:var(--danger)">${esc(P.msg || '')}</p>
+      <div class="row"><button class="btn green" data-a="piclogin" ${P.busy ? 'disabled' : ''}>${P.busy ? 'Moment…' : 'Anmelden'}</button><button class="btn soft" data-a="close">Abbrechen</button></div>`;
+  } else if (P.step === 'code') {
+    h += `<p>Picnic hat dir eine SMS mit einem Code geschickt.</p>
+      <input id="pic-otp" inputmode="numeric" autocomplete="one-time-code" placeholder="Code aus der SMS" style="width:100%">
+      <p id="pic-msg" class="hint" style="color:var(--danger)">${esc(P.msg || '')}</p>
+      <div class="row"><button class="btn green" data-a="picverify" ${P.busy ? 'disabled' : ''}>${P.busy ? 'Moment…' : 'Bestätigen'}</button><button class="btn soft" data-a="close">Abbrechen</button></div>`;
+  } else if (P.step === 'done') {
+    h += `<p style="text-align:center;font-size:40px;margin:8px 0">✅</p><p style="text-align:center">${P.added} ${P.added === 1 ? 'Sache liegt' : 'Sachen liegen'} jetzt in deinem Picnic-Warenkorb.</p>
+      <p class="muted" style="text-align:center">Öffne die Picnic-App, schau drüber, such dir einen Liefertermin aus – fertig.</p>
+      ${P.msg ? `<p class="hint" style="color:var(--danger)">${esc(P.msg)}</p>` : ''}<div class="row"><button class="btn" data-a="close">Super</button></div>`;
+  } else {
+    const rows = P.rows || [], n = rows.filter(r => r.pick && !r.skip).length;
+    h += P.busy && !rows.length ? '<p class="muted" style="text-align:center">Suche bei Picnic…</p>' : '';
+    h += rows.map((r, i) => {
+      const p = r.pick;
+      return `<div class="card" style="padding:10px;margin:8px 0;${r.skip ? 'opacity:.45' : ''}">
+        <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(itemName(r.x))}</b><button class="mini-btn" data-a="picskip" data-v="${i}" aria-label="${r.skip ? 'Doch mitnehmen' : 'Weglassen'}">${r.skip ? '↺' : '✕'}</button></div>
+        ${r.hits == null ? '<p class="muted" style="margin:4px 0">…</p>' : !p ? '<p class="muted" style="margin:4px 0">Bei Picnic nichts gefunden.</p>'
+          : `<button class="pick" data-a="picopen" data-v="${i}" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left">${p.img ? `<img src="${esc(p.img)}" alt="" style="width:44px;height:44px;object-fit:contain">` : ''}<span style="flex:1">${esc(p.name)} <span class="muted">${esc(p.unit)}</span></span><b>${euro(p.price)}</b></button>`}
+        ${ui.picOpen === i && r.hits ? `<div class="chips" style="margin-top:6px">${r.hits.map((x, k) => `<button class="chip ${p && p.id === x.id ? 'on' : ''}" data-a="picpick" data-v="${i}" data-k="${k}">${esc(x.name)} · ${esc(x.unit)} · ${euro(x.price)}</button>`).join('')}</div>` : ''}
+      </div>`;
+    }).join('');
+    if (rows.length) h += `<p class="hint">Antippen = anderes Produkt wählen. Deine Wahl merkt sich die App fürs nächste Mal.</p>
+      <div class="row"><button class="btn green" data-a="picgo" ${P.busy || !n ? 'disabled' : ''}>${P.busy ? 'Moment…' : `🧺 ${n} in den Warenkorb`}</button><button class="btn soft" data-a="close">Abbrechen</button></div>
+      <p style="text-align:center"><button class="linkbtn muted" data-a="piclogout" style="background:none;border:0;text-decoration:underline">Von Picnic abmelden</button></p>`;
+    if (P.msg) h += `<p class="hint" style="color:var(--danger)">${esc(P.msg)}</p>`;
+  }
+  modal(`<div style="text-align:left">${h}</div>`, '', !!$('#ov') && ui.picShown);
+  ui.picShown = true;
+}
+async function picSearchAll() {
+  const map = picLS.map, open = S.shop.filter(x => !x.done);
+  ui.pic = { step: 'match', rows: open.map(x => ({ x, hits: null, pick: null, skip: false })), busy: true };
+  picModal();
+  try {
+    for (const r of ui.pic.rows) {   // one after the other: gentle on Picnic, and the list fills in visibly
+      const mem = map[Sh.norm(itemName(r.x))];
+      r.hits = await pic('/search?q=' + encodeURIComponent(itemName(r.x)));
+      if (mem && !r.hits.some(h => h.id === mem.id)) r.hits.unshift(mem);
+      r.pick = (mem && r.hits.find(h => h.id === mem.id)) || r.hits[0] || null;
+      if (!$('#ov')) return;   // she closed it meanwhile
+      picModal();
+    }
+  } catch (e) { return picFail(e); }
+  ui.pic.busy = false; picModal();
+}
+function picFail(e) {
+  ui.pic = Object.assign(ui.pic || {}, { busy: false, step: e.auth ? 'login' : (ui.pic || {}).step, msg: e.auth ? 'Bitte nochmal anmelden.' : 'Hat nicht geklappt: ' + e.message });
+  picModal();
+}
 // the list grouped by supermarket section, in the chosen store's order (shop.js); ticked items go to "Im Wagen"
 const secOf = x => x.sec || Sh.classify(x.text, S.shopLearn || {});
 const shopOrder = () => { const st = Sh.STORES[S.shopStore] ? S.shopStore : 'standard'; return ((S.shopOrder || {})[st] || Sh.STORES[st][1]).slice(); };
@@ -1493,6 +1598,7 @@ function shopBody(item, inTab) {
     <div class="steps">${groups || (open.length ? '' : '<p class="muted">Noch leer.</p>')}
     ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
+    ${!item && open.length ? `<button class="btn soft wide" data-a="picnic" style="margin-top:8px">🧺 Bei Picnic bestellen (${open.length})</button>` : ''}
     ${!item && done.length && !open.length ? `<button class="btn green wide alldone" data-a="shopdone">✅ Alles eingekauft!</button><p class="hint" style="text-align:center;margin-top:4px">Kommt in den Vorrat – Claude kocht sich daraus Rezepte für euch aus.</p>` : ''}
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
     ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
