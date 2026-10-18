@@ -939,3 +939,33 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .hn-small p { font-size: 14px; opacity: .85; }
 .hn-sign { text-align: center; font: 700 28px/1.2 'Dancing Script', Caveat, cursive; color: var(--gbrose); margin: 18px 0 6px; }
 @media (prefers-reduced-motion: reduce) { .hn-box .hb-lid, .hn-box .hb-spark, .bird-bob, .hn-van, .hs-ring { animation: none; } }
+
+/* 🎬 Hinter den Kulissen — the slide show (full-screen layer #deck, hn_slides.js) */
+.hndeckcard { display: flex; align-items: center; gap: 12px; width: 100%; border: 1.5px dashed var(--gbrose); text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: linear-gradient(135deg, var(--gb1), var(--hnsky)); padding: 12px 14px; }
+.hndeckcard .hd-ic { font-size: 30px; } .hndeckcard b { color: var(--gbrose); font-size: 17px; } .hndeckcard .hc-txt { display: flex; flex-direction: column; flex: 1; gap: 2px; }
+.hn-deck { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; color: var(--gbink);
+  background: radial-gradient(circle at 15% 10%, rgba(255, 255, 255, .45) 0 2px, transparent 3px) 0 0 / 32px 32px, linear-gradient(170deg, var(--hnsky), var(--hnpaper) 45%, var(--gb1));
+  padding: max(10px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom)); }
+.hd-top { display: flex; justify-content: space-between; align-items: center; }
+.hd-n { font-weight: 800; font-size: 14px; opacity: .6; letter-spacing: .04em; }
+.hd-slide { flex: 1; overflow-y: auto; display: flex; flex-direction: column; animation: hdIn .35s ease; max-width: 560px; width: 100%; margin: 0 auto; }
+@keyframes hdIn { from { opacity: 0; transform: translateX(18px); } }
+.hd-t { font: 700 34px/1.1 Caveat, cursive; color: var(--gbrose); text-align: center; margin: 4px 0 6px; text-wrap: balance; }
+.hd-art { width: 100%; max-height: 34vh; flex: none; margin: 0 0 8px; background: var(--gbtile); border-radius: 18px; box-shadow: 0 1px 0 var(--gbline); }
+.hd-p p { margin: 0 0 10px; font-size: 15.5px; line-height: 1.5; }
+.hd-p b { color: var(--gbrose); } .hd-p i { opacity: .85; }
+.hd-nav { display: flex; align-items: center; gap: 8px; padding-top: 8px; max-width: 560px; width: 100%; margin: 0 auto; }
+.hd-nav .btn { flex: none; min-width: 104px; } .hd-nav .btn[disabled] { opacity: .35; }
+.hd-dots { flex: 1; display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; }
+.hd-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--gbink); opacity: .2; } .hd-dots i.on { background: var(--gbrose); opacity: 1; transform: scale(1.3); }
+.sv-t { font: 700 15px Caveat, cursive; fill: var(--gbink); } .sv-t.big { font-size: 20px; fill: var(--gbrose); } .sv-t.warn { font-size: 19px; fill: #d1453b; }
+.sv-small { font: 600 12.5px Caveat, cursive; fill: var(--gbink); opacity: .8; }
+.sv-code { font: 600 9.5px ui-monospace, Menlo, Consolas, monospace; fill: var(--gbink); }
+.sv-note { fill: #fffaf0; stroke: var(--gbgold); stroke-width: 1.2; }
+.sv-srv rect:not(.sv-slot) { fill: #5d6378; } .sv-srv .sv-led { fill: #7be08a; } .sv-srv .sv-slot { fill: #8d93a8; }
+.sv-cloud { fill: var(--hnsky); }
+.sv-arrow line { stroke: var(--gbink); stroke-width: 2; opacity: .55; stroke-linecap: round; } .sv-arrow polygon { fill: var(--gbink); opacity: .55; }
+.sv-arrow.dash line { stroke-dasharray: 3 5; } .sv-arrow.back line, .sv-arrow.back polygon { stroke: var(--hngreen); fill: var(--hngreen); opacity: .9; }
+.sv-wall rect { fill: #d77a5a; stroke: #a9543a; stroke-width: 1; }
+@media (prefers-reduced-motion: reduce) { .hd-slide { animation: none; } }

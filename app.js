@@ -9,9 +9,10 @@ import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as G from './geburtstag.js';
 import * as HN from './hellonudel.js';
+import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-18.4';
+const VERSION = '2026-10-18.5';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1263,6 +1264,7 @@ const A = {
       picLS.map = map; ui.pic = { step: 'done', added }; picModal();
     } catch (e) { picLS.map = map; ui.pic = { step: e.auth ? 'login' : 'done', added, msg: e.auth ? 'Bitte nochmal anmelden.' : `Nach ${added} Sachen hat's gehakt: ${e.message}` }; picModal(); }
   },
+  picapp() { closeModal(); location.href = picnicAppLink(); },
   piclogout() { picLS.tok = ''; ui.pic = { step: 'login' }; picModal(); toast('Von Picnic abgemeldet'); },
   itemlist(el) { const it = S.items.find(i => i.id === el.dataset.id); if (it && it.list) shopModal(it); },
   cook(el) { ui.cookEdit = false; cookModal(el.dataset.id || null); },
@@ -1512,6 +1514,11 @@ async function pic(path, body) {
   if (!r.ok) throw new Error(j.error || 'Picnic antwortet nicht');
   return j;
 }
+// opens the installed Picnic app (Android: intent with the app's own app.picnic:// links, Play Store if missing; iPhone: the scheme).
+// Where exactly it lands (cart or start page) is up to the Picnic app.
+const picnicAppLink = () => /android/i.test(navigator.userAgent)
+  ? 'intent://cart#Intent;scheme=app.picnic;package=com.picnic.android;S.browser_fallback_url=' + encodeURIComponent('https://play.google.com/store/apps/details?id=com.picnic.android') + ';end'
+  : 'app.picnic://cart';
 const euro = c => typeof c === 'number' ? (c / 100).toFixed(2).replace('.', ',') + ' €' : '';
 function picModal() {
   const P = ui.pic || {};
@@ -1531,7 +1538,9 @@ function picModal() {
   } else if (P.step === 'done') {
     h += `<p style="text-align:center;font-size:40px;margin:8px 0">✅</p><p style="text-align:center">${P.added} ${P.added === 1 ? 'Sache liegt' : 'Sachen liegen'} jetzt in deinem Picnic-Warenkorb.</p>
       <p class="muted" style="text-align:center">Öffne die Picnic-App, schau drüber, such dir einen Liefertermin aus – fertig.</p>
-      ${P.msg ? `<p class="hint" style="color:var(--danger)">${esc(P.msg)}</p>` : ''}<div class="row"><button class="btn" data-a="close">Super</button></div>`;
+      ${P.msg ? `<p class="hint" style="color:var(--danger)">${esc(P.msg)}</p>` : ''}
+      <button class="btn green wide" data-a="picapp" style="margin-top:6px">📱 Picnic-App öffnen</button>
+      <div class="row"><button class="btn soft" data-a="close">Später</button></div>`;
   } else {
     const rows = P.rows || [], n = rows.filter(r => r.pick && !r.skip).length;
     h += P.busy && !rows.length ? '<p class="muted" style="text-align:center">Suche bei Picnic…</p>' : '';
@@ -2716,10 +2725,34 @@ function viewHello() {
   return h + `<div class="card hnhero"><span class="gb-eye">Dein Geburtstagsgeschenk von ${esc(pn())}</span><span class="gb-t">Hello Nudel</span>
     <span class="gb-info">Deine Einkaufsliste kommt jetzt mit einem Tipp bei Picnic an – und Picnic bringt alles bis vor eure Tür.</span>
     ${HN.ART}</div>
+    <button class="card hndeckcard" data-a="hndeck"><span class="hd-ic">🎬</span><span class="hc-txt"><b>Hinter den Kulissen</b><span class="muted">Die Präsentation: wie ${esc(pn())} das wirklich gebaut hat – Server, API, Taube & Co.</span></span><span class="hc-go">▶</span></button>
     <div class="card hnpage">${HN.page(esc(pn()))}
     <button class="btn green wide" data-a="hnshop" style="margin-top:10px">🧺 Gleich ausprobieren</button>
     <p class="hn-sign">Alles Liebe zum Geburtstag 💛<br>${esc(pn())}</p></div>`;
 }
+// 🎬 the slide show: its own full-screen layer (#deck) above everything; swipe, ‹ › buttons, dots; Android back closes it
+function hnDeck(i) {
+  const all = SL.SLIDES(esc(pn())), n = all.length; i = Math.max(0, Math.min(n - 1, i)); ui.hnSlide = i;
+  let d = $('#deck');
+  if (!d) {
+    d = document.createElement('div'); d.id = 'deck'; d.className = 'hn-deck'; document.body.appendChild(d); lockScroll();
+    let x0 = null;
+    d.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+    d.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) hnDeck(ui.hnSlide + (dx < 0 ? 1 : -1)); });
+  }
+  const s = all[i];
+  d.innerHTML = `<div class="hd-top"><span class="hd-n">${i + 1} / ${n}</span><button class="mini-btn" data-a="hndeckx" aria-label="Schließen">✕</button></div>
+    <div class="hd-slide" key="${i}"><h2 class="hd-t">${s.t}</h2><svg class="hd-art" viewBox="0 0 300 170" aria-hidden="true">${s.art}</svg>
+      <div class="hd-p">${s.p.map(x => `<p>${x}</p>`).join('')}</div></div>
+    <div class="hd-nav"><button class="btn soft" data-a="hndeckgo" data-v="${i - 1}" ${i ? '' : 'disabled'}>‹ Zurück</button>
+      <span class="hd-dots">${all.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</span>
+      ${i < n - 1 ? `<button class="btn green" data-a="hndeckgo" data-v="${i + 1}">Weiter ›</button>` : '<button class="btn green" data-a="hndeckx">Fertig 💛</button>'}</div>`;
+  d.querySelector('.hd-slide').scrollTop = 0;
+}
+const hnDeckClose = () => { const d = $('#deck'); if (d) { d.remove(); unlockScroll(); } };
+A.hndeck = () => hnDeck(0);
+A.hndeckgo = el => hnDeck(+el.dataset.v);
+A.hndeckx = () => hnDeckClose();
 A.hello = () => { closeModal(); ui.tab = 'home'; ui.sub = 'hello'; render(); scrollTo(0, 0); };
 A.hnopen = () => { S.hnOpen = Date.now(); commit(); render(); scrollTo(0, 0); confetti(160); };
 A.hnshop = () => { ui.sub = null; ui.tab = 'ruhe'; ui.qtab = 'einkauf'; render(); scrollTo(0, 0); };
@@ -2754,6 +2787,7 @@ let guarded = false;
 function armBack() { if (!guarded) { try { history.pushState({ gn: 'guard' }, ''); guarded = true; } catch (e) {} } }
 function goBack() {
   if (game) { game.back(); return; }
+  if ($('#deck')) { hnDeckClose(); return; }
   if ($('#ov')) { closeModal(); return; }
   const v = $('.viewer'), st = $('#story');
   if (v) { v.remove(); return; }
