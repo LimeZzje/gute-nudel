@@ -8,9 +8,10 @@ import { openGame } from './spiel.js';
 import * as E from './entspannen.js';
 import * as B from './baby.js';
 import * as G from './geburtstag.js';
+import * as HN from './hellonudel.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-18.3';
+const VERSION = '2026-10-18.4';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1520,7 +1521,8 @@ function picModal() {
       <input id="pic-mail" type="email" placeholder="E-Mail" autocomplete="username" style="width:100%;margin-bottom:8px">
       <input id="pic-pw" type="password" placeholder="Passwort" autocomplete="current-password" style="width:100%">
       <p id="pic-msg" class="hint" style="color:var(--danger)">${esc(P.msg || '')}</p>
-      <div class="row"><button class="btn green" data-a="piclogin" ${P.busy ? 'disabled' : ''}>${P.busy ? 'Moment…' : 'Anmelden'}</button><button class="btn soft" data-a="close">Abbrechen</button></div>`;
+      <div class="row"><button class="btn green" data-a="piclogin" ${P.busy ? 'disabled' : ''}>${P.busy ? 'Moment…' : 'Anmelden'}</button><button class="btn soft" data-a="close">Abbrechen</button></div>
+      <p style="text-align:center"><button class="linkbtn muted" data-a="hello" style="background:none;border:0;text-decoration:underline">🕊️ Wie funktioniert Hello Nudel?</button></p>`;
   } else if (P.step === 'code') {
     h += `<p>Picnic hat dir eine SMS mit einem Code geschickt.</p>
       <input id="pic-otp" inputmode="numeric" autocomplete="one-time-code" placeholder="Code aus der SMS" style="width:100%">
@@ -1598,7 +1600,7 @@ function shopBody(item, inTab) {
     <div class="steps">${groups || (open.length ? '' : '<p class="muted">Noch leer.</p>')}
     ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
-    ${!item && open.length ? `<button class="btn soft wide" data-a="picnic" style="margin-top:8px">🧺 Bei Picnic bestellen (${open.length})</button>` : ''}
+    ${!item && open.length && hnUnwrapped() ? `<button class="btn soft wide" data-a="picnic" style="margin-top:8px">🧺 Bei Picnic bestellen (${open.length})</button>` : ''}
     ${!item && done.length && !open.length ? `<button class="btn green wide alldone" data-a="shopdone">✅ Alles eingekauft!</button><p class="hint" style="text-align:center;margin-top:4px">Kommt in den Vorrat – Claude kocht sich daraus Rezepte für euch aus.</p>` : ''}
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
     ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
@@ -2478,10 +2480,11 @@ function viewHome() {
   if (ui.sub === 'baby') return viewBaby();
   if (ui.sub === 'kuchen') return viewKuchen();
   if (ui.sub === 'events') return viewEvents();
+  if (ui.sub === 'hello') return viewHello();
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
-  h += incomingCard() + giftCards() + gbCard() + babyCard() + vrNewCard();
+  h += incomingCard() + giftCards() + hnCard() + gbCard() + babyCard() + vrNewCard();
   // today: the ring + the next few things, ticked right here
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
   h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
@@ -2695,6 +2698,32 @@ A.kuchen = () => { closeModal(); ui.tab = 'home'; ui.sub = 'kuchen'; ui.rid = nu
 A.gbcake = el => { ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; render(); scrollTo(0, 0); };
 A.gbcakes = () => { endCookMode(); ui.rid = null; ui.sides = []; render(); scrollTo(0, 0); };
 
+// ---------- 🎁 GIFT: Hello Nudel (2026-10-18, hellonudel.js) ----------
+// On HER phone a wrapped present on Home; unwrapping (S.hnOpen, syncs to her other devices) shows the picture + the page
+// and unlocks the 🧺 Picnic button. His phone never hides the button (he built it). After unwrapping the card stays small until HN.END.
+const hnUnwrapped = () => D.me() !== 'stand' || !!S.hnOpen;
+function hnCard() {
+  if (Date.now() >= HN.END) return '';
+  if (!hnUnwrapped()) return `<button class="card hncard" data-a="hello">${HN.BOX}<span class="gb-eye">Da ist noch was für dich …</span>
+    <span class="gb-t">Ein Geschenk!</span><span class="gb-go">Tippen zum Auspacken 🎀</span></button>`;
+  return `<button class="card hcard hnmini" data-a="hello"><span class="hl-ic">🕊️</span><span class="hc-txt"><b>Hello Nudel</b><span class="muted">So kommt deine Einkaufsliste zu Picnic</span></span><span class="hc-go">›</span></button>`;
+}
+function viewHello() {
+  let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button>`;
+  if (!hnUnwrapped()) return h + `<div class="card hncard hero">${HN.BOX}<span class="gb-eye">Alles Liebe zum Geburtstag</span><span class="gb-t">Für dich, Julia</span>
+    <span class="gb-info">Kein Kuchen, kein Blumenstrauß – etwas, das dir ab jetzt jede Woche Zeit schenkt.</span>
+    <button class="btn green" data-a="hnopen" style="margin-top:14px">🎀 Auspacken</button></div>`;
+  return h + `<div class="card hnhero"><span class="gb-eye">Dein Geburtstagsgeschenk von ${esc(pn())}</span><span class="gb-t">Hello Nudel</span>
+    <span class="gb-info">Deine Einkaufsliste kommt jetzt mit einem Tipp bei Picnic an – und Picnic bringt alles bis vor eure Tür.</span>
+    ${HN.ART}</div>
+    <div class="card hnpage">${HN.page(esc(pn()))}
+    <button class="btn green wide" data-a="hnshop" style="margin-top:10px">🧺 Gleich ausprobieren</button>
+    <p class="hn-sign">Alles Liebe zum Geburtstag 💛<br>${esc(pn())}</p></div>`;
+}
+A.hello = () => { closeModal(); ui.tab = 'home'; ui.sub = 'hello'; render(); scrollTo(0, 0); };
+A.hnopen = () => { S.hnOpen = Date.now(); commit(); render(); scrollTo(0, 0); confetti(160); };
+A.hnshop = () => { ui.sub = null; ui.tab = 'ruhe'; ui.qtab = 'einkauf'; render(); scrollTo(0, 0); };
+
 // ---------- render ----------
 const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Liste']];
 function viewHeuteTab() {
@@ -2806,6 +2835,7 @@ function mergeStates(local, remote, base = null) {
   };
   ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events', 'cookLog'].forEach(k => { m[k] = join(k); });
   m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
+  m.hnOpen = newer.hnOpen || older.hnOpen;   // 🎁 unwrapped on any of her devices = unwrapped
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)
   const ids = new Set((newer.log || []).map(e => e.id)), extra = (older.log || []).filter(e => !ids.has(e.id));

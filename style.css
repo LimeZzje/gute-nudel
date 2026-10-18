@@ -886,3 +886,56 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .gbcake.t-him .gbk-v { color: #cdbfa8; }
 .gbcake { padding-bottom: 34px; }
 .tag.bake { background: #fde9d2; color: #8a4b12; } :root[data-theme="dark"] .tag.bake { background: #4a3322; color: #f6c99a; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag.bake { background: #4a3322; color: #f6c99a; } }
+
+/* ---------- 🎁 GIFT: Hello Nudel (2026-10-18) — the birthday palette (--gb*) + a Picnic-ish green ---------- */
+:root { --hngreen: #4f9a5c; --hnsky: #dcefff; --hnpaper: #fffdf8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hngreen: #7cc489; --hnsky: #23384a; --hnpaper: #2c2622; } }
+:root[data-theme="dark"] { --hngreen: #7cc489; --hnsky: #23384a; --hnpaper: #2c2622; }
+.hncard { display: grid; justify-items: center; text-align: center; width: 100%; border: 0; color: var(--gbink); font: inherit; cursor: pointer;
+  background: radial-gradient(circle at 12% 20%, rgba(255, 255, 255, .5) 0 2px, transparent 3px) 0 0 / 30px 30px, linear-gradient(160deg, var(--gb2), var(--gb1)); padding: 14px 14px 18px; }
+.hncard .hn-box { width: 120px; } .hncard.hero .hn-box { width: 190px; }
+.hn-box .hb-shadow { fill: var(--gbink); opacity: .1; } .hn-box .hb-body { fill: var(--gbrose); } .hn-box .hb-top { fill: var(--gbrose); filter: brightness(1.08); }
+.hn-box .hb-rib, .hn-box .hb-bow, .hn-box .hb-knot { fill: var(--gbgold); } .hn-box .hb-bow { stroke: rgba(0, 0, 0, .1); }
+.hn-box .hb-dot { fill: #fff; opacity: .55; } .hn-box .hb-spark { fill: var(--gbgold); animation: hbTw 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; } .hn-box .s2 { animation-delay: -1.2s; }
+.hn-box .hb-lid { animation: hbWig 3s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes hbWig { 0%, 70%, 100% { transform: none; } 76% { transform: translateY(-4px) rotate(-3deg); } 84% { transform: translateY(-3px) rotate(3deg); } 92% { transform: none; } }
+@keyframes hbTw { 50% { transform: scale(.4); opacity: .4; } }
+.hnhero { text-align: center; color: var(--gbink); padding: 16px 10px 8px; background: linear-gradient(180deg, var(--hnsky), var(--hnpaper) 55%); }
+.hnhero .gb-info { margin: 0 auto 6px; }
+.hn-art { width: 100%; max-width: 380px; height: auto; display: block; margin: 4px auto 0; }
+.hn-road { fill: none; stroke: var(--gbink); stroke-width: 2.4; stroke-dasharray: 2 9; stroke-linecap: round; opacity: .35; }
+.hn-env rect { fill: #fff; stroke: var(--gbrose); stroke-width: 1.6; } .hn-env path { fill: none; stroke: var(--gbrose); stroke-width: 1.4; }
+.hn-num { font: 800 15px Nunito, system-ui, sans-serif; fill: #fff; paint-order: stroke; stroke: var(--gbrose); stroke-width: 12px; stroke-linejoin: round; text-anchor: middle; }
+.hn-lab { font: 700 22px Caveat, cursive; fill: var(--gbink); } .hn-sub { font: 600 18px Caveat, cursive; fill: var(--gbink); opacity: .75; }
+.ph-case { fill: var(--gbink); } .ph-screen { fill: #fffaf3; } .ph-notch { fill: #fffaf3; opacity: .25; }
+.ph-title { font: 800 8.5px Nunito, system-ui, sans-serif; fill: var(--gbrose); text-anchor: middle; }
+.ph-box { fill: #fff; stroke: #c9b8a6; stroke-width: 1.2; } .ph-box.on { fill: var(--hngreen); stroke: var(--hngreen); }
+.ph-tick { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; } .ph-line { fill: #e7dccf; } .ph-heart { fill: var(--gbrose); }
+.bd-body { fill: #fff; stroke: #6d6f86; stroke-width: 1.6; } .bd-tail { fill: #d9dbea; stroke: #6d6f86; stroke-width: 1.4; stroke-linejoin: round; }
+.bd-wing { fill: #d9dbea; stroke: #6d6f86; stroke-width: 1.4; } .bd-beak { fill: var(--gbgold); } .bd-eye { fill: #2b2b3a; }
+.bd-leg { stroke: var(--gbgold); stroke-width: 2; stroke-linecap: round; } .bd-env { fill: #fff6e0; stroke: var(--gbrose); stroke-width: 1.4; } .bd-envl { fill: none; stroke: var(--gbrose); stroke-width: 1.2; }
+.bird-bob { animation: bdBob 2.2s ease-in-out infinite; } @keyframes bdBob { 50% { transform: translateY(-6px); } }
+.st-body { fill: #fff4e2; stroke: #c9a27a; stroke-width: 1.4; } .st-roof { fill: var(--hngreen); }
+.st-scal.a { fill: var(--hngreen); } .st-scal.b { fill: #fff; stroke: var(--hngreen); stroke-width: 1; }
+.st-tom { fill: #e8553e; } .st-bread { fill: #e3a857; } .st-leaf { fill: #6fb36a; }
+.st-bask { fill: #d99a55; stroke: #a96c32; stroke-width: 1.4; stroke-linejoin: round; } .st-handle { fill: none; stroke: #a96c32; stroke-width: 2.4; stroke-linecap: round; } .st-weave { stroke: #a96c32; stroke-width: 1; opacity: .6; }
+.vn-body { fill: #fff; stroke: #6d6f86; stroke-width: 1.6; stroke-linejoin: round; } .vn-win { fill: var(--hnsky); stroke: #6d6f86; stroke-width: 1.2; }
+.vn-leaf { fill: var(--hngreen); } .vn-tyre { fill: #3b3b4a; } .vn-hub { fill: #ddd; }
+.vn-wind { stroke: var(--gbink); stroke-width: 2; stroke-linecap: round; opacity: .3; }
+.hn-van { animation: vnDrive 3.2s ease-in-out infinite; } @keyframes vnDrive { 0%, 100% { transform: translateX(-6px); } 50% { transform: translateX(4px); } }
+.hs-roof { fill: var(--gbrose); } .hs-wall { fill: #fff4e2; stroke: #c9a27a; stroke-width: 1.4; } .hs-door { fill: #a4693a; } .hs-heart { fill: var(--gbgold); }
+.hs-ring path { fill: none; stroke: var(--gbgold); stroke-width: 2; stroke-linecap: round; } .hs-ring { animation: hsRing 1.6s ease-in-out infinite; } @keyframes hsRing { 50% { opacity: .2; } }
+.hn-ground { stroke: var(--gbink); stroke-width: 1.4; opacity: .2; stroke-linecap: round; }
+.hnpage { color: var(--ink); background: var(--hnpaper); padding: 18px 18px 14px; }
+.hn-sec { margin-bottom: 18px; } .hn-sec h3 { font: 700 26px/1.15 Caveat, cursive; color: var(--gbrose); margin: 0 0 6px; }
+.hn-sec p { margin: 0 0 9px; line-height: 1.55; font-size: 15.5px; }
+.hn-steps { list-style: none; padding: 0; margin: 0; counter-reset: hn; }
+.hn-steps li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--gbline); line-height: 1.5; font-size: 15.5px; }
+.hn-steps li:last-child { border-bottom: 0; } .hn-i { font-size: 24px; line-height: 1.2; flex: none; width: 30px; text-align: center; }
+.hn-circle { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 6px; margin: 4px 0 20px; padding: 12px 8px; border-radius: 16px; background: linear-gradient(135deg, var(--gb1), var(--gb2)); }
+.hn-circle span { background: var(--gbtile); border-radius: 99px; padding: 3px 10px; font-weight: 700; font-size: 14px; color: var(--gbink); }
+.hn-circle i { font-style: normal; color: var(--gbrose); font-weight: 800; }
+.hn-future { background: linear-gradient(160deg, var(--gb1), var(--gb2)); border-radius: 18px; padding: 14px 14px 6px; color: var(--gbink); }
+.hn-small p { font-size: 14px; opacity: .85; }
+.hn-sign { text-align: center; font: 700 28px/1.2 'Dancing Script', Caveat, cursive; color: var(--gbrose); margin: 18px 0 6px; }
+@media (prefers-reduced-motion: reduce) { .hn-box .hb-lid, .hn-box .hb-spark, .bird-bob, .hn-van, .hs-ring { animation: none; } }
