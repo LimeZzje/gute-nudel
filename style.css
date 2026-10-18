@@ -885,3 +885,4 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .gbcake { overflow: hidden; }
 .gbcake.t-him .gbk-v { color: #cdbfa8; }
 .gbcake { padding-bottom: 34px; }
+.tag.bake { background: #fde9d2; color: #8a4b12; } :root[data-theme="dark"] .tag.bake { background: #4a3322; color: #f6c99a; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag.bake { background: #4a3322; color: #f6c99a; } }

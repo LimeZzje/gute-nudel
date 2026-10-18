@@ -10,7 +10,7 @@ import * as B from './baby.js';
 import * as G from './geburtstag.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-18.2';
+const VERSION = '2026-10-18.3';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1631,7 +1631,7 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
 const kidLevel = r => { const m = r.min || 0, n = (r.steps || []).length; return Math.min(3, (m <= 20 ? 1 : m <= 45 ? 2 : 3) + (n >= 9 ? 1 : 0)); };
 const KID_WORDS = ['ganz schnell', 'gemütlich', 'braucht etwas Zeit'];
 const kidStars = (r, words) => { const k = kidLevel(r); return `<span class="kstars" title="${KID_WORDS[k - 1]}"><em>${'★'.repeat(k)}</em><i>${'★'.repeat(3 - k)}</i>${words ? KID_WORDS[k - 1] + '<br>' : ''}</span>`; };
-const recipeRow = r => { const him = isCodex(r) && !r.plain, kid = isHerb(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : kid ? ' row-kid' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${kid ? ' ' + kidStars(r) : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
+const recipeRow = r => { const him = isCodex(r) && !r.plain, kid = isHerb(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : kid ? ' row-kid' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${kid ? ' ' + kidStars(r) : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}${isBake(r) ? ' <span class="tag bake">🧁 Backen</span>' : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
@@ -1683,14 +1683,18 @@ function sectionPage(k) {
 const ctxOf = html => [...new Set([...html.matchAll(/data-a="recipe" data-id="([^"]+)"/g)].map(m => m[1]))].join(',');
 const withCtx = html => `<div data-ctx="${esc(ctxOf(html))}">${html}</div>`;
 const stampRow = (r, html) => recipeRow({ ...r, badge: html });
-const CAT_SHORT = { haupt: '🍽️ Haupt', salat: '🥗 Salat', dessert: '🍨 Dessert', drink: '🍹 Drinks' };   // one row of chips in the book
+const CAT_SHORT = { haupt: '🍽️ Haupt', salat: '🥗 Salat', dessert: '🍨 Dessert', backen: '🧁 Backen', drink: '🍹 Drinks' };   // one row of chips in the book
+// 🧁 Backen (user 2026-10-18): category 'backen' OR the tag 'backen' (a baked dessert like the Lime Pie is in Dessert AND Backen)
+const BAKE_RX = /kuchen|torte|schnitte|muffin|plätzchen|keks|brownie|cookie|tarte|pie|strudel|soufflé|crumble|gebäck|waffel|crossies|linzer/i;
+const isBake = r => r.cat === 'backen' || (r.tags || []).includes('backen') || (r.cat === 'dessert' && BAKE_RX.test(r.title || ''));
+const inCat = (r, k) => k === 'backen' ? isBake(r) : r.cat === k;
 function viewJetzt() {   // per category: shopped for → all at home → only 1–2 things missing
   const cn = cookableNow(), dish = new Set((S.dishes || []).map(x => x.id)), home = new Set(cn.all.map(r => r.id));
   const by = cat => {
-    const shop = (S.dishes || []).map(x => recipeById(x.id)).filter(r => r && r.cat === cat && !isCodex(r));
+    const shop = (S.dishes || []).map(x => recipeById(x.id)).filter(r => r && inCat(r, cat) && !isCodex(r));
     return shop.map(r => stampRow(r, `<span class="rstamp shop">🛒 eingekauft</span>`))
-      .concat(cn.all.filter(r => r.cat === cat && !dish.has(r.id) && !isCodex(r)).map(r => stampRow(r, `<span class="rstamp home">✅ alles daheim</span>`)))
-      .concat(cn.almost.filter(r => r.cat === cat && !dish.has(r.id) && !home.has(r.id) && !isCodex(r)).map(recipeRow));
+      .concat(cn.all.filter(r => inCat(r, cat) && !dish.has(r.id) && !isCodex(r)).map(r => stampRow(r, `<span class="rstamp home">✅ alles daheim</span>`)))
+      .concat(cn.almost.filter(r => inCat(r, cat) && !dish.has(r.id) && !home.has(r.id) && !isCodex(r)).map(recipeRow));
   };
   const counts = Object.fromEntries(K.CATS.map(([k]) => [k, by(k).length]));
   if (!Object.values(counts).some(Boolean)) return `<div class="card"><p style="margin:0">Gerade passt nichts zu dem, was daheim ist.</p><p class="muted">Schau oben unter <b>🧊 Vorrat</b>, ob alles stimmt – oder such dir unter <b>Stöbern</b> was für den nächsten Einkauf aus.</p></div>`;
@@ -1707,10 +1711,10 @@ function viewShelf(kind) {
   const fresh = vrNew().filter(codex ? isCodex : isHerb).map(r => r.id); if (fresh.length) setTimeout(() => vrSeenAdd(fresh, true), 0);
   const V = vorrat(), all = allRecipes().filter(codex ? isCodex : isHerb).map(r => ({ r, h: V.length ? haveFor(r, V) : { need: 1, missing: [1, 2, 3] } }));
   const rank = x => !x.h.missing.length ? 0 : x.h.missing.length <= 2 ? 1 : 2;
-  const counts = Object.fromEntries(K.CATS.map(([k]) => [k, all.filter(x => x.r.cat === k).length]));
+  const counts = Object.fromEntries(K.CATS.map(([k]) => [k, all.filter(x => inCat(x.r, k)).length]));
   const cat = counts[ui[key]] ? ui[key] : (K.CATS.find(([k]) => counts[k]) || ['haupt'])[0];
   const stamp = codex ? `<span class="rstamp pantry">✠ mit dem Vorrat beschwörbar</span>` : `<span class="rstamp herb">🌿 mit dem Vorrat machbar</span>`;
-  const rows = all.filter(x => x.r.cat === cat).sort((a, b) => rank(a) - rank(b))
+  const rows = all.filter(x => inCat(x.r, cat)).sort((a, b) => rank(a) - rank(b))
     .map(({ r, h }) => !h.missing.length ? stampRow(r, stamp) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
   const head = codex ? `<div class="sec-head codex"><h2>Culinarius<br>Infernalis</h2>${Bk.sectionArt('codex')}</div>`
     : `<div class="sec-head"><h2>Kinderleicht</h2>${Bk.sectionArt('herb')}</div><p class="muted" style="margin:-4px 2px 10px">Was Claude euch aus dem Vorrat geschrieben hat.</p>`;
@@ -1728,7 +1732,7 @@ function viewNext() {
   const cat = cats.some(([k]) => k === ui.ccat) ? ui.ccat : 'haupt';
   h += `<div class="chips ccats">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
   const list = (cat === 'ours' ? ours
-    : allRecipes().filter(r => r.cat === cat)).filter(r => !isCodex(r));
+    : allRecipes().filter(r => inCat(r, cat))).filter(r => !isCodex(r));
   const rows = list.map(r => recipeRow(cat === 'ours' ? { ...r, plain: true } : r)).join(''); h += rows ? withCtx(rows) : '<p class="muted">Noch nichts hier.</p>';
   if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
   return h;

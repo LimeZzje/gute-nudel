@@ -3,7 +3,7 @@
 // passende SIDES vor (ein Tipp, und sie kommen mit auf die Einkaufsliste und in den Kochmodus).
 // ing: [Menge, Zutat] · steps: [Text, Minuten für den Timer (optional)] · Abkürzungen sind ausdrücklich erlaubt.
 
-export const CATS = [['haupt', '🍽️ Hauptgerichte'], ['salat', '🥗 Salate'], ['dessert', '🍨 Desserts'], ['drink', '🍹 Drinks ohne Alkohol']];
+export const CATS = [['haupt', '🍽️ Hauptgerichte'], ['salat', '🥗 Salate'], ['dessert', '🍨 Desserts'], ['backen', '🧁 Backen'], ['drink', '🍹 Drinks ohne Alkohol']];
 export const PLATE = { kh: ['🍝', 'Sättigung'], ew: ['🥩', 'Eiweiß'], gm: ['🥦', 'Gemüse'] };
 
 export const RECIPES = [
