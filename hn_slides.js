@@ -52,7 +52,7 @@ export const SLIDES = pn => [
     p: ['<b>Kosten:</b> keine. Cloudflare lässt die Taube bis zu 100.000 Briefe am Tag gratis fliegen, und GitHub hostet die App gratis.',
       '<b>Inoffiziell:</b> Picnic hat das nicht für uns gebaut. Ändert Picnic seine Briefe, fliegt die Taube erst mal ins Leere – dann wird sie neu trainiert.',
       '<b>Kontrolle:</b> Gute Nudel kann nur Sachen in den Korb legen. Bestellen und bezahlen kannst nur du, in der Picnic-App.'] },
-  { t: 'Gebaut an deinem Geburtstag', art: `${E(150, 46, '💛', 44)}${T(56, 108, '1 Taube', 'sv-t big')}${T(150, 108, '25 Tests', 'sv-t big')}${T(244, 108, '1 Tag', 'sv-t big')}${T(150, 146, '18. Oktober 2026', 'sv-small')}`,
+  { t: 'Gebaut für deinen Geburtstag', art: `${E(150, 46, '💛', 44)}${T(56, 108, '1 Taube', 'sv-t big')}${T(150, 108, '25 Tests', 'sv-t big')}${T(244, 108, '1 Tag', 'sv-t big')}${T(150, 146, '19. Oktober 2026', 'sv-small')}`,
     p: ['Eine Taube mit rund 100 Zeilen Code, eine Einkaufsliste, die jetzt bis vor eure Tür reicht, und 25 automatische Tests, die jedes Mal prüfen, dass alles noch klappt.',
       `Gebaut von ${pn} – mit ein bisschen Hilfe von Claude – für dich. Alles Liebe zum Geburtstag! 🎂`] },
 ];
