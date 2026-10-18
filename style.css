@@ -833,3 +833,49 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .vrnew .hcard { margin: 0; background: none; padding: 0; flex: 1; cursor: pointer; }
 .vrnew .vn-ic { font-size: 28px; animation: vnTw 2.6s ease-in-out infinite; } @keyframes vnTw { 50% { transform: scale(1.15) rotate(12deg); } }
 .vrnew b { color: #7a5c99; }
+
+/* ---------- 🎂 EVENT: Julias Geburtstagskuchen (2026-10-18) ---------- */
+:root { --gb1: #fff1f6; --gb2: #fff6dc; --gbink: #5a3a48; --gbrose: #e0557f; --gbgold: #e6a823; --gbtile: rgba(255, 255, 255, .78); --gbline: #f3d6df; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --gb1: #3d2533; --gb2: #3a3122; --gbink: #fbe7ee; --gbrose: #ff8fb0; --gbgold: #f5c75a; --gbtile: rgba(255, 255, 255, .08); --gbline: #563845; } }
+:root[data-theme="dark"] { --gb1: #3d2533; --gb2: #3a3122; --gbink: #fbe7ee; --gbrose: #ff8fb0; --gbgold: #f5c75a; --gbtile: rgba(255, 255, 255, .08); --gbline: #563845; }
+.gbcard { display: grid; justify-items: center; text-align: center; width: 100%; border: 0; color: var(--gbink); font: inherit; position: relative; overflow: hidden;
+  background: radial-gradient(circle at 12% 20%, rgba(255, 255, 255, .5) 0 2px, transparent 3px) 0 0 / 34px 34px, linear-gradient(160deg, var(--gb1), var(--gb2)); padding: 10px 14px 16px; }
+.gbart { width: 220px; height: auto; margin-bottom: -4px; }
+.gbcard.hero .gbart { width: 260px; }
+.gb-line { fill: none; stroke: var(--gbink); stroke-width: 1.2; opacity: .35; }
+.gb-flag.fa { fill: var(--gbrose); } .gb-flag.fb { fill: var(--gbgold); } .gb-flag.fc { fill: #7cb9e8; }
+.gb-bal ellipse { stroke: rgba(0, 0, 0, .08); stroke-width: 1; } .gb-bal.b1 ellipse { fill: var(--gbrose); } .gb-bal.b2 ellipse { fill: #7cb9e8; }
+.gb-str { fill: none; stroke: var(--gbink); stroke-width: 1; opacity: .4; }
+.gb-bal { transform-box: fill-box; transform-origin: 50% 100%; animation: gbbob 3.6s ease-in-out infinite; } .gb-bal.b2 { animation-delay: -1.8s; }
+@keyframes gbbob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-4px) rotate(3deg); } }
+.ck1 { fill: #f7c3d2; } .ck2 { fill: #fde7b0; } .ck-drip { fill: none; stroke: #fff; stroke-width: 4; stroke-linecap: round; opacity: .85; }
+:root[data-theme="dark"] .ck1 { fill: #c97d95; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ck1 { fill: #c97d95; } }
+.ck-c { fill: #7cb9e8; } .ck-fl { fill: #ffb030; transform-box: fill-box; transform-origin: 50% 100%; animation: gbfl .5s ease-in-out infinite alternate; }
+.ck-fl.fl1 { animation-delay: -.2s; } .ck-fl.fl2 { animation-delay: -.35s; }
+@keyframes gbfl { from { transform: scale(1, 1) rotate(-4deg); fill: #ffb030; } to { transform: scale(.85, 1.15) rotate(4deg); fill: #ffd25a; } }
+.gb-eye { display: block; font: 700 21px/1.1 Caveat, cursive; color: var(--gbgold); }
+.gb-t { display: block; font: 700 30px/1.15 'Dancing Script', 'Caveat', cursive; color: var(--gbrose); margin: 2px 0 10px; text-wrap: balance; }
+.gbcard.hero .gb-t { font-size: 34px; }
+.gb-cakes { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.gb-chip { background: var(--gbtile); border-radius: 99px; padding: 4px 11px; font-size: 14px; font-weight: 700; box-shadow: 0 1px 0 var(--gbline); }
+.gb-go { display: block; margin-top: 10px; font-weight: 800; font-size: 15px; color: var(--gbrose); }
+.gb-info { display: block; margin-top: 2px; font-size: 14.5px; line-height: 1.45; opacity: .9; max-width: 34em; }
+.gbcake { display: grid; gap: 3px; width: 100%; text-align: left; font: inherit; color: var(--ink); border: 0; cursor: pointer; position: relative; padding: 14px 16px; border-left: 6px solid var(--gbk, var(--gbrose)); }
+.gbcake.t-kid { --gbk: #5aa9e6; background: linear-gradient(180deg, #eef7ff, var(--card) 70%); }
+.gbcake.t-her { --gbk: var(--gbrose); background: linear-gradient(180deg, #fff1f5, var(--card) 70%); }
+.gbcake.t-him { --gbk: #c43a2c; background: radial-gradient(130% 100% at 30% 20%, #1e1517 0%, #141011 60%, #0d0a0b 100%); color: #e9dcc8; }
+:root[data-theme="dark"] .gbcake.t-kid, :root[data-theme="dark"] .gbcake.t-her { background: var(--card); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gbcake.t-kid, :root:not([data-theme="light"]) .gbcake.t-her { background: var(--card); } }
+.gbk-lv { font-weight: 900; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--gbk); }
+.gbk-lv small { font-weight: 700; letter-spacing: 0; text-transform: none; opacity: .8; }
+.gbcake.t-kid .gbk-t { font-family: Caveat, cursive; font-size: 25px; }
+.gbcake.t-her .gbk-t { font-family: 'Dancing Script', Caveat, cursive; font-size: 24px; }
+.gbcake.t-him .gbk-t { font-family: Georgia, 'Times New Roman', serif; font-size: 19px; letter-spacing: .02em; color: #f0d9a8; }
+.gbk-t { font-weight: 700; line-height: 1.2; }
+.gbk-m, .gbk-v { font-size: 13.5px; opacity: .8; }
+.gbk-go { position: absolute; right: 14px; bottom: 12px; font-weight: 800; color: var(--gbk); }
+.gbparty .gbart { width: 240px; }
+/* the cake's page outside the book: the same paper, just as tall as it needs */
+.gb-cbook .bk-stage { flex: none; width: 100%; }
+.gb-cbook .bk-page { position: relative; inset: auto; overflow: visible; }
+@media (prefers-reduced-motion: reduce) { .gb-bal, .ck-fl { animation: none; } }

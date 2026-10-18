@@ -7,9 +7,10 @@ import * as Car from './car.js';
 import { openGame } from './spiel.js';
 import * as E from './entspannen.js';
 import * as B from './baby.js';
+import * as G from './geburtstag.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-16.2';
+const VERSION = '2026-10-18.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -178,7 +179,7 @@ async function syncPost() {
     if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
     if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; }
-    if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; }
+    if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); }
     let babyNews = 0;
     if (p.baby && JSON.stringify(p.baby) !== JSON.stringify(S.partnerBaby || {})) { S.partnerBaby = p.baby; babyNews = babyReconcile().add; changed = true; }
     const pc = Car.raw(p.car);
@@ -200,7 +201,7 @@ async function syncPost() {
     if (S.sent.length !== before) changed = true;
     if (changed) commit();
     if (babyNews) toast(`🍼 ${pn()} hat ${babyNews === 1 ? 'eine Sache' : babyNews + ' Sachen'} für den kleinen Menschen abgehakt · +${babyNews} ⭐`);
-    babyParty();
+    babyParty(); gbParty();
     if (pulled.length) toast(pn() + ' hat zurückgenommen: ' + pulled.map(i => i.text).join(', '));
     if (back.length) modal(`<h2>Kommt zurück</h2><p>${esc(pn())} kann das gerade nicht übernehmen:</p><div style="text-align:left">${back.map(x => `<p><b>${esc(x.text)}</b><br><span class="muted">„${esc(x.reason)}“</span></p>`).join('')}</div><p class="muted">${back.length > 1 ? 'Die Aufgaben sind' : 'Die Aufgabe ist'} wieder auf deiner Liste.</p><div class="row"><button class="btn" data-a="close">Okay</button></div>`);
     else if (done.length) doneModal(done);
@@ -1188,12 +1189,14 @@ const A = {
     const r = recipeById(ui.rid), v = +el.dataset.v, c = S.cook[r.id] || { n: 0 };
     S.cook[r.id] = { n: c.n + 1, last: today(), taste: v };
     (S.cookLog = S.cookLog || []).push({ id: uid(), rid: r.id, title: r.title, icon: r.icon, day: today(), ts: Date.now(), taste: v });
+    if (G.isCake(r.id)) gbReconcile();   // 🎂 the first cake ends the event: +5 ⭐ each
     endCookMode(); closeModal();
     // the "Kochen" chore on today's page counts as done
     const k = S.items.find(i => i.where === 'heute' && i.chore && ((S.chores.find(x => x.id === i.chore) || {}).tools || []).includes('recipes'));
     ui.rid = null; ui.sides = [];
     if (k) tick(k.id, null); else commit();
     toast(v === 3 ? 'Notiert: Lieblingsessen 😍 – kommt öfter dran' : v === 1 ? 'Notiert 😕 – das schlage ich nicht mehr vor' : 'Notiert 🙂' + (k ? '' : ''));
+    gbParty();
   },
   tool(el) {
     const t = el.dataset.t, c = el.dataset.c && S.chores.find(x => x.id === el.dataset.c);
@@ -1563,7 +1566,8 @@ const loveTag = r => r.level === 'fancy' ? '⛧ aus dem Grimoire' : '';   // Cla
 const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'][d.getMonth()]; };
 // a redundant Claude recipe (dupOf = the one we keep, set by `rezepte.py doppelt`, user 2026-10-12) is in no list,
 // but the diary and old ratings still find it
-const recipeById = id => allRecipes().find(r => r.id === id) || (r => r && fixRec({ ...r, vr: true }))(vorratRecipes().concat(archRecipes()).find(r => r.id === id));
+const recipeById = id => allRecipes().find(r => r.id === id) || (r => r && fixRec({ ...r, vr: true }))(vorratRecipes().concat(archRecipes()).find(r => r.id === id))
+  || (r => r && fixRec({ ...r, gb: true }))(G.CAKES.find(r => r.id === id));   // (🎂 the birthday cakes: only in their event)
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
 // how much she'd want it: her favourites and what she rated well count more (and their kind), what she just had less,
 // and what she didn't like never comes up again
@@ -2362,11 +2366,12 @@ function vrNewCard() {
 }
 function viewHome() {
   if (ui.sub === 'baby') return viewBaby();
+  if (ui.sub === 'kuchen') return viewKuchen();
   if (ui.sub === 'events') return viewEvents();
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
-  h += incomingCard() + giftCards() + babyCard() + vrNewCard();
+  h += incomingCard() + giftCards() + gbCard() + babyCard() + vrNewCard();
   // today: the ring + the next few things, ticked right here
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
   h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
@@ -2513,6 +2518,71 @@ A.btick = el => {
   commit(true); babyParty();
 };
 
+// ---------- 🎂 EVENT: Julias Geburtstagskuchen (2026-10-18, geburtstag.js) ----------
+// Three cakes from the Vorrat, each a real cookbook page with cooking mode (recipeById knows them; they're in no list).
+// The first cake rated in cooking mode (on either phone: the partner's comes in post.cooked) ends it: +5 ⭐ each (log
+// entry 'gb-<event>', kind 'event', outside the daily cap), a party, and a card under "Vergangene Events".
+const gbDone = () => (S.events || []).some(e => e.id === G.ID);
+const gbLive = () => !gbDone() && Date.now() < G.END;
+const gbBaked = () => [...(S.cookLog || []), ...(S.partnerCooked || [])].filter(x => G.isCake(x.rid)).sort((a, b) => a.ts - b.ts)[0];
+function gbReconcile() {   // → true when the event ended just now (stars granted)
+  if (!S || gbDone()) return false;
+  const c = gbBaked(); if (!c) return false;
+  const lid = 'gb-' + G.ID;
+  if (!S.log.some(e => e.id === lid)) { S.log.push({ id: lid, text: '🎂 Geburtstagskuchen gebacken', kind: 'event', day: today(), ts: Date.now(), stars: G.STARS }); earn(G.STARS); }
+  (S.events = S.events || []).push(G.record(c, c.taste));
+  ui.gbParty = true; if (ui.sub === 'kuchen') { ui.sub = null; ui.rid = null; }
+  return true;
+}
+function gbParty() {
+  if (!ui.gbParty) return;
+  ui.gbParty = false; render(); confetti(160);
+  const c = gbBaked();
+  modal(`<div class="gbparty">${GBART}</div><h2>Happy Birthday, Julia! 🎂</h2><p>${c ? esc(c.title) + ' ist gebacken.' : 'Der Kuchen ist gebacken.'} Das habt ihr zusammen geschafft. 💛</p>
+    <p><b>+${G.STARS} ⭐</b> für dich und für ${esc(pn())}.</p>
+    <div class="row"><button class="btn" data-a="events">Zu den Events</button><button class="btn soft" data-a="close">Jetzt wird gegessen 🍰</button></div>`);
+}
+// balloons, bunting, a cake with three candles (the flames flicker in CSS)
+const GBART = `<svg class="gbart" viewBox="0 0 240 120" aria-hidden="true">
+  <path class="gb-line" d="M0 14 Q60 34 120 16 T240 14"/>
+  ${[[12, 18, 'a'], [36, 24, 'b'], [60, 27, 'c'], [84, 24, 'a'], [108, 19, 'b'], [132, 17, 'c'], [156, 21, 'a'], [180, 23, 'b'], [204, 19, 'c'], [228, 15, 'a']].map(([x, y, k]) => `<path class="gb-flag f${k}" d="M${x - 8} ${y - 2}h16l-8 13z"/>`).join('')}
+  <g class="gb-bal b1"><path d="M30 92 q-6 -10 2 -22" class="gb-str"/><ellipse cx="30" cy="56" rx="13" ry="16"/></g>
+  <g class="gb-bal b2"><path d="M212 96 q6 -12 -2 -24" class="gb-str"/><ellipse cx="210" cy="58" rx="12" ry="15"/></g>
+  <g class="gb-cake"><rect x="88" y="78" width="64" height="30" rx="5" class="ck1"/><rect x="96" y="62" width="48" height="18" rx="4" class="ck2"/>
+    <path d="M88 86 q8 6 16 0 t16 0 t16 0 t16 0" class="ck-drip"/>
+    ${[108, 120, 132].map((x, i) => `<rect x="${x - 2}" y="48" width="4" height="15" rx="1.5" class="ck-c"/><path class="ck-fl fl${i}" d="M${x} 38 q4 6 0 10 q-4 -4 0 -10z"/>`).join('')}</g></svg>`;
+function gbCard() {
+  if (!gbLive()) return '';
+  return `<button class="card gbcard" data-a="kuchen">${GBART}<span class="gb-eye">Heute &amp; morgen wird gefeiert</span>
+    <span class="gb-t">${esc(G.TITLE)}</span>
+    <span class="gb-cakes">${G.CAKES.map(c => { const [ic, l] = G.LABEL[c.id]; return `<span class="gb-chip">${ic} ${l}</span>`; }).join('')}</span>
+    <span class="gb-go">Drei Kuchen aus eurem Vorrat · +${G.STARS} ⭐ für jeden ›</span></button>`;
+}
+function viewKuchen() {
+  if (!gbLive()) { ui.sub = null; ui.rid = null; return viewHome(); }
+  const r = ui.rid && G.isCake(ui.rid) ? recipeById(ui.rid) : null;
+  if (r && ui.cstep != null) return viewCookMode();
+  if (r) {   // the cake's page, exactly as in the cookbook (its own paper: crayon / warm / Culinarius)
+    const theme = styleOf(r);
+    return `<button class="btn soft" data-a="gbcakes" style="margin:4px 0 12px">← Zu den drei Kuchen</button>
+      <div class="cbook cb-top gb-cbook"><div class="cb-body"><div class="bk-stage"><div class="bk-page cur bp-${theme}" data-key="r-${esc(r.id)}"><div class="bp">${recipePage(r)}</div></div></div></div></div>`;
+  }
+  const V = vorrat();
+  let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button>`;
+  h += `<div class="card gbcard hero">${GBART}<span class="gb-eye">Heute &amp; morgen wird gefeiert</span><span class="gb-t">${esc(G.TITLE)}</span>
+    <span class="gb-info">Sucht euch einen aus – alle drei gehen mit dem, was daheim ist (nur Backpulver fehlt). Den ersten, den ihr backt und bewertet, feiert die App mit <b>+${G.STARS} ⭐ für dich und für ${esc(pn())}</b>.</span></div>`;
+  for (const c of G.CAKES.map(x => recipeById(x.id))) {
+    const [ic, lv, how] = G.LABEL[c.id], miss = V.length ? haveFor(c, V).missing.filter(t => !/backpulver|streusel/i.test(t)) : [];
+    h += `<button class="card gbcake t-${styleOf(c)}" data-a="gbcake" data-id="${esc(c.id)}"><span class="gbk-lv">${ic} ${lv} <small>· ${how}</small></span>
+      <span class="gbk-t">${esc(c.title)}</span><span class="gbk-m">⏱ ${c.min} Min. · für ${esc(c.serves)} · ${c.steps.length} Schritte</span>
+      <span class="gbk-v">${!V.length ? '' : miss.length ? '🛒 fehlt: ' + esc(miss.join(', ')) : '🧊 alles daheim (bis aufs Backpulver)'}</span><span class="gbk-go">Backen ›</span></button>`;
+  }
+  return h;
+}
+A.kuchen = () => { closeModal(); ui.tab = 'home'; ui.sub = 'kuchen'; ui.rid = null; ui.cstep = null; render(); scrollTo(0, 0); };
+A.gbcake = el => { ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; render(); scrollTo(0, 0); };
+A.gbcakes = () => { endCookMode(); ui.rid = null; ui.sides = []; render(); scrollTo(0, 0); };
+
 // ---------- render ----------
 const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Liste']];
 function viewHeuteTab() {
@@ -2551,6 +2621,7 @@ function goBack() {
     if (ui.cstep != null) { endCookMode(); render(); return; }
     ui.rid = null; ui.sides = []; if (!Bk.flipTo(kpage({ sec: ksec() }), -1)) render(); return;
   }
+  if (ui.sub === 'kuchen' && ui.rid) { if (ui.cstep != null) endCookMode(); else { ui.rid = null; ui.sides = []; } render(); scrollTo(0, 0); return; }
   if (ui.sub) { ui.sub = null; render(); scrollTo(0, 0); return; }
   if (ui.tab === 'relax' && !S.ritual && ui.rx.size) { A.rxback(); return; }
   if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
@@ -2631,8 +2702,8 @@ function mergeStates(local, remote, base = null) {
     m.stars = Math.max(0, (newer.stars || 0) + (older.stars || 0) - (base.stars || 0));
     m.earned = Math.max(0, (newer.earned || 0) + (older.earned || 0) - (base.earned || 0));
     // 🍼 a baby tick credited (or taken back) on BOTH devices counted twice above → once
-    const bids = x => new Set((x.log || []).filter(e => e.kind === 'baby').map(e => e.id)), bA = bids(newer), bB = bids(older), bZ = bids(base);
-    let fix = 0; bA.forEach(id => { if (bB.has(id) && !bZ.has(id)) fix--; }); bZ.forEach(id => { if (!bA.has(id) && !bB.has(id)) fix++; });
+    const bids = x => new Map((x.log || []).filter(e => e.kind === 'baby' || e.kind === 'event').map(e => [e.id, e.stars || 1])), bA = bids(newer), bB = bids(older), bZ = bids(base);
+    let fix = 0; bA.forEach((n, id) => { if (bB.has(id) && !bZ.has(id)) fix -= n; }); bZ.forEach((n, id) => { if (!bA.has(id) && !bB.has(id)) fix += n; });
     m.stars = Math.max(0, m.stars + fix); m.earned = Math.max(0, m.earned + fix);
   } else {
     m.stars = Math.max(0, (newer.stars || 0) + extra.reduce((a, e) => a + (e.stars || 0), 0));
@@ -2659,11 +2730,11 @@ function mergeStates(local, remote, base = null) {
 }
 function takeRemote(remote, adopt, base) {
   S = adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote, base);
-  const br = babyReconcile(); if (br.add + br.sub) S.updatedAt = Date.now();
+  const br = babyReconcile(); if (br.add + br.sub | gbReconcile()) S.updatedAt = Date.now();
   D.saveLocal(S);
   rollover(); scheduleChores(); render();
   toast(adopt ? '🔄 Auf dem neuesten Stand' : '🔄 Mit dem anderen Gerät zusammengeführt');
-  babyParty();
+  babyParty(); gbParty();
   return S;
 }
 async function syncDevices() { await D.pull(S); }
@@ -2724,7 +2795,7 @@ async function start() {
   S.me = D.me();
   rollover();
   scheduleChores();
-  babyReconcile();
+  babyReconcile(); gbReconcile();
   if (applyFixes()) { S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); }
   D.setRemoteHandler(takeRemote);
   bind();
