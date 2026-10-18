@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-18.8';
+const VERSION = '2026-10-18.9';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1175,7 +1175,11 @@ const A = {
     render(); scrollTo(0, 0);
   },
   vrseen() { vrSeenAdd(vorratRecipes().map(r => r.id)); },
-  dswipe(el) { const id = el.dataset.id, yes = el.dataset.v === 'yes'; swipeSet(id, yes ? 'yes' : 'no'); toast(yes ? '💚 Bleibt im Kochbuch' : '👋 Aussortiert'); if (!deck().length) toast('✓ Alle neuen Rezepte sortiert'); },
+  swipe() { ui.sub = 'swipe'; render(); scrollTo(0, 0); },
+  npread(el) { newsRead(el.dataset.id); },
+  npgo(el) { const n = NEWS.find(x => x.id === el.dataset.id); if (!n) return; newsRead(n.id); A[n.go] && A[n.go](el); },
+  npall() { modal(`<div style="text-align:left"><h2 style="text-align:center">🗞️ Alle Ausgaben</h2>${newsAll().map(n => `<div class="np-a"><h3><span class="np-ic">${n.ic}</span> ${esc(n.t)}</h3><p>${esc(n.x)}</p>${n.how ? `<ol class="np-how">${n.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}</div>`).join('')}<div class="row"><button class="btn" data-a="close">Fertig</button></div></div>`); (S.newsRead = [...new Set([...(S.newsRead || []), ...newsAll().map(n => n.id)])]); commit(); },
+  dswipe(el) { const id = el.dataset.id, yes = el.dataset.v === 'yes'; swipeSet(id, yes ? 'yes' : 'no'); toast(yes ? '💚 Bleibt im Kochbuch' : '👋 Aussortiert'); if (!deck().length) { toast('✓ Alle neuen Rezepte sortiert'); if (ui.sub === 'swipe') { ui.sub = null; render(); } } },
   dundo() { const id = ui.lastSwipe; if (!id) return; swipeSet(id, null); toast('↶ Zurück im Stapel'); },
   ktabgo(el) { ui.tab = 'ruhe'; ui.qtab = 'kochbuch'; ui.rid = null; ui.ktab = el.dataset.v; render(); scrollTo(0, 0); },
   vorratdelm(el) { useVorrat([el.dataset.id]); closeModal(); commit(true); },
@@ -2470,9 +2474,9 @@ function myStats() { // the numbers that travel to the partner (counts only)
 function homeStats() {
   const work = S.log.filter(isWork), counts = {};
   for (const e of work) { const c = e.chore && S.chores.find(x => x.id === e.chore); const k = c ? c.icon + ' ' + c.name : e.text; counts[k] = (counts[k] || 0) + 1; }
-  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]), top = ranked[0];
   const laundry = work.filter(e => /wäsche/i.test(e.text)).length;
-  return { total: work.length, rest: S.log.filter(isRest).length, earned: S.earned, laundry, top: top && top[1] >= 2 ? top : null,
+  return { total: work.length, rest: S.log.filter(isRest).length, earned: S.earned, laundry, top: top && top[1] >= 2 ? top : null, top5: ranked.filter(x => x[1] >= 2).slice(0, 5),
     sent: S.log.filter(e => e.kind === 'delegate').reduce((a, e) => a + (e.n || parseInt(e.text) || 1), 0) };
 }
 // Home (rebuilt 2026-10-08, user: "few, important things – not a wall of numbers"): today at a glance.
@@ -2485,7 +2489,6 @@ function homeLine(st) { // ONE sentence that fits right now (rotates by day amon
   if (canBuy) out.push(['⭐', `${S.stars} Sterne – genug für was Neues bei den Schätzen!`, 'schaetze']);
   else if (S.book.pages < C.BOOK_PAGES) out.push(['📖', `Noch ${pc - S.stars} ⭐ bis zur nächsten Seite im Buch.`, 'schaetze']);
   const r = C.rankOf(S.earned); if (r.to != null) out.push(['🏅', `Noch ${r.to - S.earned} ⭐ bis ${C.rankOf(r.to).name}.`, 'schaetze']);
-  if (st.top) out.push(['🏆', `Am häufigsten erledigt: ${st.top[0]} (${st.top[1]}×).`, 'woche']);
   if (!out.length) return '';
   const [ic, txt, tab] = canBuy ? out.find(x => x[2] === 'schaetze') : out[dayIndex() % out.length];
   return `<button class="card hcard homeline" data-a="go" data-tab="${tab}"><span class="hl-ic">${ic}</span><span class="hc-txt">${esc(txt)}</span><span class="hc-go">›</span></button>`;
@@ -2503,7 +2506,7 @@ function swipeSet(id, v) {
 function deckCard() {
   const d = deck(); if (!d.length) return '';
   const r = d[0], him = isCodex(r), back = Math.min(2, d.length - 1);
-  return `<section class="card ddeck${him ? ' dd-him' : ''}"><div class="dd-h"><b>✨ Neu von Claude</b><span class="muted">noch ${d.length}</span>${ui.lastSwipe ? '<button class="mini-btn dd-undo" data-a="dundo" aria-label="Rückgängig">↶</button>' : ''}</div>
+  return `<section class="card ddeck full${him ? ' dd-him' : ''}"><div class="dd-h"><b>✨ Neu von Claude</b><span class="muted">noch ${d.length}</span>${ui.lastSwipe ? '<button class="mini-btn dd-undo" data-a="dundo" aria-label="Rückgängig">↶</button>' : ''}</div>
     <div class="dd-stack">${back ? '<i class="dd-back b1"></i>' : ''}${back > 1 ? '<i class="dd-back b2"></i>' : ''}
       <div class="dd-card" data-id="${r.id}" role="button" tabindex="0" aria-label="${esc(r.title)} – antippen zum Lesen">
         <span class="dd-yes" aria-hidden="true">💚 Behalten</span><span class="dd-no" aria-hidden="true">Nö</span>
@@ -2515,6 +2518,60 @@ function deckCard() {
     <div class="dd-btns"><button class="dd-b no" data-a="dswipe" data-v="no" data-id="${r.id}" aria-label="Nö, weg damit">✕</button><button class="dd-b yes" data-a="dswipe" data-v="yes" data-id="${r.id}" aria-label="Behalten">♥</button></div>
   </section>`;
 }
+// 🏆 am häufigsten erledigt: places 1–3 on a podium (2 · 1 · 3), 4 + 5 underneath
+function podium(top) {
+  if (!top || top.length < 3) return '';
+  const split = k => { const m = k.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); return m ? [m[1], m[2]] : ['📝', k]; };
+  const step = (x, place) => { const [ic, name] = split(x[0]); return `<div class="pd-col p${place}"><span class="pd-ic">${ic}</span><span class="pd-name">${esc(name)}</span><span class="pd-block"><b>${place}</b><small>${x[1]}×</small></span></div>`; };
+  return `<section class="card podium"><h3>🏆 Am häufigsten erledigt</h3><div class="pd-stage">${step(top[1], 2)}${step(top[0], 1)}${step(top[2], 3)}</div>
+    ${top.length > 3 ? `<ol class="pd-rest" start="4">${top.slice(3).map(x => { const [ic, name] = split(x[0]); return `<li><span>${ic} ${esc(name)}</span><b>${x[1]}×</b></li>`; }).join('')}</ol>` : ''}</section>`;
+}
+// ---------- 🫧 event bubbles (user 2026-10-18): every running event is a round bubble under the greeting, like Instagram
+// stories, instead of a big card. A coloured ring = something going on / new; grey = calm. Tap = the event's page.
+function bubbles() {
+  const b = [], n = deck().length;
+  if (n) b.push({ a: 'swipe', ic: '🍽️', l: 'Rezepte', n, on: true });
+  if (Date.now() < HN.END) b.push(hnUnwrapped() ? { a: 'hello', ic: '🕊️', l: 'Hello Nudel' } : { a: 'hello', ic: '🎁', l: 'Geschenk!', on: true });
+  if (gbLive()) b.push({ a: 'kuchen', ic: '🎂', l: 'Geburtstag', on: true });
+  if (babyLive()) { const dl = Math.max(0, Math.ceil((B.END - Date.now()) / 864e5)); b.push({ a: 'baby', ic: '👶', l: 'Baby', n: dl + ' T.', on: true }); }
+  if ((S.events || []).length) b.push({ a: 'events', ic: '🗓️', l: 'Vergangen' });
+  if (!b.length) return '';
+  return `<div class="bubs" role="list">${b.map(x => `<button class="bub" role="listitem" data-a="${x.a}"><span class="bub-r${x.on ? ' on' : ''}"><span class="bub-i">${x.ic}</span></span>${x.n ? `<b class="bub-n">${x.n}</b>` : ''}<span class="bub-l">${esc(x.l)}</span></button>`).join('')}</div>`;
+}
+// 🍽️ the deck, full screen like Tinder (from its bubble); empty → back home
+function viewSwipe() {
+  const c = deckCard();
+  if (!c) { ui.sub = null; return viewHome(); }
+  return `<div class="swipe-top"><button class="btn soft" data-a="babyback">← Zurück</button></div>` + c;
+}
+// ---------- 🗞️ Die Nudel-Zeitung (user 2026-10-18): what's new in the app and how it works, instead of "Daheim heute".
+// Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
+const NEWS = [
+  { id: 'n-swipe', d: '2026-10-18', ic: '🍽️', t: 'Neue Rezepte jetzt zum Swipen', x: 'Claudes neue Rezepte kommen nicht mehr als lange Liste, sondern als Stapel – wie bei Tinder, nur mit Essen.',
+    how: ['Oben auf die Blase 🍽️ Rezepte tippen', 'Nach rechts wischen oder ♥ = behalten · nach links oder ✕ = weg damit', 'Antippen = das ganze Rezept lesen · ↶ holt das letzte zurück'], go: 'swipe', btn: 'Swipen' },
+  { id: 'n-taste', d: '2026-10-18', ic: '👅', t: 'Wie schmeckt das?', x: 'Jedes neue Rezept hat jetzt ein Geschmacksprofil: drei Wörter und 🌶️ für die Schärfe.',
+    how: ['Steht auf jeder Swipe-Karte und oben auf der Rezeptseite', 'Kein 🌶️ = gar nicht scharf, 🌶️🌶️🌶️ = Vorsicht'] },
+  { id: 'n-bubbles', d: '2026-10-18', ic: '🫧', t: 'Alles, was gerade los ist, in einer Reihe', x: 'Babyerstausstattung, Geburtstag & Co. sind jetzt die runden Blasen ganz oben.',
+    how: ['Bunter Ring = da ist gerade was los', 'Antippen öffnet das Event', 'Vorbei? Dann landet es unter 🗓️ Vergangen'] },
+  { id: 'n-season', d: '2026-10-18', ic: '🎃', t: 'Saison-Rezepte erkennt man jetzt', x: 'Rezepte zur Jahreszeit bekommen ein eigenes Schildchen – gerade ist Spooky Season. Im Advent kommt 🎄.' },
+  { id: 'n-picnic', d: '2026-10-19', ic: '🧺', t: 'Hello Nudel: Einkaufsliste zu Picnic', x: 'Dein Geburtstagsgeschenk: die Einkaufsliste wandert mit einem Tipp in deinen Picnic-Warenkorb.',
+    how: ['Einkaufsliste öffnen → 🧺 Bei Picnic bestellen', 'Einmal einloggen, dann geht’s mit einem Tipp', 'Bestellt wird nie automatisch – das machst du in der Picnic-App'], show: () => hnUnwrapped(), go: 'hello', btn: 'Ansehen' },
+  { id: 'n-baby', d: '2026-10-10', ic: '👶', t: 'Babyerstausstattung zusammen abhaken', x: 'Eine gemeinsame Liste bis 10. Januar. Jedes Häkchen – egal von wem – gibt euch beiden einen ⭐.', go: 'baby', btn: 'Zur Liste', show: () => babyLive() },
+];
+const newsAll = () => NEWS.filter(n => !n.show || n.show()).sort((a, b) => b.d.localeCompare(a.d));
+function newspaper() {
+  const all = newsAll(); if (!all.length) return '';
+  const read = new Set(S.newsRead || []), unread = all.filter(n => !read.has(n.id));
+  const top = unread[0] || all[0], more = (unread.length ? unread : all).filter(n => n !== top).slice(0, 2);
+  const d = parse(today()), art = (n, big) => `<article class="np-a${big ? ' big' : ''}">${read.has(n.id) ? '' : '<span class="np-new">NEU</span>'}
+      <h3><span class="np-ic">${n.ic}</span> ${esc(n.t)}</h3><p>${esc(n.x)}</p>
+      ${big && n.how ? `<ol class="np-how">${n.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
+      <div class="np-btns">${big && n.go ? `<button class="btn soft np-go" data-a="npgo" data-id="${n.id}">${esc(n.btn || 'Ausprobieren')} ›</button>` : ''}${!read.has(n.id) ? `<button class="lnk np-read" data-a="npread" data-id="${n.id}">✓ Gelesen</button>` : ''}</div></article>`;
+  return `<section class="card news"><div class="np-mast"><b>Die Nudel-Zeitung</b><span>Ausgabe vom ${d.getDate()}. ${C.MONTHS[d.getMonth()]} · ${unread.length ? unread.length + ' neu' : 'alles gelesen'}</span></div>
+    ${art(top, true)}${more.length ? `<div class="np-more">${more.map(n => art(n, false)).join('')}</div>` : ''}
+    ${all.length > 3 ? `<button class="lnk np-all" data-a="npall">Alle Ausgaben (${all.length}) ›</button>` : ''}</section>`;
+}
+function newsRead(id) { S.newsRead = [...new Set([...(S.newsRead || []), id])]; commit(); }
 // read it: its shelf's page; swiping on the page goes through the rest of the deck
 function deckOpen(id) {
   const r = recipeById(id); if (!r) return;
@@ -2553,10 +2610,11 @@ function viewHome() {
   if (ui.sub === 'kuchen') return viewKuchen();
   if (ui.sub === 'events') return viewEvents();
   if (ui.sub === 'hello') return viewHello();
+  if (ui.sub === 'swipe') return viewSwipe();
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
-  h += incomingCard() + giftCards() + hnCard() + gbCard() + babyCard() + deckCard();
+  h += bubbles() + incomingCard() + giftCards();   // (the events live in the bubbles now, user 2026-10-18)
   // today: the ring + the next few things, ticked right here
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
   h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
@@ -2569,14 +2627,9 @@ function viewHome() {
     ${heute.length > 3 ? `<button class="more-link" data-a="go" data-tab="heute">+ ${heute.length - 3} weitere ›</button>` : ''}</div>`;
   h += relaxHomeCard();
   // at home today: routines due, the shopping list, something to cook
-  const rout = heute.filter(i => i.chore).map(i => S.chores.find(c => c.id === i.chore)).filter(Boolean);
-  const nShop = S.shop.filter(x => !x.done).length, dishes = (S.dishes || []).map(x => recipeById(x.id)).filter(Boolean).slice(0, 3);
   // the last dish that was shopped for: time to go shopping again (user's wording, 2026-10-08)
   if ((S.dishes || []).filter(x => recipeById(x.id)).length === 1) h += `<button class="last-dish" data-a="go" data-tab="ruhe" data-q="einkauf"><span class="ld-t">ZEIT FÜR EINEN WEITEREN VERDAMMTEN EINKAUF!</span> <span class="ld-e">😡</span></button>`;
-  h += `<div class="sec-title">Daheim heute</div><div class="card home-rows">
-    <button class="hrow" data-a="go" data-tab="ruhe" data-q="haushalt"><span class="hr-ic">🔁</span><span class="hr-t">${rout.length ? rout.map(c => esc(c.icon + ' ' + c.name)).join(' · ') : '<span class="muted">Heute keine Routinen – frei. 🛋️</span>'}</span><span class="hc-go">›</span></button>
-    <button class="hrow" data-a="go" data-tab="ruhe" data-q="einkauf"><span class="hr-ic">🛒</span><span class="hr-t">${nShop ? `<b>${nShop}</b> ${nShop === 1 ? 'Sache' : 'Sachen'} auf der Einkaufsliste` : '<span class="muted">Einkaufsliste ist leer</span>'}</span><span class="hc-go">›</span></button>
-    ${dishes.map(r => `<button class="hrow" data-a="recipe" data-id="${esc(r.id)}" data-go="1"><span class="hr-ic">${r.icon}</span><span class="hr-t"><span class="muted">Heute kochen?</span> ${esc(r.title)}</span><span class="hc-go">›</span></button>`).join('')}</div>`;
+  h += newspaper();
   // next appointments (today + tomorrow), the car included
   const now = Car.localISO(new Date()), tm = addDays(t, 1);
   const soon = carAll(Car.live, false).filter(b => shared(b) && forMe(b) && carDay(b.start) <= tm && b.end > now).slice(0, 2);
@@ -2591,9 +2644,11 @@ function viewHome() {
     h += `<div class="card team2"><div class="t2-n"><b>${st.total + (ps.total || 0)}</b><span>Sachen habt ihr zusammen erledigt</span></div>
       ${pr ? `<div class="team-rank">${emblem(pr.t, 34, pr.div)}<span>${esc(pn())} ist gerade <b style="color:${pr.tier.dark}">${esc(pr.name)}</b></span></div>` : ''}</div>`;
   }
-  if ((S.events || []).length) h += `<button class="card hcard" data-a="events"><span class="hc-txt"><b>🗓️ Vergangene Events</b><span class="muted">${S.events.map(e => esc(e.icon + ' ' + e.title)).join(' · ')}</span></span><span class="hc-go">›</span></button>`;
+  if (false) h += `<button class="card hcard" data-a="events"><span class="hc-txt"><b>🗓️ Vergangene Events</b><span class="muted">${S.events.map(e => esc(e.icon + ' ' + e.title)).join(' · ')}</span></span><span class="hc-go">›</span></button>`;
+  h += podium(st.top5);
+  // Nudel-Rush: she doesn't play it, but it stays (user) — just a small link at the bottom
   const gl = Object.values((S.game && S.game.levels) || {}), gdone = gl.filter(p => p >= 100).length;
-  h += `<button class="card hcard gamecard small" data-a="game"><span class="gc-pic" aria-hidden="true">🍝</span><span class="hc-txt"><b>Kleine Pause? Nudel-Rush</b>${gl.length ? `<span class="muted">${gdone} von 5 Leveln geschafft</span>` : ''}</span><span class="hc-go">›</span></button>`;
+  h += `<button class="gamelink gamecard" data-a="game">🍝 Kleine Pause? <b>Nudel-Rush</b>${gl.length ? ` <span class="muted">· ${gdone}/5</span>` : ''}</button>`;
   return h;
 }
 A.splash = () => { pickSplash(); render(); };
@@ -2933,7 +2988,8 @@ function mergeStates(local, remote, base = null) {
   };
   ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events', 'cookLog'].forEach(k => { m[k] = join(k); });
   m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
-  m.swiped = Object.assign({}, older.swiped || {}, newer.swiped || {});   // (per recipe, the newer decision wins: ↶ undo sticks)
+  m.swiped = Object.assign({}, older.swiped || {}, newer.swiped || {});
+  m.newsRead = [...new Set([].concat(older.newsRead || [], newer.newsRead || []))];   // (per recipe, the newer decision wins: ↶ undo sticks)
   m.hnOpen = newer.hnOpen || older.hnOpen;   // 🎁 unwrapped on any of her devices = unwrapped
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)
