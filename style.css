@@ -879,3 +879,9 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .gb-cbook .bk-stage { flex: none; width: 100%; }
 .gb-cbook .bk-page { position: relative; inset: auto; overflow: visible; }
 @media (prefers-reduced-motion: reduce) { .gb-bal, .ck-fl { animation: none; } }
+.gb-chip.wish { background: var(--gbgold); color: #3a2a10; }
+.gbcake.wish { box-shadow: 0 0 0 2px var(--gbgold), var(--shadow); }
+.gbk-rib { position: absolute; top: 10px; right: -30px; transform: rotate(35deg); background: var(--gbgold); color: #3a2a10; font: 800 11px/1 system-ui; padding: 4px 34px; letter-spacing: .04em; }
+.gbcake { overflow: hidden; }
+.gbcake.t-him .gbk-v { color: #cdbfa8; }
+.gbcake { padding-bottom: 34px; }

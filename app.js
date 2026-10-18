@@ -10,7 +10,7 @@ import * as B from './baby.js';
 import * as G from './geburtstag.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-18.1';
+const VERSION = '2026-10-18.2';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -2524,6 +2524,7 @@ A.btick = el => {
 // entry 'gb-<event>', kind 'event', outside the daily cap), a party, and a card under "Vergangene Events".
 const gbDone = () => (S.events || []).some(e => e.id === G.ID);
 const gbLive = () => !gbDone() && Date.now() < G.END;
+const gbCakes = () => G.ORDER.map(id => recipeById(id)).filter(Boolean);   // (her wish is a book recipe: there once the book loaded)
 const gbBaked = () => [...(S.cookLog || []), ...(S.partnerCooked || [])].filter(x => G.isCake(x.rid)).sort((a, b) => a.ts - b.ts)[0];
 function gbReconcile() {   // → true when the event ended just now (stars granted)
   if (!S || gbDone()) return false;
@@ -2555,8 +2556,8 @@ function gbCard() {
   if (!gbLive()) return '';
   return `<button class="card gbcard" data-a="kuchen">${GBART}<span class="gb-eye">Heute &amp; morgen wird gefeiert</span>
     <span class="gb-t">${esc(G.TITLE)}</span>
-    <span class="gb-cakes">${G.CAKES.map(c => { const [ic, l] = G.LABEL[c.id]; return `<span class="gb-chip">${ic} ${l}</span>`; }).join('')}</span>
-    <span class="gb-go">Drei Kuchen aus eurem Vorrat · +${G.STARS} ⭐ für jeden ›</span></button>`;
+    <span class="gb-cakes">${gbCakes().map(c => { const [ic, l] = G.LABEL[c.id]; return `<span class="gb-chip${c.id === G.WISH ? ' wish' : ''}">${ic} ${l}</span>`; }).join('')}</span>
+    <span class="gb-go">Ihr Wunschkuchen + vier aus eurem Vorrat · +${G.STARS} ⭐ für jeden ›</span></button>`;
 }
 function viewKuchen() {
   if (!gbLive()) { ui.sub = null; ui.rid = null; return viewHome(); }
@@ -2564,18 +2565,19 @@ function viewKuchen() {
   if (r && ui.cstep != null) return viewCookMode();
   if (r) {   // the cake's page, exactly as in the cookbook (its own paper: crayon / warm / Culinarius)
     const theme = styleOf(r);
-    return `<button class="btn soft" data-a="gbcakes" style="margin:4px 0 12px">← Zu den drei Kuchen</button>
+    return `<button class="btn soft" data-a="gbcakes" style="margin:4px 0 12px">← Zu den Kuchen</button>
       <div class="cbook cb-top gb-cbook"><div class="cb-body"><div class="bk-stage"><div class="bk-page cur bp-${theme}" data-key="r-${esc(r.id)}"><div class="bp">${recipePage(r)}</div></div></div></div></div>`;
   }
   const V = vorrat();
   let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button>`;
   h += `<div class="card gbcard hero">${GBART}<span class="gb-eye">Heute &amp; morgen wird gefeiert</span><span class="gb-t">${esc(G.TITLE)}</span>
-    <span class="gb-info">Sucht euch einen aus – alle drei gehen mit dem, was daheim ist (nur Backpulver fehlt). Den ersten, den ihr backt und bewertet, feiert die App mit <b>+${G.STARS} ⭐ für dich und für ${esc(pn())}</b>.</span></div>`;
-  for (const c of G.CAKES.map(x => recipeById(x.id))) {
+    <span class="gb-info">Ganz oben ihr Wunschkuchen, darunter vier, die mit eurem Vorrat gehen (ohne Milch, nur Backpulver fehlt). Den ersten, den ihr backt und bewertet, feiert die App mit <b>+${G.STARS} ⭐ für dich und für ${esc(pn())}</b>.</span></div>`;
+  for (const c of gbCakes()) {
     const [ic, lv, how] = G.LABEL[c.id], miss = V.length ? haveFor(c, V).missing.filter(t => !/backpulver|streusel/i.test(t)) : [];
-    h += `<button class="card gbcake t-${styleOf(c)}" data-a="gbcake" data-id="${esc(c.id)}"><span class="gbk-lv">${ic} ${lv} <small>· ${how}</small></span>
+    const wish = c.id === G.WISH;
+    h += `<button class="card gbcake t-${styleOf(c)}${wish ? ' wish' : ''}" data-a="gbcake" data-id="${esc(c.id)}">${wish ? '<span class="gbk-rib">💛 Wunsch</span>' : ''}<span class="gbk-lv">${ic} ${lv} <small>· ${how}</small></span>
       <span class="gbk-t">${esc(c.title)}</span><span class="gbk-m">⏱ ${c.min} Min. · für ${esc(c.serves)} · ${c.steps.length} Schritte</span>
-      <span class="gbk-v">${!V.length ? '' : miss.length ? '🛒 fehlt: ' + esc(miss.join(', ')) : '🧊 alles daheim (bis aufs Backpulver)'}</span><span class="gbk-go">Backen ›</span></button>`;
+      <span class="gbk-v">${!V.length ? '' : miss.length ? '🛒 fehlt: ' + esc(miss.join(', ')) : '🧊 alles daheim (bis aufs Backpulver)'}</span>${wish ? '<span class="gbk-v">🤰 Mit dem Hinweis auf der Seite schwangerschaftssicher</span>' : ''}<span class="gbk-go">Backen ›</span></button>`;
   }
   return h;
 }
