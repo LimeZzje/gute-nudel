@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-18.7';
+const VERSION = '2026-10-18.8';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1810,6 +1810,8 @@ const SEASONS = { halloween: ['🎃', 'Spooky Season'], weihnachten: ['🎄', 'W
 const OLD_SPOOKY = ['vorrat-monster-haferkekse', 'vorrat-mumien-wuerstchen', 'vorrat-vampir-windbeutel', 'vorrat-grabstein-florentiner', 'vorrat-husarenkrapfen-augaepfel', 'vorrat-spinnennetz-brownies', 'vorrat-hexenzopf-babka', 'vorrat-scherben-tartelettes'];
 const seasonOf = r => SEASONS[r.season || (OLD_SPOOKY.includes(r.id) ? 'halloween' : '')] || null;
 const seasonTag = r => { const x = seasonOf(r); return x ? ` <span class="tag season" title="${x[1]}">${x[0]} ${x[1]}</span>` : ''; };
+// 👅 taste profile (user 2026-10-18: easier to decide while swiping): r.taste = 3 words, r.hot = 0–3 🌶️
+const flavor = r => (r.taste && r.taste.length) || r.hot ? `<span class="flavor">👅 ${(r.taste || []).map(esc).join(' · ')}${r.hot ? ` <span class="hot" title="scharf">${'🌶️'.repeat(Math.min(3, r.hot))}</span>` : ''}</span>` : '';
 const isBake = r => r.cat === 'backen' || (r.tags || []).includes('backen') || (r.cat === 'dessert' && BAKE_RX.test(r.title || ''));
 const inCat = (r, k) => k === 'backen' ? isBake(r) : r.cat === k;
 function viewJetzt() {   // per category: shopped for → all at home → only 1–2 things missing
@@ -1903,7 +1905,7 @@ function recipePage(r) {
   const d = Bk.deco(theme, r, { cooked, taste: tasteOf(r) }), him = theme === 'him';
   let h = d.side + d.stamp;
   h += `${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<h2 class="bp-title">${theme === 'kid' ? '' : r.icon + ' '}${esc(r.title)}</h2>
-    <p class="bp-meta">${theme === 'kid' ? kidStars(r, true) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}${seasonTag(r)}</p>
+    <p class="bp-meta">${theme === 'kid' ? kidStars(r, true) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}${seasonTag(r)}</p>${flavor(r) ? `<p class="bp-flavor">${flavor(r)}</p>` : ''}
     ${home ? `<span class="bp-tape">${him ? '✠ alles in der Speisekammer' : '🧊 alles daheim'}</span>` : ''}
     ${r.src ? `<p class="muted" style="margin:2px 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:4px 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.note ? `<p class="bp-note">${esc(r.note)}</p>` : ''}
     <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>`;
@@ -2507,7 +2509,7 @@ function deckCard() {
         <span class="dd-yes" aria-hidden="true">💚 Behalten</span><span class="dd-no" aria-hidden="true">Nö</span>
         <span class="dd-ic">${r.icon}</span><b class="dd-t">${esc(r.title)}</b>
         <span class="dd-m">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${isHerb(r) ? ' ' + kidStars(r) : ''}${loveTag(r) ? ' · ' + loveTag(r) : ''}${isBake(r) ? ' <span class="tag bake">🧁 Backen</span>' : ''}${seasonTag(r)}</span>
-        ${r.note ? `<span class="dd-n">${esc(r.note)}</span>` : ''}${pregLater(r) ? '<span class="preglater">🤰 erst ab Februar</span>' : ''}
+        ${flavor(r)}${r.note ? `<span class="dd-n">${esc(r.note)}</span>` : ''}${pregLater(r) ? '<span class="preglater">🤰 erst ab Februar</span>' : ''}
         <span class="dd-tap muted">antippen zum Lesen</span>
       </div></div>
     <div class="dd-btns"><button class="dd-b no" data-a="dswipe" data-v="no" data-id="${r.id}" aria-label="Nö, weg damit">✕</button><button class="dd-b yes" data-a="dswipe" data-v="yes" data-id="${r.id}" aria-label="Behalten">♥</button></div>
