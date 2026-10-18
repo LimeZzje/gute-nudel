@@ -969,3 +969,30 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .sv-arrow.dash line { stroke-dasharray: 3 5; } .sv-arrow.back line, .sv-arrow.back polygon { stroke: var(--hngreen); fill: var(--hngreen); opacity: .9; }
 .sv-wall rect { fill: #d77a5a; stroke: #a9543a; stroke-width: 1; }
 @media (prefers-reduced-motion: reduce) { .hd-slide { animation: none; } }
+/* 🍽️ Tinder for dinner (deckCard): Claude's new recipes one card at a time on Home, → keep, ← nö */
+.ddeck { padding: 12px 14px 14px; border: 1.5px dashed rgba(154,123,184,.6); background: linear-gradient(135deg, rgba(154,123,184,.13), rgba(111,143,94,.10)); }
+.dd-h { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.dd-h b { color: #7a5c99; } .dd-h .muted { margin-left: auto; font-size: 14px; }
+.dd-undo { min-height: 32px; min-width: 32px; padding: 2px; font-size: 18px; }
+.dd-stack { position: relative; margin: 0 6px 22px; }
+.dd-back { position: absolute; inset: 0; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); border: 1px solid var(--line); }
+.dd-back.b1 { transform: translateY(12px) scale(.95); opacity: .85; } .dd-back.b2 { transform: translateY(23px) scale(.9); opacity: .6; }
+.dd-card { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; min-height: 230px; padding: 20px 16px 14px;
+  border-radius: 18px; background: var(--card); box-shadow: var(--shadow); border: 1px solid var(--line); touch-action: pan-y; user-select: none; -webkit-user-select: none;
+  cursor: grab; transition: transform .25s ease; overflow: hidden; }
+.dd-him .dd-card { background: linear-gradient(180deg, #2a1a1f, #1a0d10); color: #f3e3c8; border-color: #4a2a30; }
+.dd-him .dd-card .muted { color: #c4a98a; }
+.dd-ic { font-size: 58px; line-height: 1.1; }
+.dd-t { font-size: 19px; line-height: 1.25; }
+.dd-m { font-size: 14px; color: var(--ink2); } .dd-him .dd-m { color: #d8c2a0; }
+.dd-n { font-size: 14.5px; line-height: 1.4; max-width: 34ch; }
+.dd-tap { margin-top: auto; font-size: 12px; }
+.dd-yes, .dd-no { position: absolute; top: 14px; padding: 4px 10px; border: 3px solid; border-radius: 10px; font-weight: 900; font-size: 18px; opacity: 0; transition: opacity .12s; letter-spacing: .04em; }
+.dd-yes { left: 14px; color: var(--green); transform: rotate(-12deg); } .dd-no { right: 14px; color: var(--danger); transform: rotate(12deg); }
+.dd-card.yes .dd-yes, .dd-card.no .dd-no { opacity: 1; }
+.dd-btns { display: flex; justify-content: center; gap: 28px; margin-top: 14px; }
+.dd-b { width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--card); box-shadow: var(--shadow); font-size: 26px; font-weight: 900; }
+.dd-b.no { color: var(--danger); } .dd-b.yes { color: #e0567a; }
+.dd-b:active { transform: scale(.92); }
+.tag.season { background: #fde2c8; color: #8a3f12; } :root[data-theme="dark"] .tag.season { background: #4a2a18; color: #f8b88a; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag.season { background: #4a2a18; color: #f8b88a; } }
+@media (prefers-reduced-motion: reduce) { .dd-card { transition: none; } }

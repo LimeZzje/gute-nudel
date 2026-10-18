@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-18.6';
+const VERSION = '2026-10-18.7';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1175,6 +1175,8 @@ const A = {
     render(); scrollTo(0, 0);
   },
   vrseen() { vrSeenAdd(vorratRecipes().map(r => r.id)); },
+  dswipe(el) { const id = el.dataset.id, yes = el.dataset.v === 'yes'; swipeSet(id, yes ? 'yes' : 'no'); toast(yes ? '💚 Bleibt im Kochbuch' : '👋 Aussortiert'); if (!deck().length) toast('✓ Alle neuen Rezepte sortiert'); },
+  dundo() { const id = ui.lastSwipe; if (!id) return; swipeSet(id, null); toast('↶ Zurück im Stapel'); },
   ktabgo(el) { ui.tab = 'ruhe'; ui.qtab = 'kochbuch'; ui.rid = null; ui.ktab = el.dataset.v; render(); scrollTo(0, 0); },
   vorratdelm(el) { useVorrat([el.dataset.id]); closeModal(); commit(true); },
   cnext() { ui.cstep++; render(); },
@@ -1670,7 +1672,7 @@ function vrSeenAdd(ids, quiet) {
 }
 const fixRec = r => ({ tags: [], ing: [], steps: [], icon: '🍽️', min: 0, cat: 'haupt', ...r });
 function allRecipes() {
-  const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set(S.hiddenRecipes || []), free = r => !ids.has(r.id) && !hidden.has(r.id);
+  const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set([...(S.hiddenRecipes || []), ...nopes()]), free = r => !ids.has(r.id) && !hidden.has(r.id);
   return K.RECIPES.filter(free).concat(bookRecipes().filter(free).map(r => fixRec({ ...r, book: true })), mine.filter(r => !hidden.has(r.id)).map(r => fixRec({ ...r, own: true })),
     vorratRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true })), archRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true, arch: true })));
 }
@@ -1748,7 +1750,7 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
 const kidLevel = r => { const m = r.min || 0, n = (r.steps || []).length; return Math.min(3, (m <= 20 ? 1 : m <= 45 ? 2 : 3) + (n >= 9 ? 1 : 0)); };
 const KID_WORDS = ['ganz schnell', 'gemütlich', 'braucht etwas Zeit'];
 const kidStars = (r, words) => { const k = kidLevel(r); return `<span class="kstars" title="${KID_WORDS[k - 1]}"><em>${'★'.repeat(k)}</em><i>${'★'.repeat(3 - k)}</i>${words ? KID_WORDS[k - 1] + '<br>' : ''}</span>`; };
-const recipeRow = r => { const him = isCodex(r) && !r.plain, kid = isHerb(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : kid ? ' row-kid' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${kid ? ' ' + kidStars(r) : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}${isBake(r) ? ' <span class="tag bake">🧁 Backen</span>' : ''}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
+const recipeRow = r => { const him = isCodex(r) && !r.plain, kid = isHerb(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : kid ? ' row-kid' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${kid ? ' ' + kidStars(r) : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}${isBake(r) ? ' <span class="tag bake">🧁 Backen</span>' : ''}${seasonTag(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
@@ -1803,6 +1805,11 @@ const stampRow = (r, html) => recipeRow({ ...r, badge: html });
 const CAT_SHORT = { haupt: '🍽️ Haupt', salat: '🥗 Salat', dessert: '🍨 Dessert', backen: '🧁 Backen', drink: '🍹 Drinks' };   // one row of chips in the book
 // 🧁 Backen (user 2026-10-18): category 'backen' OR the tag 'backen' (a baked dessert like the Lime Pie is in Dessert AND Backen)
 const BAKE_RX = /kuchen|torte|schnitte|muffin|plätzchen|keks|brownie|cookie|tarte|pie|strudel|soufflé|crumble|gebäck|waffel|crossies|linzer/i;
+// 🎃 seasonal flair (user 2026-10-18): a recipe written for a season gets its icon (r.season; the first spooky set predates the field)
+const SEASONS = { halloween: ['🎃', 'Spooky Season'], weihnachten: ['🎄', 'Weihnachtszeit'], ostern: ['🐣', 'Ostern'], sommer: ['🍓', 'Sommer'], herbst: ['🍂', 'Herbst'], winter: ['❄️', 'Winter'], fruehling: ['🌷', 'Frühling'] };
+const OLD_SPOOKY = ['vorrat-monster-haferkekse', 'vorrat-mumien-wuerstchen', 'vorrat-vampir-windbeutel', 'vorrat-grabstein-florentiner', 'vorrat-husarenkrapfen-augaepfel', 'vorrat-spinnennetz-brownies', 'vorrat-hexenzopf-babka', 'vorrat-scherben-tartelettes'];
+const seasonOf = r => SEASONS[r.season || (OLD_SPOOKY.includes(r.id) ? 'halloween' : '')] || null;
+const seasonTag = r => { const x = seasonOf(r); return x ? ` <span class="tag season" title="${x[1]}">${x[0]} ${x[1]}</span>` : ''; };
 const isBake = r => r.cat === 'backen' || (r.tags || []).includes('backen') || (r.cat === 'dessert' && BAKE_RX.test(r.title || ''));
 const inCat = (r, k) => k === 'backen' ? isBake(r) : r.cat === k;
 function viewJetzt() {   // per category: shopped for → all at home → only 1–2 things missing
@@ -1896,7 +1903,7 @@ function recipePage(r) {
   const d = Bk.deco(theme, r, { cooked, taste: tasteOf(r) }), him = theme === 'him';
   let h = d.side + d.stamp;
   h += `${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<h2 class="bp-title">${theme === 'kid' ? '' : r.icon + ' '}${esc(r.title)}</h2>
-    <p class="bp-meta">${theme === 'kid' ? kidStars(r, true) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}</p>
+    <p class="bp-meta">${theme === 'kid' ? kidStars(r, true) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}${seasonTag(r)}</p>
     ${home ? `<span class="bp-tape">${him ? '✠ alles in der Speisekammer' : '🧊 alles daheim'}</span>` : ''}
     ${r.src ? `<p class="muted" style="margin:2px 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:4px 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.note ? `<p class="bp-note">${esc(r.note)}</p>` : ''}
     <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>`;
@@ -2481,6 +2488,60 @@ function homeLine(st) { // ONE sentence that fits right now (rotates by day amon
   const [ic, txt, tab] = canBuy ? out.find(x => x[2] === 'schaetze') : out[dayIndex() % out.length];
   return `<button class="card hcard homeline" data-a="go" data-tab="${tab}"><span class="hl-ic">${ic}</span><span class="hc-txt">${esc(txt)}</span><span class="hc-go">›</span></button>`;
 }
+// 🍽️ Tinder for dinner (user 2026-10-18: a whole new set at once was too much to read): Claude's new recipes one card at a
+// time on Home. → keep (stays in the book), ← nö (gone for me, like hidden). Tap = read it. S.swiped {id: {v: 'yes'|'no'|null, ts}}
+// is merged per key (newer wins), so ↶ undo (v: null) survives a sync, unlike the union lists.
+const nopes = () => Object.entries(S.swiped || {}).filter(([, x]) => x && x.v === 'no').map(([id]) => id);
+const deck = () => vorratRecipes().filter(r => !r.dupOf && !(S.swiped || {})[r.id]?.v).map(r => fixRec({ ...r, vr: true }));
+function swipeSet(id, v) {
+  S.swiped = { ...(S.swiped || {}), [id]: { v, ts: Date.now() } }; ui.lastSwipe = v ? id : null;
+  if (v) vrSeenAdd([id], true);
+  commit();
+}
+function deckCard() {
+  const d = deck(); if (!d.length) return '';
+  const r = d[0], him = isCodex(r), back = Math.min(2, d.length - 1);
+  return `<section class="card ddeck${him ? ' dd-him' : ''}"><div class="dd-h"><b>✨ Neu von Claude</b><span class="muted">noch ${d.length}</span>${ui.lastSwipe ? '<button class="mini-btn dd-undo" data-a="dundo" aria-label="Rückgängig">↶</button>' : ''}</div>
+    <div class="dd-stack">${back ? '<i class="dd-back b1"></i>' : ''}${back > 1 ? '<i class="dd-back b2"></i>' : ''}
+      <div class="dd-card" data-id="${r.id}" role="button" tabindex="0" aria-label="${esc(r.title)} – antippen zum Lesen">
+        <span class="dd-yes" aria-hidden="true">💚 Behalten</span><span class="dd-no" aria-hidden="true">Nö</span>
+        <span class="dd-ic">${r.icon}</span><b class="dd-t">${esc(r.title)}</b>
+        <span class="dd-m">${r.min ? '⏱ ' + r.min + ' Min.' : ''}${isHerb(r) ? ' ' + kidStars(r) : ''}${loveTag(r) ? ' · ' + loveTag(r) : ''}${isBake(r) ? ' <span class="tag bake">🧁 Backen</span>' : ''}${seasonTag(r)}</span>
+        ${r.note ? `<span class="dd-n">${esc(r.note)}</span>` : ''}${pregLater(r) ? '<span class="preglater">🤰 erst ab Februar</span>' : ''}
+        <span class="dd-tap muted">antippen zum Lesen</span>
+      </div></div>
+    <div class="dd-btns"><button class="dd-b no" data-a="dswipe" data-v="no" data-id="${r.id}" aria-label="Nö, weg damit">✕</button><button class="dd-b yes" data-a="dswipe" data-v="yes" data-id="${r.id}" aria-label="Behalten">♥</button></div>
+  </section>`;
+}
+// read it: its shelf's page; swiping on the page goes through the rest of the deck
+function deckOpen(id) {
+  const r = recipeById(id); if (!r) return;
+  closeModal(); ui.tab = 'ruhe'; ui.sub = null; ui.qtab = 'kochbuch'; ui.ktab = isCodex(r) ? 'codex' : 'herb';
+  ui.kctx = deck().map(x => x.id); ui.rid = id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = [];
+  render(); scrollTo(0, 0);
+}
+// drag the top card: far enough right = keep, left = nö (port of Reliquary's dragCard); a short tap opens the recipe
+function wireDeck() {
+  let c = null, x0 = 0, dx = 0, moved = false;
+  document.addEventListener('pointerdown', e => {
+    const k = e.target.closest('.dd-card'); if (!k || e.button) return;
+    c = k; x0 = e.clientX; dx = 0; moved = false; try { c.setPointerCapture(e.pointerId); } catch (er) {} c.style.transition = 'none';
+  });
+  document.addEventListener('pointermove', e => {
+    if (!c) return;
+    dx = e.clientX - x0; if (Math.abs(dx) > 8) moved = true;
+    c.style.transform = 'translateX(' + dx + 'px) rotate(' + dx / 18 + 'deg)';
+    c.classList.toggle('yes', dx > 60); c.classList.toggle('no', dx < -60);
+  });
+  const up = () => {
+    if (!c) return;
+    const k = c, id = k.dataset.id; c = null; k.style.transition = '';
+    if (Math.abs(dx) > 110) { k.style.transform = 'translateX(' + (dx > 0 ? 600 : -600) + 'px) rotate(' + (dx > 0 ? 30 : -30) + 'deg)'; const v = dx > 0 ? 'yes' : 'no'; setTimeout(() => A.dswipe({ dataset: { id, v } }), 200); }
+    else { k.style.transform = ''; k.classList.remove('yes', 'no'); if (!moved) deckOpen(id); }
+  };
+  document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  document.addEventListener('keydown', e => { const k = e.target.closest && e.target.closest('.dd-card'); if (k && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); deckOpen(k.dataset.id); } });
+}
 function vrNewCard() {
   const n = vrNew(), e = n.filter(isHerb).length, f = n.filter(isCodex).length; if (!n.length) return '';
   return `<div class="card vrnew"><button class="hcard" data-a="ktabgo" data-v="${e ? 'herb' : 'codex'}"><span class="vn-ic" aria-hidden="true">✨</span><span class="hc-txt"><b>Neue Rezepte von Claude</b><span class="muted">${[e ? `🖍️ ${e} in Kinderleicht` : '', f ? `✦ ${f} im Culinarius` : ''].filter(Boolean).join(' · ')}</span></span><span class="hc-go">›</span></button><button class="mini-btn" data-a="vrseen" aria-label="Gesehen">✕</button></div>`;
@@ -2493,7 +2554,7 @@ function viewHome() {
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
-  h += incomingCard() + giftCards() + hnCard() + gbCard() + babyCard() + vrNewCard();
+  h += incomingCard() + giftCards() + hnCard() + gbCard() + babyCard() + deckCard();
   // today: the ring + the next few things, ticked right here
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
   h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
@@ -2828,6 +2889,7 @@ function bind() {
   });
   $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.tab === 'heute') ui.htab = 'heute'; ui.tab = b.dataset.tab; ui.sub = null; render(); scrollTo(0, 0); });
   $('#cloud').addEventListener('click', settings);
+  wireDeck();
   $('#refresh').addEventListener('click', refreshAll);
   $('#stars').addEventListener('click', A.stars);
   $('#rankbtn').addEventListener('click', rankModal);
@@ -2869,6 +2931,7 @@ function mergeStates(local, remote, base = null) {
   };
   ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events', 'cookLog'].forEach(k => { m[k] = join(k); });
   m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
+  m.swiped = Object.assign({}, older.swiped || {}, newer.swiped || {});   // (per recipe, the newer decision wins: ↶ undo sticks)
   m.hnOpen = newer.hnOpen || older.hnOpen;   // 🎁 unwrapped on any of her devices = unwrapped
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)
@@ -3007,4 +3070,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores, choreDue, choreDone };
+window.__gn = { deck: () => deck(), seasonOf: r => seasonOf(r), kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores, choreDue, choreDone };
