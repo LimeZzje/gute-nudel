@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-19.4';
+const VERSION = '2026-10-19.5';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -47,12 +47,55 @@ const dayDone = () => S.today.planned && (S.today.closed || (allTicked() && even
 // ---------- saving ----------
 function commit(post = false) {
   checkPromotion();
+  if (shopStamp()) post = true;   // the shopping list is shared: every change goes to the partner
   S.updatedAt = Date.now();
   D.saveLocal(S);
   D.scheduleBackup(S);
   const stats = JSON.stringify(myStats());
   if (post || S.postedName !== S.name || S.postedStats !== stats) { S.postedName = S.name; S.postedStats = stats; D.schedulePost(postObj()); }
   render();
+}
+
+// ---------- the shared shopping list (2026-10-19.5) ----------
+// Both phones keep the whole list in S.shop and post it (+ what they deleted, S.shopGone) in their post file; reading the
+// partner's post joins by id: the newer edit (x.u) wins, a deletion on either side wins. No per-place bookkeeping: commit()
+// compares the list with the last commit (shopSnap) and stamps what changed here. A changed entry whose u also changed came
+// from outside (own other device / partner) and keeps its stamp.
+// The snapshot belongs to one S: when S is replaced as a whole (load, setup link, other device adopted) it is taken anew,
+// never compared, so nothing that merely isn't in the new S counts as deleted.
+let shopSnap = null, shopSnapOf = null;
+const shopKey = x => { const { u, ...r } = x; return JSON.stringify(r); };
+const shopSnapNow = () => { shopSnapOf = S; shopSnap = new Map((S.shop || []).map(x => [x.id, { k: shopKey(x), u: x.u || 0 }])); };
+function shopStamp() {
+  if (!shopSnap || shopSnapOf !== S) { shopSnapNow(); return false; }
+  const now = Date.now(), here = new Set(), gone = new Set((S.shopGone || []).map(g => g.id)); let ch = false;
+  for (const x of S.shop) {
+    here.add(x.id);
+    const o = shopSnap.get(x.id), k = shopKey(x);
+    if (!o) { if (!x.u) x.u = now; ch = true; }
+    else if (o.k !== k) { if ((x.u || 0) === o.u) x.u = now; ch = true; }
+  }
+  for (const id of shopSnap.keys()) if (!here.has(id)) { ch = true; if (!gone.has(id)) S.shopGone = (S.shopGone || []).concat({ id, ts: now }); }
+  if (ch) S.shopGone = (S.shopGone || []).filter(g => now - g.ts < 60 * 864e5).slice(-500);
+  shopSnapNow();
+  return ch;
+}
+function shopMerge(p) {
+  if (!p || !Array.isArray(p.items)) return false;
+  const mine = new Set((S.shopGone || []).map(g => g.id)), theirs = new Map((p.gone || []).map(g => [g.id, g.ts]));
+  let ch = false;
+  const kept = S.shop.filter(x => !theirs.has(x.id));
+  if (kept.length !== S.shop.length) {
+    S.shopGone = (S.shopGone || []).concat([...theirs].filter(([id]) => !mine.has(id) && S.shop.some(x => x.id === id)).map(([id, ts]) => ({ id, ts })));
+    S.shop = kept; ch = true;
+  }
+  for (const y of p.items) {
+    if (!y || !y.id || mine.has(y.id) || theirs.has(y.id)) continue;
+    const i = S.shop.findIndex(x => x.id === y.id);
+    if (i < 0) { S.shop.push(y); ch = true; }
+    else if ((y.u || 0) > (S.shop[i].u || 0) && shopKey(y) !== shopKey(S.shop[i])) { S.shop[i] = y; ch = true; }
+  }
+  return ch;
 }
 
 // ---------- handing tasks to the partner ----------
@@ -68,6 +111,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     thanks: (S.thanks || []).filter(t => Date.now() - t.ts < MONTH),
     stats: myStats(),
     vorrat: vorratPost(),
+    shop: { items: S.shop, gone: (S.shopGone || []).filter(g => Date.now() - g.ts < MONTH) },
     cooked: (S.cookLog || []).slice(-300),
     baby: S.babyMine || {},
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
@@ -181,6 +225,7 @@ async function syncPost() {
     if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
     if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; }
+    if (shopMerge(p.shop)) changed = true;
     if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); }
     let babyNews = 0;
     if (p.baby && JSON.stringify(p.baby) !== JSON.stringify(S.partnerBaby || {})) { S.partnerBaby = p.baby; babyNews = babyReconcile().add; changed = true; }
@@ -943,7 +988,7 @@ async function saveCfgAndTest() {
   } catch (e) { msg.textContent = '❌ ' + e.message; }
 }
 async function applyRestore(remote) {
-  S = Object.assign(D.freshState(), remote, { me: D.me() });
+  S = Object.assign(D.freshState(), remote, { me: D.me() }); shopSnapNow();
   D.markSynced(remote.updatedAt, remote);
   await D.saveLocal(S);
   rollover(); closeModal(); render(); toast('Wiederhergestellt ✓');
@@ -1800,7 +1845,7 @@ function shopBody(item, inTab) {
     ${!item && open.length && hnUnwrapped() ? `<button class="btn soft wide" data-a="picnic" style="margin-top:8px">🧺 Bei Picnic bestellen (${open.length})</button>` : ''}
     ${!item && done.length && !open.length ? `<button class="btn green wide alldone" data-a="shopdone">✅ Alles eingekauft!</button><p class="hint" style="text-align:center;margin-top:4px">Kommt in den Vorrat – Claude kocht sich daraus Rezepte für euch aus.</p>` : ''}
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
-    ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
+    ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen – auch bei ${esc(pn())}</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
       : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}
     ${inTab ? `<button class="card hcard" data-a="go" data-tab="ruhe" data-q="vorrat"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was ist daheim?</b><span class="muted">${vorrat().length} Sachen im Vorrat – oben unter 🧊 Vorrat</span></span><span class="hc-go">›</span></button>` : ''}`;
 }
@@ -2737,6 +2782,11 @@ const NEWS = [
   { id: 'n-bubbles', d: '2026-10-18', ic: '🫧', t: 'Alles, was gerade los ist, in einer Reihe', x: 'Babyerstausstattung, Geburtstag & Co. sind jetzt die runden Blasen ganz oben.',
     how: ['Bunter Ring = da ist gerade was los', 'Antippen öffnet das Event', 'Vorbei? Dann landet es unter 🗓️ Vergangen'] },
   { id: 'n-season', d: '2026-10-18', ic: '🎃', t: 'Saison-Rezepte erkennt man jetzt', x: 'Rezepte zur Jahreszeit bekommen ein eigenes Schildchen – gerade ist Spooky Season. Im Advent kommt 🎄.' },
+  { id: 'n-shopshare', d: '2026-10-19', ic: '🛒', t: 'Eine Einkaufsliste für euch beide', x: 'Was einer von euch auf die Einkaufsliste schreibt, steht jetzt auch beim anderen – abhaken, löschen und 🧺 inklusive.',
+    how: ['Einfach wie immer eintragen – nach spätestens einer Minute ist es beim anderen', 'Im Laden abgehakt = beim anderen auch abgehakt', '„Ganze Liste leeren“ leert sie für euch beide'], go: 'newsshop', btn: 'Zur Einkaufsliste' },
+  { id: 'n-picnic3', d: '2026-10-19', ic: '🔢', t: 'Picnic: wie viele – und welche Sorte', x: 'Beim Bestellen kannst du jetzt die Menge einstellen und von einer Sache mehrere Sorten nehmen.',
+    how: ['− / + unter jedem Produkt = wie viele (z. B. 12× Milch für einen Kasten)', 'Produkt antippen → „➕ Noch eine Sorte dazu“ – die zweite Sorte kommt als eigener Eintrag auf die Liste', 'Bei 10 Stück oder mehr oder ab 150 € fragt die App einmal nach, bevor’s in den Warenkorb geht'],
+    show: () => hnUnwrapped(), go: 'newsshop', btn: 'Zur Einkaufsliste' },
   { id: 'n-picnic2', d: '2026-10-19', ic: '🚚', t: 'Picnic findet mehr – und bringt’s bis in den Vorrat', x: 'Hello Nudel kann jetzt mehr: bessere Suche, mehr Auswahl, ein Blick in den Warenkorb – und wenn Picnic geliefert hat, landet alles von selbst im Vorrat.',
     how: ['Nichts gefunden? Im Feld „Anders suchen“ dein eigenes Wort eintippen – die App merkt es sich', 'Produkt antippen = Tabelle mit Größe, Preis und €/kg · „mehr anzeigen“ für noch mehr', 'Was wirklich im Warenkorb liegt, steht mit 🧺 auf der Einkaufsliste', 'Oben auf Home zeigt 🚚 Picnic, wann die Lieferung kommt', 'Nach der Lieferung die App aufmachen – alles wandert in den Vorrat und von der Liste'],
     show: () => hnUnwrapped(), go: 'newsshop', btn: 'Zur Einkaufsliste' },
@@ -3138,7 +3188,7 @@ function bind() {
   $('#rankbtn').addEventListener('click', rankModal);
   D.backup.listeners.add(renderTop);
   addEventListener('online', () => { syncDevices().then(() => D.flushBackup()); D.flushPost(); syncPost(); });
-  setInterval(() => { if (document.visibilityState === 'visible') syncDevices(); }, 60000);
+  setInterval(() => { if (document.visibilityState === 'visible') { syncDevices(); syncPost(); } }, 60000);
   setInterval(() => { if (document.visibilityState === 'visible') syncPost(); }, 90000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') D.flushBackup();
@@ -3177,7 +3227,8 @@ function mergeStates(local, remote, base = null) {
   m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
   m.swiped = Object.assign({}, older.swiped || {}, newer.swiped || {});
   m.newsRead = [...new Set([].concat(older.newsRead || [], newer.newsRead || []))];   // (per recipe, the newer decision wins: ↶ undo sticks)
-  m.hnOpen = newer.hnOpen || older.hnOpen;   // 🎁 unwrapped on any of her devices = unwrapped
+  m.hnOpen = newer.hnOpen || older.hnOpen;
+  { const g = new Map(); [].concat(older.shopGone || [], newer.shopGone || []).forEach(x => x && g.set(x.id, x)); m.shopGone = [...g.values()].slice(-500); }   // 🎁 unwrapped on any of her devices = unwrapped
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)
   const ids = new Set((newer.log || []).map(e => e.id)), extra = (older.log || []).filter(e => !ids.has(e.id));
@@ -3213,7 +3264,7 @@ function mergeStates(local, remote, base = null) {
   return m;
 }
 function takeRemote(remote, adopt, base) {
-  S = adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote, base);
+  S = adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote, base); shopSnapNow();
   const br = babyReconcile(); if (br.add + br.sub | gbReconcile()) S.updatedAt = Date.now();
   D.saveLocal(S);
   rollover(); scheduleChores(); render();
@@ -3277,6 +3328,7 @@ async function start() {
   else if (!S.me) S.me = D.me();
   else if (S.me !== D.me()) S = D.freshState();
   S.me = D.me();
+  shopSnapNow();   // from here on, what leaves the shopping list was deleted on this phone
   rollover();
   scheduleChores();
   babyReconcile(); gbReconcile();
