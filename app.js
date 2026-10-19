@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-18.9';
+const VERSION = '2026-10-19.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1248,10 +1248,11 @@ const A = {
     try {
       picLS.tok = '';
       const r = await pic('/login', { email, password });
-      if (r.need2fa) { await pic('/2fa/send', {}); ui.pic = { step: 'code' }; return picModal(); }
+      if (r.need2fa) { ui.pic = { step: 'code', msg: await picSend() }; return picModal(); }
       picSearchAll();
     } catch (e) { Object.assign(ui.pic, { busy: false, step: 'login', msg: e.auth ? 'E-Mail oder Passwort stimmt nicht.' : 'Hat nicht geklappt: ' + e.message }); picModal(); }
   },
+  async picresend() { Object.assign(ui.pic, { busy: true, msg: '' }); picModal(); ui.pic = { step: 'code', msg: await picSend() || 'Neuer Code ist unterwegs.' }; picModal(); },
   async picverify() {
     const otp = $('#pic-otp').value.trim(); if (!otp) return;
     Object.assign(ui.pic, { busy: true, msg: '' }); picModal();
@@ -1520,6 +1521,11 @@ async function pic(path, body) {
   if (!r.ok) throw new Error(j.error || 'Picnic antwortet nicht');
   return j;
 }
+// asks Picnic for the SMS code; '' = sent, otherwise what went wrong (shown under the code field)
+async function picSend() {
+  try { const r = await pic('/2fa/send', {}); return r.ok ? '' : 'Picnic schickt keine SMS: ' + (r.error || 'Fehler ' + r.status); }
+  catch (e) { return e.auth ? 'Picnic hat die Anmeldung abgelehnt – bitte Abbrechen und nochmal anmelden.' : 'SMS ging nicht raus: ' + e.message; }
+}
 // opens the installed Picnic app (Android: intent with the app's own app.picnic:// links, Play Store if missing; iPhone: the scheme).
 // Where exactly it lands (cart or start page) is up to the Picnic app.
 const picnicAppLink = () => /android/i.test(navigator.userAgent)
@@ -1540,7 +1546,8 @@ function picModal() {
     h += `<p>Picnic hat dir eine SMS mit einem Code geschickt.</p>
       <input id="pic-otp" inputmode="numeric" autocomplete="one-time-code" placeholder="Code aus der SMS" style="width:100%">
       <p id="pic-msg" class="hint" style="color:var(--danger)">${esc(P.msg || '')}</p>
-      <div class="row"><button class="btn green" data-a="picverify" ${P.busy ? 'disabled' : ''}>${P.busy ? 'Moment…' : 'Bestätigen'}</button><button class="btn soft" data-a="close">Abbrechen</button></div>`;
+      <div class="row"><button class="btn green" data-a="picverify" ${P.busy ? 'disabled' : ''}>${P.busy ? 'Moment…' : 'Bestätigen'}</button><button class="btn soft" data-a="close">Abbrechen</button></div>
+      <p style="text-align:center"><button class="linkbtn muted" data-a="picresend" ${P.busy ? 'disabled' : ''} style="background:none;border:0;text-decoration:underline">Keine SMS? Code nochmal schicken</button></p>`;
   } else if (P.step === 'done') {
     h += `<p style="text-align:center;font-size:40px;margin:8px 0">✅</p><p style="text-align:center">${P.added} ${P.added === 1 ? 'Sache liegt' : 'Sachen liegen'} jetzt in deinem Picnic-Warenkorb.</p>
       <p class="muted" style="text-align:center">Öffne die Picnic-App, schau drüber, such dir einen Liefertermin aus – fertig.</p>
