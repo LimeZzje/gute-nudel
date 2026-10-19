@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-19.2';
+const VERSION = '2026-10-19.3';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1177,6 +1177,7 @@ const A = {
   vrseen() { vrSeenAdd(vorratRecipes().map(r => r.id)); },
   swipe() { ui.sub = 'swipe'; render(); scrollTo(0, 0); },
   npread(el) { newsRead(el.dataset.id); },
+  newsshop() { ui.tab = 'ruhe'; ui.sub = null; A.qtab({ dataset: { v: 'einkauf' } }); },
   npgo(el) { const n = NEWS.find(x => x.id === el.dataset.id); if (!n) return; newsRead(n.id); A[n.go] && A[n.go](el); },
   npall() { modal(`<div style="text-align:left"><h2 style="text-align:center">🗞️ Alle Ausgaben</h2>${newsAll().map(n => `<div class="np-a"><h3><span class="np-ic">${n.ic}</span> ${esc(n.t)}</h3><p>${esc(n.x)}</p>${n.how ? `<ol class="np-how">${n.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}</div>`).join('')}<div class="row"><button class="btn" data-a="close">Fertig</button></div></div>`); (S.newsRead = [...new Set([...(S.newsRead || []), ...newsAll().map(n => n.id)])]); commit(); },
   dswipe(el) { const id = el.dataset.id, yes = el.dataset.v === 'yes'; swipeSet(id, yes ? 'yes' : 'no'); toast(yes ? '💚 Bleibt im Kochbuch' : '👋 Aussortiert'); if (!deck().length) { toast('✓ Alle neuen Rezepte sortiert'); if (ui.sub === 'swipe') { ui.sub = null; render(); } } },
@@ -2680,6 +2681,9 @@ const NEWS = [
   { id: 'n-bubbles', d: '2026-10-18', ic: '🫧', t: 'Alles, was gerade los ist, in einer Reihe', x: 'Babyerstausstattung, Geburtstag & Co. sind jetzt die runden Blasen ganz oben.',
     how: ['Bunter Ring = da ist gerade was los', 'Antippen öffnet das Event', 'Vorbei? Dann landet es unter 🗓️ Vergangen'] },
   { id: 'n-season', d: '2026-10-18', ic: '🎃', t: 'Saison-Rezepte erkennt man jetzt', x: 'Rezepte zur Jahreszeit bekommen ein eigenes Schildchen – gerade ist Spooky Season. Im Advent kommt 🎄.' },
+  { id: 'n-picnic2', d: '2026-10-19', ic: '🚚', t: 'Picnic findet mehr – und bringt’s bis in den Vorrat', x: 'Hello Nudel kann jetzt mehr: bessere Suche, mehr Auswahl, ein Blick in den Warenkorb – und wenn Picnic geliefert hat, landet alles von selbst im Vorrat.',
+    how: ['Nichts gefunden? Im Feld „Anders suchen“ dein eigenes Wort eintippen – die App merkt es sich', 'Produkt antippen = Tabelle mit Größe, Preis und €/kg · „mehr anzeigen“ für noch mehr', 'Was wirklich im Warenkorb liegt, steht mit 🧺 auf der Einkaufsliste', 'Oben auf Home zeigt 🚚 Picnic, wann die Lieferung kommt', 'Nach der Lieferung die App aufmachen – alles wandert in den Vorrat und von der Liste'],
+    show: () => hnUnwrapped(), go: 'newsshop', btn: 'Zur Einkaufsliste' },
   { id: 'n-picnic', d: '2026-10-19', ic: '🧺', t: 'Hello Nudel: Einkaufsliste zu Picnic', x: 'Dein Geburtstagsgeschenk: die Einkaufsliste wandert mit einem Tipp in deinen Picnic-Warenkorb.',
     how: ['Einkaufsliste öffnen → 🧺 Bei Picnic bestellen', 'Einmal einloggen, dann geht’s mit einem Tipp', 'Bestellt wird nie automatisch – das machst du in der Picnic-App'], show: () => hnUnwrapped(), go: 'hello', btn: 'Ansehen' },
   { id: 'n-baby', d: '2026-10-10', ic: '👶', t: 'Babyerstausstattung zusammen abhaken', x: 'Eine gemeinsame Liste bis 10. Januar. Jedes Häkchen – egal von wem – gibt euch beiden einen ⭐.', go: 'baby', btn: 'Zur Liste', show: () => babyLive() },
