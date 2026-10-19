@@ -1058,3 +1058,6 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 .pt-img img { width: 40px; height: 40px; object-fit: contain; display: block; }
 .pt-name small, .pt-price small { display: block; opacity: .65; font-size: 12px; font-weight: 400; }
 .pt-price { text-align: right; white-space: nowrap; }
+.pic-n { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 15px; }
+.pic-n .mini-btn { min-width: 34px; }
+.pic-n.warn > b:first-of-type { color: var(--danger); }

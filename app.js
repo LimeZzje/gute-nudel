@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-19.3';
+const VERSION = '2026-10-19.4';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1272,27 +1272,47 @@ const A = {
     } catch (e) { picFail(e); }
   },
   picdeliv() { picDelivModal(); },
-  picskip(el) { const r = ui.pic.rows[+el.dataset.v]; r.skip = !r.skip; picModal(); },
+  picskip(el) { const i = +el.dataset.v, r = ui.pic.rows[i]; if (r.extra) { ui.pic.rows.splice(i, 1); ui.picOpen = null; } else r.skip = !r.skip; picModal(); },
+  picn(el) { const r = ui.pic.rows[+el.dataset.v]; r.n = Math.max(1, Math.min(PIC_MAX, (r.n || 1) + +el.dataset.d)); r.nSet = true; picModal(); },
+  picsort(el) {   // a second kind of the same thing (two sorts of apples): an own row now, an own list entry once it's in the cart
+    const i = +el.dataset.v, r = ui.pic.rows[i], taken = new Set(ui.pic.rows.filter(y => y.x.id === r.x.id && y.pick).map(y => y.pick.id));
+    const pick = r.hits.find(h => !taken.has(h.id)) || r.hits[0];
+    ui.pic.rows.splice(i + 1, 0, { x: r.x, extra: true, hits: r.hits, q: r.q, pick, n: 1, skip: false, more: false });
+    ui.picOpen = i + 1; picModal();
+  },
+  picback() { ui.pic.step = 'match'; ui.pic.sure = false; picModal(); },
+  picsure() { ui.pic.sure = true; ui.pic.step = 'match'; A.picgo(); },
   picopen(el) { ui.picOpen = ui.picOpen === +el.dataset.v ? null : +el.dataset.v; picModal(); },
-  picpick(el) { const r = ui.pic.rows[+el.dataset.v]; r.pick = r.hits[+el.dataset.k]; r.skip = false; ui.picOpen = null; picModal(); },
+  picpick(el) { const r = ui.pic.rows[+el.dataset.v]; r.pick = r.hits[+el.dataset.k]; r.skip = false; if (!r.nSet) r.n = picN(r.x, r.pick); ui.picOpen = null; picModal(); },
   async picgo() {
     const todo = ui.pic.rows.filter(r => r.pick && !r.skip), map = picLS.map;
+    if (!ui.pic.sure && picWorry().length) { ui.pic.step = 'check'; return picModal(); }   // 12× Milch or 150 €: one look before the cart
     ui.pic.busy = true; picModal();
     let added = 0;
     try {
-      for (const r of todo) { await pic('/add', { id: r.pick.id, n: 1 }); added++; map[Sh.norm(itemName(r.x))] = r.pick; }
+      for (const r of todo) {
+        for (let n = r.n || 1; n > 0; n -= 20) await pic('/add', { id: r.pick.id, n: Math.min(20, n) });   // the worker takes 20 at a time
+        added++; if (!r.extra) map[Sh.norm(itemName(r.x))] = r.pick;
+      }
       picLS.map = map;
       let inCart = null; try { inCart = new Set((await pic('/cart')).items.map(a => String(a.id))); } catch (e) { if (e.auth) throw e; }   // read back what really landed
-      const bad = [], nf = [], now = Date.now(), byId = id => S.shop.find(y => y.id === id);
+      const bad = [], nf = [], now = Date.now(), byId = id => S.shop.find(y => y.id === id), sum = picSum();
       for (const r of ui.pic.rows) {
-        const x = byId(r.x.id); if (!x) continue;
-        if (!r.hits || !r.hits.length) { if (!r.skip) { x.nopic = true; nf.push(itemName(x)); } continue; }
-        delete x.nopic;
+        const x0 = byId(r.x.id); if (!x0) continue;
+        if (!r.hits || !r.hits.length) { if (!r.skip) { x0.nopic = true; nf.push(itemName(x0)); } continue; }
+        delete x0.nopic;
         if (!r.pick || r.skip) continue;
-        if (!inCart || inCart.has(String(r.pick.id))) x.pic = { id: r.pick.id, name: r.pick.name, ts: now }; else bad.push(itemName(x));
+        const ok = !inCart || inCart.has(String(r.pick.id));
+        if (!ok) { bad.push(itemName(x0) + (r.extra ? ' (' + r.pick.name + ')' : '')); continue; }
+        let x = x0;
+        if (r.extra) {   // the second sort gets its own list entry right under the first, so the delivery can tick it off on its own
+          x = { id: uid(), text: itemName(x0), qty: null, done: false, ...(x0.sec ? { sec: x0.sec } : {}), ...(x0.from ? { from: x0.from } : {}) };
+          S.shop.splice(S.shop.indexOf(x0) + 1 + S.shop.filter(y => y.sortOf === x0.id).length, 0, Object.assign(x, { sortOf: x0.id }));
+        }
+        x.pic = { id: r.pick.id, name: r.pick.name, ts: now, ...(r.n > 1 ? { n: r.n } : {}) };
       }
       commit(true);
-      ui.pic = { step: 'done', added: added - bad.length, bad, nf, checked: !!inCart }; picModal();
+      ui.pic = { step: 'done', added: added - bad.length, bad, nf, checked: !!inCart, sum }; picModal();
     } catch (e) { picLS.map = map; ui.pic = { step: e.auth ? 'login' : 'done', added, msg: e.auth ? 'Bitte nochmal anmelden.' : `Nach ${added} Sachen hat's gehakt: ${e.message}` }; picModal(); }
   },
   picapp() { closeModal(); location.href = picnicAppLink(); },
@@ -1555,7 +1575,7 @@ async function picSend() {
 // what Picnic's search understands, tried one after the other until something comes back: her own word for it (typed
 // once in the row), the name as written, "Fond, Rind" → "Rinderfond", without container words ("Karton Milch" → "Milch"),
 // and last the longest single word
-const PIC_BOX = /(^|\s)(karton|packung|pck|pack|dose|dosen|glas|gläser|becher|flasche|flaschen|tüte|beutel|netz|schale|tetrapak)\.?(?=\s|$)/gi;
+const PIC_BOX = /(^|\s)(kasten|kiste|träger|sixpack|karton|packung|pck|pack|dose|dosen|glas|gläser|becher|flasche|flaschen|tüte|beutel|netz|schale|tetrapak)\.?(?=\s|$)/gi;
 const PIC_PRE = { rind: 'Rinder', huhn: 'Hühner', hähnchen: 'Hähnchen', geflügel: 'Geflügel', gemüse: 'Gemüse', kalb: 'Kalbs', schwein: 'Schweine', fisch: 'Fisch', lamm: 'Lamm', wild: 'Wild', ente: 'Enten', pilz: 'Pilz' };
 function picQueries(name) {
   const base = String(name).replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim(), parts = base.split(',').map(x => x.trim()).filter(Boolean);
@@ -1575,6 +1595,25 @@ function picPer(h) {
   const k = m[3].toLowerCase(), amt = +(m[1] || 1) * +m[2] * { kg: 1000, g: 1, l: 1000, cl: 10, ml: 1 }[k];
   return amt ? euro(Math.round(h.price / amt * 1000)) + (k === 'g' || k === 'kg' ? '/kg' : '/l') : '';
 }
+// how many of the product (2026-10-19.4): from the list amount when it fits the pack ("2 kg Kartoffeln" + 1 kg bag → 2,
+// "6 Eier" + 10er → 1), else 1. She changes it with − / +; at most PIC_MAX, so a slip can't put 100 Milch in the cart.
+const PIC_MAX = 30;
+function picN(x, p) {
+  const want = itemQty(x), pack = p && picQty({ unit: p.unit, n: 1 });
+  if (!want) return 1;
+  if (pack && pack.unit === want.unit && pack.n) return Math.max(1, Math.min(PIC_MAX, Math.ceil(want.n / pack.n - 1e-9)));
+  return !pack && want.unit === 'stk' ? Math.max(1, Math.min(PIC_MAX, Math.round(want.n))) : 1;
+}
+const picSum = () => (ui.pic.rows || []).filter(r => r.pick && !r.skip).reduce((s, r) => s + (r.pick.price || 0) * (r.n || 1), 0);
+// what makes the app ask once more before the cart: a big pile of one thing, or a big bill (with what was already in the cart)
+const PIC_BIG = 15000, PIC_MANY = 10;
+function picWorry() {
+  const w = [], P = ui.pic, total = picSum() + (P.cartTotal || 0);
+  if (total >= PIC_BIG) w.push({ big: total });
+  P.rows.filter(r => r.pick && !r.skip && r.n >= PIC_MANY).forEach(r => w.push({ r }));
+  return w;
+}
+const picTotal = (r, n) => { const q = picQty({ unit: r.pick.unit, n }); return q && n > 1 ? ' = ' + fmtQty(q) : ''; };
 // 🚚 Picnic deliveries, checked on THIS phone (where the token is) when the app opens: what's coming shows on Home
 // (S.picNext); once Picnic says a delivery is COMPLETED, what came goes into the Vorrat by itself (tagged pic: <delivery>)
 // and the matching shopping items leave the list. Only deliveries after this phone first looked (gn_picnic_since),
@@ -1654,8 +1693,18 @@ function picModal() {
       <p id="pic-msg" class="hint" style="color:var(--danger)">${esc(P.msg || '')}</p>
       <div class="row"><button class="btn green" data-a="picverify" ${P.busy ? 'disabled' : ''}>${P.busy ? 'Moment…' : 'Bestätigen'}</button><button class="btn soft" data-a="close">Abbrechen</button></div>
       <p style="text-align:center"><button class="linkbtn muted" data-a="picresend" ${P.busy ? 'disabled' : ''} style="background:none;border:0;text-decoration:underline">Keine SMS? Code nochmal schicken</button></p>`;
+  } else if (P.step === 'check') {
+    const w = picWorry(), big = w.find(x => x.big), many = w.filter(x => x.r);
+    const top = big ? P.rows.filter(r => r.pick && !r.skip).sort((a, b) => b.pick.price * b.n - a.pick.price * a.n).slice(0, 3) : [];
+    h += `<p style="text-align:center;font-size:40px;margin:8px 0">🤔</p><p style="text-align:center"><b>Kurz nochmal drüberschauen?</b></p>
+      ${big ? `<p>Das wird ein großer Einkauf: <b>ca. ${euro(big.big)}</b>${P.cartTotal ? ` <span class="muted">(mit ${euro(P.cartTotal)}, die schon im Warenkorb lagen)</span>` : ''}.</p>
+        <p class="muted" style="margin-bottom:2px">Am meisten machen aus:</p><ul style="margin-top:0">${top.map(r => `<li>${r.n}× ${esc(r.pick.name)} – ${euro(r.pick.price * r.n)}</li>`).join('')}</ul>` : ''}
+      ${many.length ? `<p style="margin-bottom:2px">Ganz schön viele:</p><ul style="margin-top:0">${many.map(({ r }) => `<li><b>${r.n}×</b> ${esc(r.pick.name)} <span class="muted">${esc(r.pick.unit)}${picTotal(r, r.n)}</span></li>`).join('')}</ul>` : ''}
+      <button class="btn green wide" data-a="picsure">Ja, passt so – ab in den Warenkorb</button>
+      <div class="row"><button class="btn soft" data-a="picback">Nochmal ändern</button></div>`;
   } else if (P.step === 'done') {
     h += `<p style="text-align:center;font-size:40px;margin:8px 0">✅</p><p style="text-align:center">${P.added} ${P.added === 1 ? 'Sache liegt' : 'Sachen liegen'} jetzt in deinem Picnic-Warenkorb${P.checked ? ' – nachgeschaut' : ''}.</p>
+      ${P.sum ? `<p class="muted" style="text-align:center;margin-top:0">Dazugekommen: ca. ${euro(P.sum)}</p>` : ''}
       ${(P.bad || []).length ? `<p class="hint" style="color:var(--danger)">⚠️ Nicht im Warenkorb gelandet: ${esc(P.bad.join(', '))}</p>` : ''}
       ${(P.nf || []).length ? `<p class="hint">🏪 Gibt’s nicht bei Picnic, bleibt auf der Liste: ${esc(P.nf.join(', '))}</p>` : ''}
       <p class="muted" style="text-align:center">Öffne die Picnic-App, schau drüber, such dir einen Liefertermin aus – fertig. Wenn die Lieferung da ist, kommt alles von selbst in den Vorrat.</p>
@@ -1670,13 +1719,17 @@ function picModal() {
     h += rows.map((r, i) => {
       const p = r.pick;
       return `<div class="card" style="padding:10px;margin:8px 0;${r.skip ? 'opacity:.45' : ''}">
-        <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(itemName(r.x))}</b><button class="mini-btn" data-a="picskip" data-v="${i}" aria-label="${r.skip ? 'Doch mitnehmen' : 'Weglassen'}">${r.skip ? '↺' : '✕'}</button></div>
+        <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(itemName(r.x))}${r.extra ? ' <span class="tag">noch eine Sorte</span>' : itemQty(r.x) || r.x.q ? ` <span class="muted" style="font-weight:400">(Liste: ${esc(itemQty(r.x) ? fmtQty(itemQty(r.x)) : r.x.q)})</span>` : ''}</b><button class="mini-btn" data-a="picskip" data-v="${i}" aria-label="${r.extra ? 'Sorte wieder weg' : r.skip ? 'Doch mitnehmen' : 'Weglassen'}">${r.skip ? '↺' : '✕'}</button></div>
         ${r.hits == null ? '<p class="muted" style="margin:4px 0">…</p>' : !p ? `<p class="muted" style="margin:4px 0">Bei Picnic nichts gefunden – bleibt auf deiner Liste. Anders heißen?</p>${picAsk(i)}`
-          : `<button class="pick" data-a="picopen" data-v="${i}" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left">${p.img ? `<img src="${esc(p.img)}" alt="" style="width:44px;height:44px;object-fit:contain">` : ''}<span style="flex:1">${esc(p.name)} <span class="muted">${esc(p.unit)}</span></span><b>${euro(p.price)}</b></button>`}
-        ${ui.picOpen === i && r.hits && p ? picTable(r, i) + picAsk(i) : ''}
+          : `<button class="pick" data-a="picopen" data-v="${i}" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left">${p.img ? `<img src="${esc(p.img)}" alt="" style="width:44px;height:44px;object-fit:contain">` : ''}<span style="flex:1">${esc(p.name)} <span class="muted">${esc(p.unit)}</span></span><b>${euro(p.price)}</b></button>
+            ${r.skip ? '' : `<div class="pic-n ${r.n >= PIC_MANY ? 'warn' : ''}"><button class="mini-btn" data-a="picn" data-v="${i}" data-d="-1" aria-label="Weniger" ${r.n <= 1 ? 'disabled' : ''}>−</button><b>${r.n}×</b><button class="mini-btn" data-a="picn" data-v="${i}" data-d="1" aria-label="Mehr" ${r.n >= PIC_MAX ? 'disabled' : ''}>+</button>
+              <span class="muted">${picTotal(r, r.n).slice(1)}</span><b style="margin-left:auto">${r.n > 1 ? euro(p.price * r.n) : ''}</b></div>`}`}
+        ${ui.picOpen === i && r.hits && p ? picTable(r, i) + `<button class="linkbtn" data-a="picsort" data-v="${i}" style="background:none;border:0;text-decoration:underline;margin:6px 0 0">➕ Noch eine Sorte dazu</button>` + picAsk(i) : ''}
       </div>`;
     }).join('');
-    if (rows.length) h += `<p class="hint">Antippen = anderes Produkt wählen. Deine Wahl merkt sich die App fürs nächste Mal.</p>
+    const sum = picSum();
+    if (rows.length && sum) h += `<p style="text-align:right;margin:6px 2px">Zusammen ca. <b>${euro(sum)}</b>${P.cartTotal ? `<br><span class="muted">+ ${euro(P.cartTotal)} schon im Warenkorb</span>` : ''}</p>`;
+    if (rows.length) h += `<p class="hint">Antippen = anderes Produkt wählen oder noch eine Sorte dazu. − / + = wie viele. Deine Wahl merkt sich die App fürs nächste Mal.</p>
       <div class="row"><button class="btn green" data-a="picgo" ${P.busy || !n ? 'disabled' : ''}>${P.busy ? 'Moment…' : `🧺 ${n} in den Warenkorb`}</button><button class="btn soft" data-a="close">Abbrechen</button></div>
       <p style="text-align:center"><button class="linkbtn muted" data-a="piclogout" style="background:none;border:0;text-decoration:underline">Von Picnic abmelden</button></p>`;
     if (P.msg) h += `<p class="hint" style="color:var(--danger)">${esc(P.msg)}</p>`;
@@ -1686,14 +1739,17 @@ function picModal() {
 }
 async function picSearchAll() {
   const map = picLS.map, open = S.shop.filter(x => !x.done && !x.pic);
-  ui.pic = { step: 'match', rows: open.map(x => ({ x, hits: null, pick: null, skip: false, more: false })), busy: true, inCart: S.shop.filter(x => !x.done && x.pic).length };
+  ui.pic = { step: 'match', rows: open.map(x => ({ x, hits: null, pick: null, skip: false, more: false, n: 1 })), busy: true, inCart: S.shop.filter(x => !x.done && x.pic).length };
   picModal();
   try {
+    try { ui.pic.cartTotal = (await pic('/cart')).total || 0; } catch (e) { if (e.auth) throw e; }   // what's already in there counts for the 150 € look
     for (const r of ui.pic.rows) {   // one after the other: gentle on Picnic, and the list fills in visibly
+      if (r.hits) continue;   // a second sort she added meanwhile
       const mem = map[Sh.norm(itemName(r.x))];
       const f = await picFind(itemName(r.x)); r.hits = f.hits; r.q = f.q;
       if (mem && !r.hits.some(h => h.id === mem.id)) r.hits.unshift(mem);
       r.pick = (mem && r.hits.find(h => h.id === mem.id)) || r.hits[0] || null;
+      if (!r.nSet) r.n = picN(r.x, r.pick);
       if (!$('#ov')) return;   // she closed it meanwhile
       picModal();
     }
@@ -1723,7 +1779,7 @@ function shopModal(item, keep) { // her list — or a handed-over one (item.list
 }
 function shopBody(item, inTab) {
   const L = item ? item.list : S.shop, open = L.filter(x => !x.done), done = L.filter(x => x.done), di = item ? ` data-item="${item.id}"` : '';
-  const row = x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(itemName(x))}${itemQty(x) || x.q ? ` <b class="qty">${esc(itemQty(x) ? fmtQty(itemQty(x)) : x.q)}</b>` : ''}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}${!x.done && x.pic ? '<span class="tag">🧺 im Picnic-Warenkorb</span>' : !x.done && x.nopic ? '<span class="tag">nicht bei Picnic</span>' : ''}</span></button>`
+  const row = x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(itemName(x))}${itemQty(x) || x.q ? ` <b class="qty">${esc(itemQty(x) ? fmtQty(itemQty(x)) : x.q)}</b>` : ''}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}${!x.done && x.pic ? `<span class="tag">🧺 ${x.pic.n > 1 ? x.pic.n + '× ' : ''}im Picnic-Warenkorb${x.sortOf || S.shop.some(y => y.sortOf === x.id && y.pic) ? ' · ' + esc(x.pic.name) : ''}</span>` : !x.done && x.nopic ? '<span class="tag">nicht bei Picnic</span>' : ''}</span></button>`
     + (!x.done && (ui.shopEdit || secOf(x) === 'sonst') ? `<button class="mini-btn" data-a="shoptag" data-id="${x.id}"${di} aria-label="Abteilung wählen">🏷️</button>` : '')
     + `<button class="mini-btn" data-a="shopdel" data-id="${x.id}"${di} aria-label="Entfernen">✕</button></div>`
     + (ui.tagId === x.id ? `<div class="chips tagpick">${Object.entries(Sh.SECTIONS).map(([k, [ic, l]]) => `<button class="chip ${secOf(x) === k ? 'on' : ''}" data-a="shopsec" data-id="${x.id}" data-v="${k}"${di}>${ic} ${l.split(' (')[0]}</button>`).join('')}</div>` : '');
