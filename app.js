@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-20.9';
+const VERSION = '2026-10-20.10';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1271,6 +1271,7 @@ const A = {
   vrseen() { vrSeenAdd(vorratRecipes().map(r => r.id)); },
   swipe() { ui.sub = 'swipe'; render(); scrollTo(0, 0); },
   npread(el) { newsRead(el.dataset.id); },
+  newsklump() { A.recipe({ dataset: { id: 'buch-reste-klumpatsch', go: '1' }, closest: () => null }); },
   newsshop() { ui.tab = 'ruhe'; ui.sub = null; A.qtab({ dataset: { v: 'einkauf' } }); },
   npgo(el) { const n = NEWS.find(x => x.id === el.dataset.id); if (!n) return; newsRead(n.id); A[n.go] && A[n.go](el); },
   npall() { modal(`<div style="text-align:left"><h2 style="text-align:center">🗞️ Alle Ausgaben</h2>${newsAll().map(n => `<div class="np-a"><h3><span class="np-ic">${n.ic}</span> ${esc(n.t)}</h3><p>${esc(n.x)}</p>${n.how ? `<ol class="np-how">${n.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}</div>`).join('')}<div class="row"><button class="btn" data-a="close">Fertig</button></div></div>`); (S.newsRead = [...new Set([...(S.newsRead || []), ...newsAll().map(n => n.id)])]); commit(); },
@@ -2840,6 +2841,8 @@ function viewSwipe() {
 // ---------- 🗞️ Die Nudel-Zeitung (user 2026-10-18): what's new in the app and how it works, instead of "Daheim heute".
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
 const NEWS = [
+  { id: 'n-klumpatsch', d: '2026-10-20', ic: '🍳', t: 'Kochbuch-KI an Notizbuch gescheitert – „Reste-Klumpatsch“ trotzdem gedruckt', x: 'Brühl. Um 17:37 Uhr meldete der Rezept-Eingang ein neues Foto. Claude, zuständig für Kochbuch-Seiten, rechnete mit Grammangaben. Stattdessen begann die Seite mit: „Die Gegenwart ist ein schöner Ort. Mein Bauch ist dick, aber ich bin trotzdem glücklich.“ Darunter: sieben Zutaten, null Mengen, vier Schritte. Zwei davon lauten sinngemäß „Julia fragen“. Die Hausregel „Nichts erfinden“ ließ nur einen Weg: alles genau so abschreiben. Portionen: „wie viel Reste da sind“. Kochzeit: unbekannt. Kurz zuvor hatte derselbe Prüfer eine harmlose Yakisoba dreimal als „zu ähnlich“ abgelehnt – den Klumpatsch winkte er beim ersten Versuch durch.',
+    how: ['Die „Rheine“ im Rezept ist keine Stadt im Münsterland, sondern die Reine: der Bräter', 'Kräuter™ bleibt geschützt – welche Kräuter, weiß nur der Autor', '„Geröstetes Sesam“ wurde wörtlich übernommen. Die Redaktion korrigiert keine Kunst', 'Schwangerschafts-Check bestanden: Haxe durch, nichts roh', 'Wichtigste Zutat laut Rezept: Julia. Die steht nicht auf der Einkaufsliste'], go: 'newsklump', btn: 'Zum Rezept' },
   { id: 'n-storyring', d: '2026-10-20', ic: '⏳', t: 'Wie lange läuft ein Event noch?', x: 'Events mit Ablaufdatum haben jetzt einen Ring wie bei Instagram-Storys: Er wird grau, je weniger Zeit bleibt. Ist die Zeit um, wandert das Event unter 🗓️ Vergangen.',
     how: ['Bunter Teil vom Ring = so viel Zeit ist noch übrig', 'Die kleine Zahl sagt’s genau: Tage, am letzten Tag Stunden', 'Ganz rechts in der Reihe, mit grauem Ring: 🗓️ Vergangen – da wohnen jetzt auch dein Geburtstag und das Hello-Nudel-Geschenk'], go: 'events', btn: 'Vergangen ansehen' },
   { id: 'n-hellotab', d: '2026-10-20', ic: '🧺', t: 'Hello Nudel hat jetzt einen eigenen Platz', x: 'Alles rund ums Essen wohnt jetzt unten in 🧺 Hello Nudel – als Kreislauf: Einkaufswagen → Vorrat → Kochbuch, und was aufgebraucht ist, kommt wieder auf den Wagen. 🛋️ Entspannen ist dafür nach 🏠 Daheim gezogen.',
