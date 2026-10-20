@@ -1100,3 +1100,7 @@ nav#tabs .nl { white-space: nowrap; letter-spacing: -.02em; }
 @media (max-width: 379px) { .qtabs.dtabs .chip { display: grid; justify-items: center; padding: 5px 2px; font-size: 12.5px; line-height: 1.2; } .qtabs.dtabs .qi { font-size: 18px; } }
 @media (max-width: 359px) { .hl-row { grid-template-columns: 1fr 12px 1fr 12px 1fr; } .hl-stop b { font-size: 12px; } .hl-stop small { font-size: 10.5px; } .hl-back span { font-size: 10px; } }
 @media (prefers-reduced-motion: reduce) { .hl-ar em { animation: none; } .hl-stop:active { transform: none; } }
+
+/* 🧺 in the Picnic cart (2026-10-20, user): crossed out so it stands apart from what's only on the list; the label stays readable */
+.in-pic { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--hngreen); opacity: .7; }
+.tag.pic-tag { background: var(--hntint); color: var(--hngreen); text-decoration: none; display: inline-block; }

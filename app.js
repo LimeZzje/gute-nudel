@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-20.1';
+const VERSION = '2026-10-20.2';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1866,7 +1866,7 @@ function shopModal(item, keep) { // her list — or a handed-over one (item.list
 }
 function shopBody(item, inTab) {
   const L = item ? item.list : S.shop, open = L.filter(x => !x.done), done = L.filter(x => x.done), di = item ? ` data-item="${item.id}"` : '';
-  const row = x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(itemName(x))}${itemQty(x) || x.q ? ` <b class="qty">${esc(itemQty(x) ? fmtQty(itemQty(x)) : x.q)}</b>` : ''}${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}${!x.done && x.pic ? `<span class="tag">🧺 ${x.pic.n > 1 ? x.pic.n + '× ' : ''}im Picnic-Warenkorb${x.sortOf || S.shop.some(y => y.sortOf === x.id && y.pic) ? ' · ' + esc(x.pic.name) : ''}</span>` : !x.done && x.nopic ? '<span class="tag">nicht bei Picnic</span>' : ''}</span></button>`
+  const row = x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}"><span class="${!x.done && x.pic ? 'in-pic' : ''}">${esc(itemName(x))}${itemQty(x) || x.q ? ` <b class="qty">${esc(itemQty(x) ? fmtQty(itemQty(x)) : x.q)}</b>` : ''}</span>${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}${!x.done && x.pic ? `<span class="tag pic-tag">🧺 ${x.pic.n > 1 ? x.pic.n + '× ' : ''}im Picnic-Warenkorb${x.sortOf || S.shop.some(y => y.sortOf === x.id && y.pic) ? ' · ' + esc(x.pic.name) : ''}</span>` : !x.done && x.nopic ? '<span class="tag">nicht bei Picnic</span>' : ''}</span></button>`
     + (!x.done && (ui.shopEdit || secOf(x) === 'sonst') ? `<button class="mini-btn" data-a="shoptag" data-id="${x.id}"${di} aria-label="Abteilung wählen">🏷️</button>` : '')
     + `<button class="mini-btn" data-a="shopdel" data-id="${x.id}"${di} aria-label="Entfernen">✕</button></div>`
     + (ui.tagId === x.id ? `<div class="chips tagpick">${Object.entries(Sh.SECTIONS).map(([k, [ic, l]]) => `<button class="chip ${secOf(x) === k ? 'on' : ''}" data-a="shopsec" data-id="${x.id}" data-v="${k}"${di}>${ic} ${l.split(' (')[0]}</button>`).join('')}</div>` : '');
