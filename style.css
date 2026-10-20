@@ -1108,3 +1108,7 @@ nav#tabs .nl { white-space: nowrap; letter-spacing: -.02em; }
 .bub-n.tm { background: var(--card); color: var(--ink); border-color: var(--line); }
 .bub-r.past { background: var(--ink2); opacity: .55; }
 .bub-r.past .bub-i { filter: grayscale(.4); }
+
+/* 🧺 Picnic's things folded into one section at the bottom of the list (2026-10-20) */
+.picsec-h { width: 100%; border: 0; background: var(--hntint); border-radius: 12px; padding: 12px 14px; font: inherit; color: var(--ink); cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 48px; }
+.picsec.open .picsec-h { margin-bottom: 4px; }

@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-20.7';
+const VERSION = '2026-10-20.8';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -623,7 +623,7 @@ function hnStops() {
   const fresh = (S.vorratAdd || []).filter(x => x && x.pic && Date.now() - (x.ts || 0) < 864e5).length;
   const cook = cookableNow().all.length, n = S.picNext && new Date(S.picNext.start);
   return {
-    einkauf: ['🛒', 'Einkaufs\u00ADwagen', open ? (inCart === open ? `🧺 ${open} bei Picnic` : `${open} drauf`) : 'leer'],
+    einkauf: ['🛒', 'Einkaufs\u00ADwagen', open - inCart ? `${open - inCart} drauf` : inCart ? `🧺 ${inCart} bei Picnic` : 'leer'],   // only what is still to buy yourself
     vorrat: ['🧊', 'Vorrat', fresh ? `+${fresh} neu da` : `${vorrat().length} Sachen`],
     kochbuch: ['📖', 'Kochbuch', cook ? `${cook} kochbar` : 'stöbern'],
     van: n && !isNaN(n) ? n.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + n.getHours() + ' Uhr' : '',
@@ -1234,7 +1234,16 @@ const A = {
     if (c.ask.length) askVorrat(c.ask);
     scrollTo(0, 0);
   },
+  picsec() { ui.picOpen = !ui.picOpen; render(); },
+  shopdoneask() {   // "Fertig eingekauft" asks once: what goes into the Vorrat, what stays on the list (user 2026-10-20)
+    const got = S.shop.filter(x => x.done), rest = S.shop.filter(x => !x.done), pic = rest.filter(x => x.pic).length; if (!got.length) return;
+    modal(`<h2>🧊 Ab in den Vorrat?</h2><p>Diese ${got.length === 1 ? 'Sache kommt' : got.length + ' Sachen kommen'} von der Einkaufsliste in den Vorrat:</p>
+      <p style="text-align:left"><b>${got.map(x => esc(itemName(x)) + (itemQty(x) ? ' ' + esc(fmtQty(itemQty(x))) : '')).join(' · ')}</b></p>
+      ${rest.length ? `<p class="muted">${rest.length - pic ? `${rest.length - pic} nicht abgehakte ${rest.length - pic === 1 ? 'bleibt' : 'bleiben'} auf der Liste.` : ''}${pic ? ` ${pic} 🧺 im Picnic-Warenkorb ${pic === 1 ? 'kommt' : 'kommen'} mit der Lieferung.` : ''}</p>` : ''}
+      <div class="row"><button class="btn soft" data-a="close">Noch nicht</button><button class="btn green" data-a="shopdone">Ja, ab in den Vorrat</button></div>`);
+  },
   shopdone() {
+    closeModal();
     const got = S.shop.filter(x => x.done); if (!got.length) return;
     S.vorratAdd = (S.vorratAdd || []).concat(got.map(x => ({ id: uid(), text: itemName(x), qty: itemQty(x) || null, ...(x.q && !itemQty(x) ? { q: x.q } : {}), ts: Date.now(), by: D.me() })));
     S.shop = S.shop.filter(x => !x.done); commit(true); confetti(50);
@@ -1871,7 +1880,7 @@ function shopBody(item, inTab) {
     + (ui.tagId === x.id ? `<div class="chips tagpick">${Object.entries(Sh.SECTIONS).map(([k, [ic, l]]) => `<button class="chip ${secOf(x) === k ? 'on' : ''}" data-a="shopsec" data-id="${x.id}" data-v="${k}"${di}>${ic} ${l.split(' (')[0]}</button>`).join('')}</div>` : '');
   const order = shopOrder();
   const groups = order.map((sec, i) => {
-    const xs = open.filter(x => secOf(x) === sec);
+    const xs = open.filter(x => !x.pic && secOf(x) === sec);   // 🧺 cart items live in their own folded section below
     if (!xs.length && !ui.shopEdit) return '';
     const [ic, l] = Sh.SECTIONS[sec];
     return `<div class="shopsec"><div class="sechead"><span>${ic} ${l}${xs.length ? ' <span class="muted">(' + xs.length + ')</span>' : ''}</span>${ui.shopEdit ? `<span><button class="mini-btn" data-a="shopmove" data-v="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Nach oben">↑</button><button class="mini-btn" data-a="shopmove" data-v="${i}" data-d="1" ${i < order.length - 1 ? '' : 'disabled'} aria-label="Nach unten">↓</button></span>` : ''}</div>${xs.map(row).join('')}</div>`;
@@ -1881,12 +1890,14 @@ function shopBody(item, inTab) {
     <div class="chips stores">${Object.entries(Sh.STORES).map(([k, [l]]) => `<button class="chip ${(S.shopStore || 'standard') === k ? 'on' : ''}" data-a="shopstore" data-v="${k}">${l}</button>`).join('')}<button class="chip ${ui.shopEdit ? 'on' : ''}" data-a="shopedit">↕ Reihenfolge anpassen</button></div>
     ${ui.shopEdit ? `<p class="hint" style="margin:0 0 6px">So wie in deiner ${esc(Sh.STORES[S.shopStore] ? Sh.STORES[S.shopStore][0] : 'Filiale')}-Filiale: ↑↓ verschiebt Abteilungen, 🏷️ ändert die Abteilung eines Artikels.</p>` : ''}
     <div class="steps">${groups || (open.length ? '' : '<p class="muted">Noch leer.</p>')}
+    ${(() => { const pl = open.filter(x => x.pic); if (!pl.length) return '';   // user 2026-10-20: the store list stays clean, Picnic's things fold away
+      return `<div class="shopsec picsec${ui.picOpen ? ' open' : ''}"><button class="sechead picsec-h" data-a="picsec" aria-expanded="${!!ui.picOpen}"><span>🧺 Kommt mit Picnic <span class="muted">(${pl.length})</span></span><span class="muted">${ui.picOpen ? 'zuklappen ▴' : 'anzeigen ▾'}</span></button>${ui.picOpen ? pl.map(row).join('') : ''}</div>`; })()}
     ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
+    ${!item && done.length ? `<button class="btn green wide alldone" data-a="shopdoneask">✅ Fertig eingekauft – ${done.length} ${done.length === 1 ? 'Sache' : 'Sachen'} in den Vorrat</button>` : ''}
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
     ${!item && open.length && hnUnwrapped() ? (() => { const todo = open.filter(x => !x.pic).length, inCart = open.length - todo;   // (what's in the cart already doesn't count, user 2026-10-20)
       return todo ? `<button class="btn soft wide" data-a="picnic" style="margin-top:8px">🧺 Bei Picnic bestellen (${todo})</button>${inCart ? `<p class="hint" style="text-align:center;margin-top:4px">${inCart} ${inCart === 1 ? 'liegt' : 'liegen'} schon im Picnic-Warenkorb</p>` : ''}`
         : `<button class="btn soft wide" data-a="picapp" style="margin-top:8px">📱 Alles im Picnic-Warenkorb – Picnic-App öffnen</button>`; })() : ''}
-    ${!item && done.length && !open.length ? `<button class="btn green wide alldone" data-a="shopdone">✅ Alles eingekauft!</button><p class="hint" style="text-align:center;margin-top:4px">Kommt in den Vorrat – Claude kocht sich daraus Rezepte für euch aus.</p>` : ''}
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
     ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen – auch bei ${esc(pn())}</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
       : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}
