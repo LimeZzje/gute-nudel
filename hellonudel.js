@@ -1,7 +1,8 @@
 // 🎁 GIFT: "Hello Nudel" (user 2026-10-18, her birthday) – our own HelloFresh: recipes → shopping list → Picnic cart in one tap.
 // A wrapped present on Home; she unwraps it (S.hnOpen) and gets a drawn picture of how it works (in her words, no tech talk),
 // then what she can do now and what it means for later. Until it's unwrapped, the 🧺 Picnic button stays hidden on HER phone.
-export const END = new Date(2026, 10, 1, 0, 0, 0).getTime();   // the Home card goes after two weeks; the page stays reachable from the shopping list
+export const START = new Date(2026, 9, 18, 0, 0, 0).getTime();
+export const END = new Date(2026, 9, 20, 0, 0, 0).getTime();   // user 2026-10-20: the gift bubble ended → its card under Vergangen opens the page
 
 // the wrapped box (Home card + the page before unwrapping); .open lifts the lid
 export const BOX = `<svg class="hn-box" viewBox="0 0 160 150" aria-hidden="true">

@@ -6,6 +6,7 @@
 
 export const ID = 'baby';
 export const TITLE = 'Babyerstausstattung';
+export const START = new Date(2026, 9, 10, 0, 0, 0).getTime();   // (the story ring runs from here to END)
 export const END = new Date(2027, 0, 10, 0, 0, 0).getTime();   // 10 January, midnight (local time)
 
 export const GROUPS = [

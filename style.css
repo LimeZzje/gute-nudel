@@ -1095,8 +1095,6 @@ nav#tabs .nl { white-space: nowrap; letter-spacing: -.02em; }
 .hl-deliv { display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 12px; padding: 10px 14px; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
   border: 1.5px dashed var(--hngreen); border-radius: 14px; background: var(--hntint); }
 .hl-deliv .hl-dv { font-size: 24px; } .hl-deliv > span:nth-child(2) { flex: 1; } .hl-deliv small { color: var(--ink2); }
-.hn-about { text-align: center; margin: 18px 0 6px; }
-.hn-about .linkbtn { background: none; border: 0; padding: 10px; font: inherit; font-size: 14px; color: var(--ink2); text-decoration: underline; cursor: pointer; }
 @media (max-width: 379px) { .qtabs.dtabs .chip { display: grid; justify-items: center; padding: 5px 2px; font-size: 12.5px; line-height: 1.2; } .qtabs.dtabs .qi { font-size: 18px; } }
 @media (max-width: 359px) { .hl-row { grid-template-columns: 1fr 12px 1fr 12px 1fr; } .hl-stop b { font-size: 12px; } .hl-stop small { font-size: 10.5px; } .hl-back span { font-size: 10px; } }
 @media (prefers-reduced-motion: reduce) { .hl-ar em { animation: none; } .hl-stop:active { transform: none; } }
@@ -1104,3 +1102,9 @@ nav#tabs .nl { white-space: nowrap; letter-spacing: -.02em; }
 /* 🧺 in the Picnic cart (2026-10-20, user): crossed out so it stands apart from what's only on the list; the label stays readable */
 .in-pic { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--hngreen); opacity: .7; }
 .tag.pic-tag { background: var(--hntint); color: var(--hngreen); text-decoration: none; display: inline-block; }
+
+/* ⏳ story timer on event bubbles (2026-10-20): the elapsed part turns grey clockwise from 12 o'clock, the rest keeps the colours */
+.bub-r.timer { background: conic-gradient(var(--line) 0 calc((1 - var(--left)) * 1turn), transparent 0), conic-gradient(from 210deg, #f6b73c, #e0864a, #e0567a, #9a7bb8, #f6b73c); }
+.bub-n.tm { background: var(--card); color: var(--ink); border-color: var(--line); }
+.bub-r.past { background: var(--ink2); opacity: .55; }
+.bub-r.past .bub-i { filter: grayscale(.4); }

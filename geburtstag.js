@@ -7,7 +7,8 @@
 export const ID = 'kuchen-julia-2026';
 export const TITLE = 'Julias Geburtstagskuchen backen zusammen mit Hase';
 export const STARS = 5;
-export const END = new Date(2026, 9, 26, 0, 0, 0).getTime();   // (a safety end: a week after the birthday it quietly goes)
+export const START = new Date(2026, 9, 18, 0, 0, 0).getTime();
+export const END = new Date(2026, 9, 20, 0, 0, 0).getTime();   // user 2026-10-20: ended right away → Vergangen (was a safety end on 26 Oct)
 
 export const CAKES = [
   {

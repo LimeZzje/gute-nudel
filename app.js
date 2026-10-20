@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-20.2';
+const VERSION = '2026-10-20.3';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -643,11 +643,10 @@ function viewHN() {
   if (ui.sub === 'cook') { ui.sub = null; ui.qtab = 'kochbuch'; }   // old way in: the cookbook was a sub-page
   if (!HN_STOPS.includes(ui.qtab)) ui.qtab = hnLast();
   if (ui.qtab === 'kochbuch' && ui.rid && ui.cstep != null) return viewCook();   // cooking mode: full page, no strip
-  const info = hnUnwrapped() ? `<p class="hn-about"><button class="linkbtn" data-a="hello">🕊️ Was ist Hello Nudel?</button></p>` : '';
   const h = hnLoop(ui.qtab !== 'kochbuch');   // the delivery note stays out of the book's way
-  if (ui.qtab === 'einkauf') return h + `<div class="card shoptab">${shopBody(null, true)}</div>` + info;
-  if (ui.qtab === 'vorrat') return h + `<div class="sec-head plain"><h2>Was ist daheim?</h2>${Bk.sectionArt('daheim')}</div>` + viewDaheim() + info;
-  return h + viewCook() + info;
+  if (ui.qtab === 'einkauf') return h + `<div class="card shoptab">${shopBody(null, true)}</div>`;
+  if (ui.qtab === 'vorrat') return h + `<div class="sec-head plain"><h2>Was ist daheim?</h2>${Bk.sectionArt('daheim')}</div>` + viewDaheim();
+  return h + viewCook();
 }
 function viewHaushalt() {
   let h = `<div class="sec-title" style="margin-top:6px">Routinen – laufen von allein</div>
@@ -2800,13 +2799,23 @@ function podium(top) {
 function bubbles() {
   const b = [], n = deck().length;
   if (n) b.push({ a: 'swipe', ic: '🍽️', l: 'Rezepte', n, on: true });
-  if (Date.now() < HN.END) b.push(hnUnwrapped() ? { a: 'hello', ic: '🕊️', l: 'Hello Nudel' } : { a: 'hello', ic: '🎁', l: 'Geschenk!', on: true });
-  if (gbLive()) b.push({ a: 'kuchen', ic: '🎂', l: 'Geburtstag', on: true });
+  if (Date.now() < HN.END) b.push(hnUnwrapped() ? { a: 'hello', ic: '🕊️', l: 'Hello Nudel', t0: HN.START, t1: HN.END } : { a: 'hello', ic: '🎁', l: 'Geschenk!', on: true, t0: HN.START, t1: HN.END });
+  if (gbLive()) b.push({ a: 'kuchen', ic: '🎂', l: 'Geburtstag', on: true, t0: G.START, t1: G.END });
   if (S.picNext && !isNaN(new Date(S.picNext.start))) { const t = new Date(S.picNext.start); b.push({ a: 'picdeliv', ic: '🚚', l: 'Picnic', n: t.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + t.getHours(), on: true }); }
-  if (babyLive()) { const dl = Math.max(0, Math.ceil((B.END - Date.now()) / 864e5)); b.push({ a: 'baby', ic: '👶', l: 'Baby', n: dl + ' T.', on: true }); }
-  if ((S.events || []).length) b.push({ a: 'events', ic: '🗓️', l: 'Vergangen' });
+  if (babyLive()) b.push({ a: 'baby', ic: '👶', l: 'Baby', on: true, t0: B.START, t1: B.END });
+  if (pastEvents().length) b.push({ a: 'events', ic: '🗓️', l: 'Vergangen', past: true });   // always last, grey ring (user)
   if (!b.length) return '';
-  return `<div class="bubs" role="list">${b.map(x => `<button class="bub" role="listitem" data-a="${x.a}"><span class="bub-r${x.on ? ' on' : ''}"><span class="bub-i">${x.ic}</span></span>${x.n ? `<b class="bub-n">${x.n}</b>` : ''}<span class="bub-l">${esc(x.l)}</span></button>`).join('')}</div>`;
+  return `<div class="bubs" role="list">${b.map(x => { const tm = x.t1 ? storyLeft(x.t0, x.t1) : null, n = tm ? tm.txt : x.n;
+    return `<button class="bub" role="listitem" data-a="${x.a}"${tm ? ` aria-label="${esc(x.l)}, noch ${esc(tm.long)}"` : ''}><span class="bub-r${x.on ? ' on' : ''}${tm ? ' timer' : ''}${x.past ? ' past' : ''}"${tm ? ` style="--left:${tm.p.toFixed(3)}"` : ''}><span class="bub-i">${x.ic}</span></span>${n ? `<b class="bub-n${tm ? ' tm' : ''}">${n}</b>` : ''}<span class="bub-l">${esc(x.l)}</span></button>`; }).join('')}</div>`;
+}
+// ⏳ story timer (user 2026-10-20, like an Instagram story): the coloured ring empties from START to END; the badge says
+// what's left (days, on the last day hours, the last hour minutes). Calm on purpose: no red, no pulsing near the end.
+function storyLeft(t0, t1) {
+  const now = Date.now(), ms = Math.max(0, t1 - now), p = Math.max(0, Math.min(1, ms / Math.max(1, t1 - t0)));
+  const d = Math.ceil(ms / 864e5), h = Math.ceil(ms / 36e5), m = Math.max(1, Math.ceil(ms / 6e4));
+  const txt = ms >= 864e5 ? d + ' T.' : ms >= 36e5 ? h + ' Std.' : m + ' Min.';
+  const long = ms >= 864e5 ? d + (d === 1 ? ' Tag' : ' Tage') : ms >= 36e5 ? h + (h === 1 ? ' Stunde' : ' Stunden') : m + ' Minuten';
+  return { p, txt, long };
 }
 // 🍽️ the deck, full screen like Tinder (from its bubble); empty → back home
 function viewSwipe() {
@@ -2817,6 +2826,8 @@ function viewSwipe() {
 // ---------- 🗞️ Die Nudel-Zeitung (user 2026-10-18): what's new in the app and how it works, instead of "Daheim heute".
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
 const NEWS = [
+  { id: 'n-storyring', d: '2026-10-20', ic: '⏳', t: 'Wie lange läuft ein Event noch?', x: 'Events mit Ablaufdatum haben jetzt einen Ring wie bei Instagram-Storys: Er wird grau, je weniger Zeit bleibt. Ist die Zeit um, wandert das Event unter 🗓️ Vergangen.',
+    how: ['Bunter Teil vom Ring = so viel Zeit ist noch übrig', 'Die kleine Zahl sagt’s genau: Tage, am letzten Tag Stunden', 'Ganz rechts in der Reihe, mit grauem Ring: 🗓️ Vergangen – da wohnen jetzt auch dein Geburtstag und das Hello-Nudel-Geschenk'], go: 'events', btn: 'Vergangen ansehen' },
   { id: 'n-hellotab', d: '2026-10-20', ic: '🧺', t: 'Hello Nudel hat jetzt einen eigenen Platz', x: 'Alles rund ums Essen wohnt jetzt unten in 🧺 Hello Nudel – als Kreislauf: Einkaufswagen → Vorrat → Kochbuch, und was aufgebraucht ist, kommt wieder auf den Wagen. 🛋️ Entspannen ist dafür nach 🏠 Daheim gezogen.',
     how: ['Unten auf 🧺 Hello Nudel tippen', 'Oben siehst du sofort, wie’s steht: was auf dem Wagen liegt, was daheim ist, was du gerade kochen kannst', 'Kommt Picnic, fährt ein kleiner 🚚 zwischen Wagen und Vorrat – nach der Lieferung geht der Tab von selbst im Vorrat auf', 'Hello Nudel merkt sich, wo du zuletzt warst', 'Entspannen findest du jetzt unter 🏠 Daheim, neben Routinen und Terminen'], go: 'hntab', btn: 'Zu Hello Nudel' },
   { id: 'n-swipe', d: '2026-10-18', ic: '🍽️', t: 'Neue Rezepte jetzt zum Swipen', x: 'Claudes neue Rezepte kommen nicht mehr als lange Liste, sondern als Stapel – wie bei Tinder, nur mit Essen.',
@@ -2895,6 +2906,7 @@ function viewHome() {
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
   h += bubbles() + incomingCard() + giftCards();   // (the events live in the bubbles now, user 2026-10-18)
+  h += newspaper();   // above the to-dos (user 2026-10-20)
   // today: the ring + the next few things, ticked right here
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
   h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
@@ -2909,7 +2921,6 @@ function viewHome() {
   // at home today: routines due, the shopping list, something to cook
   // the last dish that was shopped for: time to go shopping again (user's wording, 2026-10-08)
   if ((S.dishes || []).filter(x => recipeById(x.id)).length === 1) h += `<button class="last-dish" data-a="go" data-tab="ruhe" data-q="einkauf"><span class="ld-t">ZEIT FÜR EINEN WEITEREN VERDAMMTEN EINKAUF!</span> <span class="ld-e">😡</span></button>`;
-  h += newspaper();
   // next appointments (today + tomorrow), the car included
   const now = Car.localISO(new Date()), tm = addDays(t, 1);
   const soon = carAll(Car.live, false).filter(b => shared(b) && forMe(b) && carDay(b.start) <= tm && b.end > now).slice(0, 2);
@@ -3017,17 +3028,40 @@ function viewBaby() {
   }
   return h;
 }
+// Events whose time ran out get a card too (user 2026-10-20) — only what DID happen, never "missed" lines (no pressure).
+function pastEvents() {
+  const now = Date.now(), out = (S.events || []).slice(), has = id => out.some(e => e.id === id);
+  if (!has(G.ID) && now >= G.END) out.push({ id: G.ID, icon: '🎂', title: 'Julias Geburtstag', done: G.END, ended: true, lines: [
+    ['🎂', 'Julias Geburtstag – 18. & 19. Oktober.'],
+    ['🎁', 'Das Geschenk: Hello Nudel – die Einkaufsliste geht mit einem Tipp zu Picnic.'],
+    ['🍰', 'Die Geburtstagskuchen bleiben im Kochbuch – backen könnt ihr sie jederzeit.'],
+    ['💛', 'Alles Gute zum Geburtstag, Julia!']] });
+  if (now >= HN.END) {
+    const dl = new Set([...(S.vorratAdd || []), ...((S.partnerVorrat || {}).add || [])].filter(x => x && x.pic).map(x => x.pic)).size;
+    const o = S.hnOpen && new Date(S.hnOpen);
+    out.push({ id: 'hello-nudel', icon: '🎁', title: 'Hello Nudel', done: HN.END, ended: true, go: 'hello', btn: '🕊️ Das Geschenk nochmal ansehen', lines: [
+      ['🎀', o ? `Ausgepackt am ${o.getDate()}.${o.getMonth() + 1}. um ${String(o.getHours()).padStart(2, '0')}:${String(o.getMinutes()).padStart(2, '0')} Uhr.` : 'Julias Geburtstagsgeschenk vom 18. Oktober.'],
+      ...(dl ? [['🚚', dl === 1 ? 'Schon eine Picnic-Lieferung bis in den Vorrat.' : `Schon ${dl} Picnic-Lieferungen bis in den Vorrat.`]] : []),
+      ['🧺', 'Hello Nudel bleibt – unten im Tab 🧺 Hello Nudel.']] });
+  }
+  if (!has(B.ID) && now >= B.END) {
+    const n = B.ITEMS.filter(it => babyOn(it.id)).length;
+    out.push({ id: B.ID, icon: '🍼', title: B.TITLE, done: B.END, ended: true, lines: [['🍼', `${n} von ${B.ITEMS.length} Sachen zusammen vorbereitet.`], ['⭐', `${n} Sterne für jeden von euch.`]] });
+  }
+  return out.sort((a, b) => b.done - a.done);
+}
 function viewEvents() {
   let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button><div class="sec-title" style="margin-top:0">Vergangene Events</div>`;
-  for (const e of (S.events || []).slice().sort((a, b) => b.done - a.done)) {
-    h += `<div class="card evcard">${e.id === B.ID ? BSKY : ''}<h3>${esc(e.icon + ' ' + e.title)}</h3><p class="muted">Abgeschlossen am ${esc(longDate(key(new Date(e.done))))}</p>
-      <ul class="evlines">${e.lines.map(([ic, t]) => `<li><span>${esc(ic)}</span><span>${esc(t)}</span></li>`).join('')}</ul></div>`;
+  for (const e of pastEvents()) {
+    h += `<div class="card evcard">${e.id === B.ID ? BSKY : ''}<h3>${esc(e.icon + ' ' + e.title)}</h3><p class="muted">${e.ended ? 'Vorbei seit' : 'Abgeschlossen am'} ${esc(longDate(key(new Date(e.done))))}</p>
+      <ul class="evlines">${e.lines.map(([ic, t]) => `<li><span>${esc(ic)}</span><span>${esc(t)}</span></li>`).join('')}</ul>
+      ${e.go ? `<button class="btn soft wide" data-a="${e.go}" style="margin-top:10px">${esc(e.btn)}</button>` : ''}</div>`;
   }
   return h;
 }
 A.baby = () => { closeModal(); ui.tab = 'home'; ui.sub = 'baby'; render(); scrollTo(0, 0); };
 A.events = () => { closeModal(); ui.tab = 'home'; ui.sub = 'events'; render(); scrollTo(0, 0); };
-A.babyback = () => { ui.sub = null; render(); scrollTo(0, 0); };
+A.babyback = () => { ui.sub = ui.sub === 'hello' && ui.subBack || null; ui.subBack = null; render(); scrollTo(0, 0); };
 A.bopen = el => { ui.bopen = ui.bopen === el.dataset.id ? null : el.dataset.id; render(); };
 A.btick = el => {
   if (!babyLive()) return;
@@ -3152,7 +3186,7 @@ A.hndeck = () => hnDeck(0);
 A.hndeckgo = el => hnDeck(+el.dataset.v);
 A.hndeckx = () => hnDeckClose();
 A.hntab = () => { closeModal(); ui.tab = 'hello'; ui.sub = null; tabChip(); render(); scrollTo(0, 0); };
-A.hello = () => { closeModal(); if (ui.tab !== 'hello') ui.tab = 'home'; ui.sub = 'hello'; render(); scrollTo(0, 0); };
+A.hello = () => { closeModal(); ui.subBack = ui.sub === 'events' ? 'events' : null; if (ui.tab !== 'hello') ui.tab = 'home'; ui.sub = 'hello'; render(); scrollTo(0, 0); };
 A.hnopen = () => { S.hnOpen = Date.now(); commit(); render(); scrollTo(0, 0); confetti(160); };
 A.hnshop = () => { ui.sub = null; ui.tab = 'ruhe'; ui.qtab = 'einkauf'; render(); scrollTo(0, 0); };
 
@@ -3207,7 +3241,7 @@ function goBack() {
     ui.rid = null; ui.sides = []; if (!Bk.flipTo(kpage({ sec: ksec() }), -1)) render(); return;
   }
   if (ui.sub === 'kuchen' && ui.rid) { if (ui.cstep != null) endCookMode(); else { ui.rid = null; ui.sides = []; } render(); scrollTo(0, 0); return; }
-  if (ui.sub) { ui.sub = null; render(); scrollTo(0, 0); return; }
+  if (ui.sub) { A.babyback(); return; }
   if (inQ('relax') && !S.ritual && ui.rx.size) { A.rxback(); return; }
   if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
   if (ui.tab !== 'home') { ui.tab = 'home'; render(); scrollTo(0, 0); return; }
