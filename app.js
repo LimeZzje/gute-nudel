@@ -12,9 +12,9 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-19.5';
+const VERSION = '2026-10-20.1';
 let S = null;                                   // the state (see data.js freshState)
-const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
+const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
 const tags = i => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '');
 const choreTag = i => { const c = S.chores.find(x => x.id === i.chore); return c ? `<span class="tag">🔁${c.reward ? ' 🎁' : ''}</span>` + toolBtns(c, i) : ''; };
@@ -596,17 +596,58 @@ function questCard(q, active) {
     ${active ? `<div class="row"><button class="btn" data-a="questdone">Überlebt! +${C.REST_STARS} ⭐</button><button class="btn soft" data-a="questquit">Später</button></div>`
       : `<button class="btn wide" data-a="queststart" data-id="${q.id}">Quest annehmen</button>`}</div>`;
 }
-const QTABS = [['haushalt', '🔁 Routinen'], ['einkauf', '🛒 Einkaufs\u00ADliste'], ['vorrat', '🧊 Vorrat'], ['kochbuch', '📖 Kochbuch'], ['termine', '📅 Termine']];
+// 🏠 Daheim (2026-10-20, user): Routinen · Entspannen · Termine. The food things moved to their own tab 🧺 Hello Nudel.
+// One ui.qtab for both tabs; which tab a chip belongs to follows from the chip (tabOfQ), so old links like
+// {tab: 'ruhe', qtab: 'kochbuch'} still land right. Each tab remembers its last chip (ui.lastQ; Hello Nudel also across starts).
+const QTABS = [['haushalt', '🔁 Routinen'], ['relax', '🛋️ Entspannen'], ['termine', '📅 Termine']];
+const HN_STOPS = ['einkauf', 'vorrat', 'kochbuch'];
+const tabOfQ = q => HN_STOPS.includes(q) ? 'hello' : 'ruhe';
+const inQ = q => (ui.tab === 'ruhe' || ui.tab === 'hello') && ui.qtab === q;
+const hnLast = () => { try { const q = localStorage.getItem('gn_hq'); return HN_STOPS.includes(q) ? q : 'einkauf'; } catch (e) { return 'einkauf'; } };
 function viewRuhe() {
-  if (ui.sub === 'cook') { ui.sub = null; ui.qtab = 'kochbuch'; }   // old way in: the cookbook was a sub-page
   if (!QTABS.some(([k]) => k === ui.qtab)) ui.qtab = 'haushalt';
-  if (ui.qtab === 'kochbuch' && ui.rid && ui.cstep != null) return viewCook();   // cooking mode: full page, no chips
-  const h = `<div class="chips qtabs four five">${QTABS.map(([k, l]) => { const [ic, ...w] = l.split(' '); return `<button class="chip ${ui.qtab === k ? 'on' : ''}" data-a="qtab" data-v="${k}"><span class="qi">${ic}</span>${w.join(' ')}</button>`; }).join('')}</div>`;
-  if (ui.qtab === 'einkauf') return h + `<div class="card shoptab">${shopBody(null, true)}</div>`;
-  if (ui.qtab === 'vorrat') return h + `<div class="sec-head plain"><h2>Was ist daheim?</h2>${Bk.sectionArt('daheim')}</div>` + viewDaheim();
-  if (ui.qtab === 'kochbuch') return h + viewCook();
+  const h = `<div class="chips qtabs dtabs" role="tablist">${QTABS.map(([k, l]) => { const [ic, w] = l.split(' '); return `<button class="chip ${ui.qtab === k ? 'on' : ''}" role="tab" aria-selected="${ui.qtab === k}" data-a="qtab" data-v="${k}"><span class="qi">${ic}</span> ${w}</button>`; }).join('')}</div>`;
+  if (ui.qtab === 'relax') return h + viewRelax();
   if (ui.qtab === 'termine') return h + viewTermine();
   return h + viewHaushalt();
+}
+// 🧺 HELLO NUDEL (2026-10-20, user): the food loop as its own tab. The chips are a LOOP STRIP: Einkaufswagen → Vorrat →
+// Kochbuch → (aufgebraucht) back to the Wagen; Picnic's delivery rides the arrow between Wagen and Vorrat.
+// UX rules for the strip (user asked for good guidelines): every stop is one big tap target (≥ 56 px) with icon + word +
+// a short live state (never icon-only, never more than ~12 characters); the open stop is marked by fill + weight + a notch,
+// not by colour alone; arrows/arc are decoration (aria-hidden), the stops are a tablist; fits 320 px without sideways
+// scrolling (iPhone swipe flips book pages); sticky under the header like every chip row; motion only for a real state
+// (the van drives only while a delivery is on its way) and never with reduced motion.
+function hnStops() {
+  const open = S.shop.filter(x => !x.done).length, inCart = S.shop.filter(x => !x.done && x.pic).length;
+  const fresh = (S.vorratAdd || []).filter(x => x && x.pic && Date.now() - (x.ts || 0) < 864e5).length;
+  const cook = cookableNow().all.length, n = S.picNext && new Date(S.picNext.start);
+  return {
+    einkauf: ['🛒', 'Einkaufs\u00ADwagen', open ? (inCart === open ? `🧺 ${open} bei Picnic` : `${open} drauf`) : 'leer'],
+    vorrat: ['🧊', 'Vorrat', fresh ? `+${fresh} neu da` : `${vorrat().length} Sachen`],
+    kochbuch: ['📖', 'Kochbuch', cook ? `${cook} kochbar` : 'stöbern'],
+    van: n && !isNaN(n) ? n.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + n.getHours() + ' Uhr' : '',
+  };
+}
+function hnLoop(deliv = true) {
+  const st = hnStops(), stop = k => { const [ic, l, sub] = st[k], on = ui.qtab === k;
+    return `<button class="hl-stop${on ? ' on' : ''}" role="tab" aria-selected="${on}" data-a="qtab" data-v="${k}"><span class="hl-i" aria-hidden="true">${ic}</span><b>${l}</b><small>${esc(sub)}</small></button>`; };
+  const arrow = van => `<span class="hl-ar${van ? ' van' : ''}" aria-hidden="true"><i></i>${van ? '<em>🚚</em>' : ''}</span>`;
+  return `<div class="hnloop" role="tablist" aria-label="Hello Nudel">
+    <div class="hl-row">${stop('einkauf')}${arrow(!!st.van)}${stop('vorrat')}${arrow()}${stop('kochbuch')}</div>
+    <div class="hl-back" aria-hidden="true"><svg viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M88 0 Q88 8 80 8 L20 8 Q12 8 12 2" /><path class="hl-tip" d="M9.5 4 L12 0.5 L14.5 4" /></svg><span>aufgebraucht? wieder auf den Wagen</span></div></div>
+    ${st.van && deliv ? `<button class="hl-deliv" data-a="picdeliv"><span class="hl-dv" aria-hidden="true">🚚</span><span>Picnic kommt <b>${esc(st.van)}</b><br><small>danach landet alles von selbst im Vorrat</small></span><span class="hc-go">›</span></button>` : ''}`;
+}
+function viewHN() {
+  if (ui.sub === 'hello') return viewHello();
+  if (ui.sub === 'cook') { ui.sub = null; ui.qtab = 'kochbuch'; }   // old way in: the cookbook was a sub-page
+  if (!HN_STOPS.includes(ui.qtab)) ui.qtab = hnLast();
+  if (ui.qtab === 'kochbuch' && ui.rid && ui.cstep != null) return viewCook();   // cooking mode: full page, no strip
+  const info = hnUnwrapped() ? `<p class="hn-about"><button class="linkbtn" data-a="hello">🕊️ Was ist Hello Nudel?</button></p>` : '';
+  const h = hnLoop(ui.qtab !== 'kochbuch');   // the delivery note stays out of the book's way
+  if (ui.qtab === 'einkauf') return h + `<div class="card shoptab">${shopBody(null, true)}</div>` + info;
+  if (ui.qtab === 'vorrat') return h + `<div class="sec-head plain"><h2>Was ist daheim?</h2>${Bk.sectionArt('daheim')}</div>` + viewDaheim() + info;
+  return h + viewCook() + info;
 }
 function viewHaushalt() {
   let h = `<div class="sec-title" style="margin-top:6px">Routinen – laufen von allein</div>
@@ -797,7 +838,7 @@ function rateRitual(id) {
 }
 function relaxHomeCard() {   // after Feierabend: the way in, right on Home
   if (!evening()) return '';
-  if (S.ritual) { const x = ritualById(S.ritual.id); if (x) return `<button class="card hcard relax-home" data-a="go" data-tab="relax"><span class="hc-txt"><b>🛋️ Weiter mit: ${esc(rxP(x.title))}</b><span class="muted">Du hast schon angefangen. Schön.</span></span><span class="hc-go">›</span></button>`; }
+  if (S.ritual) { const x = ritualById(S.ritual.id); if (x) return `<button class="card hcard relax-home" data-a="go" data-tab="ruhe" data-q="relax"><span class="hc-txt"><b>🛋️ Weiter mit: ${esc(rxP(x.title))}</b><span class="muted">Du hast schon angefangen. Schön.</span></span><span class="hc-go">›</span></button>`; }
   const rested = dayLog(today()).some(isRest);
   return `<div class="card relax-home"><b>${rested ? 'Noch was Gemütliches? 🌙' : 'Feierabend 🌙 Lust auf was Gemütliches?'}</b><span class="muted">${rested ? 'Du hast dir heute schon was gegönnt – mehr ist erlaubt.' : 'Du musst nichts aussuchen. Nur sagen, wie viel Zeit du hast.'}</span>
     <div class="rx-tiles small">${E.SIZES.slice(0, 2).map(([k, ic, l]) => `<button class="rx-tile" data-a="rxhome" data-v="${k}"><span class="rt-i">${ic}</span><b>${l}</b></button>`).join('')}</div></div>`;
@@ -1001,7 +1042,7 @@ function exportFile() {
 
 // ---------- actions ----------
 const A = {
-  go(el) { closeModal(); ui.tab = el.dataset.tab; ui.sub = null; if (el.dataset.q) ui.qtab = el.dataset.q; render(); scrollTo(0, 0); if (el.dataset.to) setTimeout(() => { const t = document.getElementById(el.dataset.to); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); },
+  go(el) { closeModal(); ui.tab = el.dataset.tab; ui.sub = null; if (el.dataset.q) ui.qtab = el.dataset.q; else tabChip(); render(); scrollTo(0, 0); if (el.dataset.to) setTimeout(() => { const t = document.getElementById(el.dataset.to); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); },
   close: closeModal,
   pickday(el) { const id = el.dataset.id; ui.picks.has(id) ? ui.picks.delete(id) : ui.picks.add(id); render(); },
   plandone() { S.items.forEach(i => { if (ui.picks.has(i.id)) { i.where = 'heute'; } }); ui.picks.clear(); S.today.planned = true; commit(); },
@@ -1163,7 +1204,7 @@ const A = {
   ccat(el) { ui.ccat = el.dataset.v; render(); if (el.classList.contains('hcard')) { const c = document.querySelector('.ccats'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
   recipe(el) {   // in the book: turn the page to it (the list it came from = what a swipe goes through)
     const inBook = !el.dataset.go && !el.closest('#ov') && !!el.closest('#cbook') && !ui.rid;
-    if (el.dataset.go || ui.tab !== 'ruhe' || el.closest('#ov')) { closeModal(); ui.tab = 'ruhe'; ui.sub = null; ui.qtab = 'kochbuch'; }
+    if (el.dataset.go || !inQ('kochbuch') || el.closest('#ov')) { closeModal(); ui.tab = 'ruhe'; ui.sub = null; ui.qtab = 'kochbuch'; }
     const c = el.closest('[data-ctx]');
     ui.kctx = c && c.dataset.ctx ? c.dataset.ctx.split(',') : el.dataset.go ? (S.dishes || []).map(x => x.id) : [el.dataset.id];
     if (el.dataset.go) ui.ktab = 'jetzt';
@@ -1430,7 +1471,7 @@ const A = {
   rxen(el) { ui.rx.en = el.dataset.v; ui.rx.cur = null; ui.rx.skip = []; render(); },
   rxback() { const rx = ui.rx; if (rx.en) rx.en = null; else rx.size = null; rx.cur = null; rx.skip = []; render(); },
   rxnext() { const rx = ui.rx; if (rx.cur) rx.skip.push(rx.cur); rx.cur = null; render(); },
-  rxhome(el) { closeModal(); ui.tab = 'relax'; ui.rx = { size: el.dataset.v, en: null, cur: null, skip: [] }; render(); scrollTo(0, 0); },
+  rxhome(el) { closeModal(); ui.tab = 'ruhe'; ui.qtab = 'relax'; ui.rx = { size: el.dataset.v, en: null, cur: null, skip: [] }; render(); scrollTo(0, 0); },
   rxpick(el) { const x = ritualById(el.dataset.id); if (!x) return; ui.rx = { size: x.size, en: ui.rx.en || 'o', cur: x.id, skip: [] }; render(); scrollTo(0, 0); },
   rxstart(el) { const x = ritualById(el.dataset.id); if (!x) return; S.ritual = { id: x.id, mini: false, done: [] }; commit(); scrollTo(0, 0); },
   rxgo(el) { const id = ui.rx.cur; if (!id) return; S.ritual = { id, mini: el.dataset.mini === '1', done: [] }; ui.rx = { size: null, en: null, cur: null, skip: [] }; commit(); scrollTo(0, 0); },
@@ -1700,6 +1741,7 @@ function picArrived(d, items) {
   S.shop.forEach(x => { if (!gone.has(x.id) && x.pic && x.pic.ts < at) { delete x.pic; miss++; } });   // was in the cart, didn't come: back on the list
   S.shop = S.shop.filter(x => !gone.has(x.id));
   S.vorratAdd = (S.vorratAdd || []).concat(add);
+  if (add.length) try { localStorage.setItem('gn_hq', 'vorrat'); ui.lastQ.hello = 'vorrat'; } catch (e) {}
   if (add.length) { confetti(50); toast('📦 Picnic war da – ' + add.length + (add.length === 1 ? ' Sache' : ' Sachen') + ' im Vorrat' + (miss ? ` · ${miss} kam${miss === 1 ? '' : 'en'} nicht` : '')); }
 }
 const picWhen = (a, b) => {
@@ -1818,7 +1860,7 @@ function picFail(e) {
 const secOf = x => x.sec || Sh.classify(x.text, S.shopLearn || {});
 const shopOrder = () => { const st = Sh.STORES[S.shopStore] ? S.shopStore : 'standard'; return ((S.shopOrder || {})[st] || Sh.STORES[st][1]).slice(); };
 function shopModal(item, keep) { // her list — or a handed-over one (item.list) on the partner's phone; keep = update in place
-  if (!item && !$('#ov') && ui.tab === 'ruhe' && ui.qtab === 'einkauf') { ui.shopItemId = null; render(); return; }   // the list is open as a tab: just redraw it
+  if (!item && !$('#ov') && inQ('einkauf')) { ui.shopItemId = null; render(); return; }   // the list is open as a tab: just redraw it
   ui.shopItemId = item ? item.id : null;
   modal(`<div style="text-align:left">${shopBody(item, false)}</div>`, '', keep);
 }
@@ -1847,7 +1889,7 @@ function shopBody(item, inTab) {
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
     ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen – auch bei ${esc(pn())}</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
       : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}
-    ${inTab ? `<button class="card hcard" data-a="go" data-tab="ruhe" data-q="vorrat"><span class="hl-ic">🧊</span><span class="hc-txt"><b>Was ist daheim?</b><span class="muted">${vorrat().length} Sachen im Vorrat – oben unter 🧊 Vorrat</span></span><span class="hc-go">›</span></button>` : ''}`;
+`;
 }
 function vorratHtml() {
   const V = vorrat();
@@ -2297,7 +2339,7 @@ async function syncBook() {
   const vb = await D.readVorratRezepte();
   if (vb) { const j = JSON.stringify(vb), was = vorratRecipes().map(r => r.id + r.ts).join(); if (j !== localStorage.getItem('gn_vbook')) { localStorage.setItem('gn_vbook', j); if (vorratRecipes().map(r => r.id + r.ts).join() !== was) render(); } }   // redraw only when something visible changed (a redraw can swallow a tap)
   const va = await D.readVorratArchiv();
-  if (va) { const j = JSON.stringify(va); if (j !== localStorage.getItem('gn_varch')) { localStorage.setItem('gn_varch', j); if (ui.qtab === 'kochbuch' && ui.cstep == null) render(); } }
+  if (va) { const j = JSON.stringify(va); if (j !== localStorage.getItem('gn_varch')) { localStorage.setItem('gn_varch', j); if (inQ('kochbuch') && ui.cstep == null) render(); } }
   if (!S.vrSeen && localStorage.getItem('gn_varch') && localStorage.getItem('gn_vbook')) vrSeenAdd(archRecipes().map(r => r.id), true);
   const b = await D.readBook(); if (!b) return;
   const j = JSON.stringify(b); if (j === localStorage.getItem('gn_book')) return;
@@ -2775,6 +2817,8 @@ function viewSwipe() {
 // ---------- 🗞️ Die Nudel-Zeitung (user 2026-10-18): what's new in the app and how it works, instead of "Daheim heute".
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
 const NEWS = [
+  { id: 'n-hellotab', d: '2026-10-20', ic: '🧺', t: 'Hello Nudel hat jetzt einen eigenen Platz', x: 'Alles rund ums Essen wohnt jetzt unten in 🧺 Hello Nudel – als Kreislauf: Einkaufswagen → Vorrat → Kochbuch, und was aufgebraucht ist, kommt wieder auf den Wagen. 🛋️ Entspannen ist dafür nach 🏠 Daheim gezogen.',
+    how: ['Unten auf 🧺 Hello Nudel tippen', 'Oben siehst du sofort, wie’s steht: was auf dem Wagen liegt, was daheim ist, was du gerade kochen kannst', 'Kommt Picnic, fährt ein kleiner 🚚 zwischen Wagen und Vorrat – nach der Lieferung geht der Tab von selbst im Vorrat auf', 'Hello Nudel merkt sich, wo du zuletzt warst', 'Entspannen findest du jetzt unter 🏠 Daheim, neben Routinen und Terminen'], go: 'hntab', btn: 'Zu Hello Nudel' },
   { id: 'n-swipe', d: '2026-10-18', ic: '🍽️', t: 'Neue Rezepte jetzt zum Swipen', x: 'Claudes neue Rezepte kommen nicht mehr als lange Liste, sondern als Stapel – wie bei Tinder, nur mit Essen.',
     how: ['Oben auf die Blase 🍽️ Rezepte tippen', 'Nach rechts wischen oder ♥ = behalten · nach links oder ✕ = weg damit', 'Antippen = das ganze Rezept lesen · ↶ holt das letzte zurück'], go: 'swipe', btn: 'Swipen' },
   { id: 'n-taste', d: '2026-10-18', ic: '👅', t: 'Wie schmeckt das?', x: 'Jedes neue Rezept hat jetzt ein Geschmacksprofil: drei Wörter und 🌶️ für die Schärfe.',
@@ -3107,7 +3151,8 @@ const hnDeckClose = () => { const d = $('#deck'); if (d) { d.remove(); unlockScr
 A.hndeck = () => hnDeck(0);
 A.hndeckgo = el => hnDeck(+el.dataset.v);
 A.hndeckx = () => hnDeckClose();
-A.hello = () => { closeModal(); ui.tab = 'home'; ui.sub = 'hello'; render(); scrollTo(0, 0); };
+A.hntab = () => { closeModal(); ui.tab = 'hello'; ui.sub = null; tabChip(); render(); scrollTo(0, 0); };
+A.hello = () => { closeModal(); if (ui.tab !== 'hello') ui.tab = 'home'; ui.sub = 'hello'; render(); scrollTo(0, 0); };
 A.hnopen = () => { S.hnOpen = Date.now(); commit(); render(); scrollTo(0, 0); confetti(160); };
 A.hnshop = () => { ui.sub = null; ui.tab = 'ruhe'; ui.qtab = 'einkauf'; render(); scrollTo(0, 0); };
 
@@ -3117,16 +3162,27 @@ function viewHeuteTab() {
   const n = S.items.filter(i => i.where === 'liste').length;
   return `<div class="chips qtabs two">${HTABS.map(([k, l]) => `<button class="chip ${ui.htab === k ? 'on' : ''}" data-a="htab" data-v="${k}">${l}${k === 'liste' && n ? ' <span class="cnt">' + n + '</span>' : ''}</button>`).join('')}</div>` + incomingCard() + (ui.htab === 'liste' ? viewListe() : viewHeute());
 }
-const VIEWS = { home: viewHome, heute: viewHeuteTab, relax: viewRelax, ruhe: viewRuhe, schaetze: viewSchaetze, woche: viewWoche };
+const VIEWS = { home: viewHome, heute: viewHeuteTab, ruhe: viewRuhe, hello: viewHN, schaetze: viewSchaetze, woche: viewWoche };
+// a tab opened without a chip (bottom bar, links) shows the chip it had last; Hello Nudel remembers across app starts
+function tabChip() {
+  if (ui.tab === 'relax') { ui.tab = 'ruhe'; ui.qtab = 'relax'; return; }
+  if (ui.tab === 'ruhe' || ui.tab === 'hello') ui.qtab = ui.lastQ[ui.tab] || (ui.tab === 'hello' ? hnLast() : 'haushalt');
+}
 function render() {
   const focused = document.activeElement && document.activeElement.closest('form[data-f]');
   const refocus = focused && focused.dataset.f;
   if (ui.tab === 'liste') { ui.tab = 'heute'; ui.htab = 'liste'; }   // old links to the Liste tab
   if (ui.tab === 'termine') { ui.tab = 'ruhe'; ui.qtab = 'termine'; }   // Termine lives in Daheim since 2026-10-08
+  if (ui.tab === 'relax') { ui.tab = 'ruhe'; ui.qtab = 'relax'; }   // Entspannen lives in Daheim since 2026-10-20
+  if ((ui.tab === 'ruhe' || ui.tab === 'hello') && ui.sub !== 'hello') {
+    if (ui.tab === 'hello' && !HN_STOPS.includes(ui.qtab)) ui.qtab = ui.lastQ.hello || hnLast();
+    ui.tab = tabOfQ(ui.qtab); ui.lastQ[ui.tab] = ui.qtab;
+    if (ui.tab === 'hello') try { localStorage.setItem('gn_hq', ui.qtab); } catch (e) {}
+  }
   $('#main').innerHTML = VIEWS[ui.tab]();
   renderTop();
   loadRecPhotos();
-  if (ui.tab === 'ruhe' && ui.qtab === 'kochbuch') Bk.mount(bookApi);
+  if (inQ('kochbuch') && ui.sub !== 'hello') Bk.mount(bookApi);
   if (refocus) { const i = document.querySelector(`form[data-f="${refocus}"] input`); if (i) i.focus(); }
   if (ui.tab === 'schaetze') {
     hydratePhotos($('#main'));
@@ -3146,13 +3202,13 @@ function goBack() {
   const v = $('.viewer'), st = $('#story');
   if (v) { v.remove(); return; }
   if (st) { st.remove(); render(); return; }
-  if (ui.tab === 'ruhe' && ui.qtab === 'kochbuch' && ui.rid) {
+  if (inQ('kochbuch') && ui.rid) {
     if (ui.cstep != null) { endCookMode(); render(); return; }
     ui.rid = null; ui.sides = []; if (!Bk.flipTo(kpage({ sec: ksec() }), -1)) render(); return;
   }
   if (ui.sub === 'kuchen' && ui.rid) { if (ui.cstep != null) endCookMode(); else { ui.rid = null; ui.sides = []; } render(); scrollTo(0, 0); return; }
   if (ui.sub) { ui.sub = null; render(); scrollTo(0, 0); return; }
-  if (ui.tab === 'relax' && !S.ritual && ui.rx.size) { A.rxback(); return; }
+  if (inQ('relax') && !S.ritual && ui.rx.size) { A.rxback(); return; }
   if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
   if (ui.tab !== 'home') { ui.tab = 'home'; render(); scrollTo(0, 0); return; }
   toast('Du bist zu Hause 🙂');
@@ -3180,7 +3236,7 @@ function bind() {
     const inp = form.querySelector('input'), t = inp.value.trim(); if (!t) return;
     inp.value = ''; FORMS[form.dataset.f](t, form);
   });
-  $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.tab === 'heute') ui.htab = 'heute'; ui.tab = b.dataset.tab; ui.sub = null; render(); scrollTo(0, 0); });
+  $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.tab === 'heute') ui.htab = 'heute'; ui.tab = b.dataset.tab; ui.sub = null; tabChip(); render(); scrollTo(0, 0); });
   $('#cloud').addEventListener('click', settings);
   wireDeck();
   $('#refresh').addEventListener('click', refreshAll);
