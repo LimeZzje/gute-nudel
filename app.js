@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-20.10';
+const VERSION = '2026-10-20.11';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -159,10 +159,24 @@ const itemQty = x => x.qty !== undefined ? x.qty : splitAmount(x.text).qty;
 // the Vorrat: adds (with the amount bought) and use records from both phones. A use record is {id, item, ts} = all gone,
 // {…, amt} = that much taken, {…, set} = "now there's this much" (corrected by hand / answered when cooking).
 // (older records were {id: <item id>, ts} = all gone)
+// one Picnic delivery = one set in the Vorrat: when both phones moved the same delivery in (2026-10-20: both opened the app
+// in the same minute and everything was there twice), only the person who added it first counts — same answer on both phones
+const vorratAdds = () => [...(S.vorratAdd || []), ...((S.partnerVorrat || {}).add || [])].filter(Boolean);
+function picOwners(adds) {
+  const o = {};
+  for (const x of adds) {
+    if (!x.pic) continue;
+    const b = o[x.pic], by = x.by || '', ts = x.ts || 0;
+    if (!b || ts < b.ts || (ts === b.ts && by < b.by)) o[x.pic] = { ts, by };
+  }
+  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.by]));
+}
 function vorrat() {
   const uses = [...(S.vorratUsed || []), ...((S.partnerVorrat || {}).used || [])].filter(Boolean).sort((a, b) => (a.ts || 0) - (b.ts || 0)), seen = new Set(), out = [];
-  for (const x of [...(S.vorratAdd || []), ...((S.partnerVorrat || {}).add || [])].sort((a, b) => (a.ts || 0) - (b.ts || 0))) {
-    if (!x || !x.id || seen.has(x.id)) continue; seen.add(x.id);
+  const adds = vorratAdds(), owner = picOwners(adds);
+  for (const x of adds.sort((a, b) => (a.ts || 0) - (b.ts || 0))) {
+    if (!x.id || seen.has(x.id)) continue; seen.add(x.id);
+    if (x.pic && owner[x.pic] !== (x.by || '')) continue;   // the other phone's copy of the same delivery
     let left = itemQty(x), gone = false;
     for (const u of uses) {
       if ((u.item || u.id) !== x.id) continue;
@@ -224,7 +238,7 @@ async function syncPost() {
     const thx = (p.thanks || []).filter(t => t && t.id && !(S.thanksSeen || []).includes(t.id));
     if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
-    if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; }
+    if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; if (picCheer()) changed = true; }
     if (shopMerge(p.shop)) changed = true;
     if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); }
     let babyNews = 0;
@@ -1752,6 +1766,19 @@ function picArrived(d, items) {
   S.vorratAdd = (S.vorratAdd || []).concat(add);
   if (add.length) try { localStorage.setItem('gn_hq', 'vorrat'); ui.lastQ.hello = 'vorrat'; } catch (e) {}
   if (add.length) { confetti(50); toast('📦 Picnic war da – ' + add.length + (add.length === 1 ? ' Sache' : ' Sachen') + ' im Vorrat' + (miss ? ` · ${miss} kam${miss === 1 ? '' : 'en'} nicht` : '')); }
+  S.picCheered = [...new Set([...(S.picCheered || []), d.id])];
+}
+// 📦 the cheer for EACH person once per delivery (user: only the phone that moved it in cheered) — also when the partner's
+// phone did it. Recent deliveries only (2 days), and none where this person's own phone added it (that one already cheered).
+function picCheer() {
+  const adds = vorratAdds(), owner = picOwners(adds), seen = new Set(S.picCheered || []), me = D.me(), recent = Date.now() - 2 * 864e5;
+  const mine = new Set(adds.filter(x => x.pic && x.by === me).map(x => x.pic)), n = {};
+  for (const x of adds) if (x.pic && !seen.has(x.pic) && !mine.has(x.pic) && (x.ts || 0) > recent && owner[x.pic] === (x.by || '')) n[x.pic] = (n[x.pic] || 0) + 1;
+  const ds = Object.keys(n); if (!ds.length) return false;
+  const k = ds.reduce((a, d) => a + n[d], 0);
+  confetti(50); toast('📦 Picnic war da – ' + k + (k === 1 ? ' Sache' : ' Sachen') + ' im Vorrat');
+  S.picCheered = [...new Set([...(S.picCheered || []), ...ds])];
+  return true;
 }
 const picWhen = (a, b) => {
   const s = new Date(a), e = new Date(b); if (isNaN(s)) return '';
@@ -3332,6 +3359,7 @@ function mergeStates(local, remote, base = null) {
   ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events', 'cookLog'].forEach(k => { m[k] = join(k); });
   m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
   m.swiped = Object.assign({}, older.swiped || {}, newer.swiped || {});
+  m.picCheered = [...new Set([].concat(older.picCheered || [], newer.picCheered || []))];
   m.newsRead = [...new Set([].concat(older.newsRead || [], newer.newsRead || []))];   // (per recipe, the newer decision wins: ↶ undo sticks)
   m.hnOpen = newer.hnOpen || older.hnOpen;
   { const g = new Map(); [].concat(older.shopGone || [], newer.shopGone || []).forEach(x => x && g.set(x.id, x)); m.shopGone = [...g.values()].slice(-500); }   // 🎁 unwrapped on any of her devices = unwrapped
@@ -3473,4 +3501,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { deck: () => deck(), seasonOf: r => seasonOf(r), kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores, choreDue, choreDone, picDeliveries, picQueries };
+window.__gn = { deck: () => deck(), seasonOf: r => seasonOf(r), kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores, choreDue, choreDone, picDeliveries, picQueries, picCheer };
