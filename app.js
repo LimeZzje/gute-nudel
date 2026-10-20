@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-20.3';
+const VERSION = '2026-10-20.5';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -3033,14 +3033,13 @@ function pastEvents() {
   const now = Date.now(), out = (S.events || []).slice(), has = id => out.some(e => e.id === id);
   if (!has(G.ID) && now >= G.END) out.push({ id: G.ID, icon: '🎂', title: 'Julias Geburtstag', done: G.END, ended: true, lines: [
     ['🎂', 'Julias Geburtstag – 18. & 19. Oktober.'],
-    ['🎁', 'Das Geschenk: Hello Nudel – die Einkaufsliste geht mit einem Tipp zu Picnic.'],
-    ['🍰', 'Die Geburtstagskuchen bleiben im Kochbuch – backen könnt ihr sie jederzeit.'],
-    ['💛', 'Alles Gute zum Geburtstag, Julia!']] });
+    ['🧺', 'Hello Nudel – die Einkaufsliste geht mit einem Tipp zu Picnic.'],
+    ['🍰', 'Die Geburtstagskuchen bleiben im Kochbuch – backen könnt ihr sie jederzeit.']] });
   if (now >= HN.END) {
     const dl = new Set([...(S.vorratAdd || []), ...((S.partnerVorrat || {}).add || [])].filter(x => x && x.pic).map(x => x.pic)).size;
     const o = S.hnOpen && new Date(S.hnOpen);
-    out.push({ id: 'hello-nudel', icon: '🎁', title: 'Hello Nudel', done: HN.END, ended: true, go: 'hello', btn: '🕊️ Das Geschenk nochmal ansehen', lines: [
-      ['🎀', o ? `Ausgepackt am ${o.getDate()}.${o.getMonth() + 1}. um ${String(o.getHours()).padStart(2, '0')}:${String(o.getMinutes()).padStart(2, '0')} Uhr.` : 'Julias Geburtstagsgeschenk vom 18. Oktober.'],
+    out.push({ id: 'hello-nudel', icon: '🎁', title: 'Hello Nudel', done: HN.END, ended: true, go: 'hello', btn: '🕊️ Hello Nudel ansehen', lines: [
+      ['🎀', o ? `Ausgepackt am ${o.getDate()}.${o.getMonth() + 1}. um ${String(o.getHours()).padStart(2, '0')}:${String(o.getMinutes()).padStart(2, '0')} Uhr.` : 'Dabei seit dem 18. Oktober.'],
       ...(dl ? [['🚚', dl === 1 ? 'Schon eine Picnic-Lieferung bis in den Vorrat.' : `Schon ${dl} Picnic-Lieferungen bis in den Vorrat.`]] : []),
       ['🧺', 'Hello Nudel bleibt – unten im Tab 🧺 Hello Nudel.']] });
   }

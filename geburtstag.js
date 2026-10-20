@@ -105,6 +105,5 @@ export function record(cooked, taste) {   // cooked: the diary entry {rid, title
     ['🕯️', `Am ${d.getDate()}.${d.getMonth() + 1}. um ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} Uhr.`],
     ...(t ? [['🍴', t]] : []),
     ['⭐', `${STARS} Sterne für jeden von euch.`],
-    ['💛', 'Alles Gute zum Geburtstag, Julia!'],
   ] };
 }

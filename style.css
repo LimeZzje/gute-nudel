@@ -1085,8 +1085,8 @@ nav#tabs .nl { white-space: nowrap; letter-spacing: -.02em; }
 .hl-ar i { position: absolute; left: 2px; right: 4px; top: 7px; height: 2px; border-radius: 2px; background: var(--ink2); opacity: .45; }
 .hl-ar i::after { content: ''; position: absolute; right: -3px; top: -3px; border: 4px solid transparent; border-right: 0; border-left: 5px solid var(--ink2); }
 .hl-ar.van i { background: var(--hngreen); opacity: .9; } .hl-ar.van i::after { border-left-color: var(--hngreen); }
-.hl-ar em { position: absolute; top: -10px; left: -3px; font-style: normal; font-size: 13px; animation: hlVan 2.6s ease-in-out infinite; }
-@keyframes hlVan { 0% { transform: translateX(-2px); } 50% { transform: translateX(6px); } 100% { transform: translateX(-2px); } }
+.hl-ar em { position: absolute; top: -10px; left: -3px; font-style: normal; font-size: 13px; transform: scaleX(-1); animation: hlVan 2.6s ease-in-out infinite; }   /* mirrored: the 🚚 drives towards the Vorrat */
+@keyframes hlVan { 0% { transform: translateX(-2px) scaleX(-1); } 50% { transform: translateX(6px) scaleX(-1); } 100% { transform: translateX(-2px) scaleX(-1); } }
 .hl-back { position: relative; height: 18px; margin-top: 3px; }
 .hl-back svg { position: absolute; inset: 0 0 6px; width: 100%; height: 12px; overflow: visible; }
 .hl-back path { fill: none; stroke: var(--ink2); stroke-width: 1.5; stroke-dasharray: 3 3; opacity: .5; vector-effect: non-scaling-stroke; }
