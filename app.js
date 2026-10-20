@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-20.6';
+const VERSION = '2026-10-20.7';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -2080,7 +2080,7 @@ const CAT_SHORT = { haupt: '🍽️ Haupt', salat: '🥗 Salat', dessert: '🍨 
 // 🧁 Backen (user 2026-10-18): category 'backen' OR the tag 'backen' (a baked dessert like the Lime Pie is in Dessert AND Backen)
 const BAKE_RX = /kuchen|torte|schnitte|muffin|plätzchen|keks|brownie|cookie|tarte|pie|strudel|soufflé|crumble|gebäck|waffel|crossies|linzer/i;
 // 🎃 seasonal flair (user 2026-10-18): a recipe written for a season gets its icon (r.season; the first spooky set predates the field)
-const SEASONS = { halloween: ['🎃', 'Spooky Season'], weihnachten: ['🎄', 'Weihnachtszeit'], ostern: ['🐣', 'Ostern'], sommer: ['🍓', 'Sommer'], herbst: ['🍂', 'Herbst'], winter: ['❄️', 'Winter'], fruehling: ['🌷', 'Frühling'] };
+const SEASONS = { halloween: ['🎃', 'Spooky'], weihnachten: ['🎄', 'Weihnachtszeit'], ostern: ['🐣', 'Ostern'], sommer: ['🍓', 'Sommer'], herbst: ['🍂', 'Herbst'], winter: ['❄️', 'Winter'], fruehling: ['🌷', 'Frühling'] };
 const OLD_SPOOKY = ['vorrat-monster-haferkekse', 'vorrat-mumien-wuerstchen', 'vorrat-vampir-windbeutel', 'vorrat-grabstein-florentiner', 'vorrat-husarenkrapfen-augaepfel', 'vorrat-spinnennetz-brownies', 'vorrat-hexenzopf-babka', 'vorrat-scherben-tartelettes'];
 const seasonOf = r => SEASONS[r.season || (OLD_SPOOKY.includes(r.id) ? 'halloween' : '')] || null;
 const seasonTag = r => { const x = seasonOf(r); return x ? ` <span class="tag season" title="${x[1]}">${x[0]} ${x[1]}</span>` : ''; };
@@ -2860,7 +2860,7 @@ function newspaper() {
       <h3><span class="np-ic">${n.ic}</span> ${esc(n.t)}</h3><p>${esc(n.x)}</p>
       ${big && n.how ? `<ol class="np-how">${n.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
       <div class="np-btns">${big && n.go ? `<button class="btn soft np-go" data-a="npgo" data-id="${n.id}">${esc(n.btn || 'Ausprobieren')} ›</button>` : ''}${!read.has(n.id) ? `<button class="lnk np-read" data-a="npread" data-id="${n.id}">✓ Gelesen</button>` : ''}</div></article>`;
-  return `<section class="card news"><div class="np-mast"><b>Die Nudel-Zeitung</b><span>Ausgabe vom ${d.getDate()}. ${C.MONTHS[d.getMonth()]} · ${unread.length ? unread.length + ' neu' : 'alles gelesen'}</span></div>
+  return `<section class="card news"><div class="np-mast"><b>Nudel-Zeitung</b><span>Ausgabe vom ${d.getDate()}. ${C.MONTHS[d.getMonth()]} · ${unread.length ? unread.length + ' neu' : 'alles gelesen'}</span></div>
     ${art(top, true)}${more.length ? `<div class="np-more">${more.map(n => art(n, false)).join('')}</div>` : ''}
     ${all.length > 3 ? `<button class="lnk np-all" data-a="npall">Alle Ausgaben (${all.length}) ›</button>` : ''}</section>`;
 }
