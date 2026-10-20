@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-20.8';
+const VERSION = '2026-10-20.9';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1891,7 +1891,8 @@ function shopBody(item, inTab) {
     ${ui.shopEdit ? `<p class="hint" style="margin:0 0 6px">So wie in deiner ${esc(Sh.STORES[S.shopStore] ? Sh.STORES[S.shopStore][0] : 'Filiale')}-Filiale: ↑↓ verschiebt Abteilungen, 🏷️ ändert die Abteilung eines Artikels.</p>` : ''}
     <div class="steps">${groups || (open.length ? '' : '<p class="muted">Noch leer.</p>')}
     ${(() => { const pl = open.filter(x => x.pic); if (!pl.length) return '';   // user 2026-10-20: the store list stays clean, Picnic's things fold away
-      return `<div class="shopsec picsec${ui.picOpen ? ' open' : ''}"><button class="sechead picsec-h" data-a="picsec" aria-expanded="${!!ui.picOpen}"><span>🧺 Kommt mit Picnic <span class="muted">(${pl.length})</span></span><span class="muted">${ui.picOpen ? 'zuklappen ▴' : 'anzeigen ▾'}</span></button>${ui.picOpen ? pl.map(row).join('') : ''}</div>`; })()}
+      return `<div class="shopsec picsec${ui.picOpen ? ' open' : ''}"><button class="sechead picsec-h" data-a="picsec" aria-expanded="${!!ui.picOpen}"><span>🧺 Kommt mit Picnic <span class="muted">(${pl.length})</span></span><span class="muted">${ui.picOpen ? 'zuklappen ▴' : 'anzeigen ▾'}</span></button>${ui.picOpen ? order.map(sec => { const xs = pl.filter(x => secOf(x) === sec); if (!xs.length) return ''; const [ic, l] = Sh.SECTIONS[sec];   // same aisles inside (user)
+        return `<div class="sechead picsub"><span>${ic} ${l} <span class="muted">(${xs.length})</span></span></div>${xs.map(row).join('')}`; }).join('') : ''}</div>`; })()}
     ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
     ${!item && done.length ? `<button class="btn green wide alldone" data-a="shopdoneask">✅ Fertig eingekauft – ${done.length} ${done.length === 1 ? 'Sache' : 'Sachen'} in den Vorrat</button>` : ''}
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
