@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-20.5';
+const VERSION = '2026-10-20.6';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1883,7 +1883,9 @@ function shopBody(item, inTab) {
     <div class="steps">${groups || (open.length ? '' : '<p class="muted">Noch leer.</p>')}
     ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
-    ${!item && open.length && hnUnwrapped() ? `<button class="btn soft wide" data-a="picnic" style="margin-top:8px">🧺 Bei Picnic bestellen (${open.length})</button>` : ''}
+    ${!item && open.length && hnUnwrapped() ? (() => { const todo = open.filter(x => !x.pic).length, inCart = open.length - todo;   // (what's in the cart already doesn't count, user 2026-10-20)
+      return todo ? `<button class="btn soft wide" data-a="picnic" style="margin-top:8px">🧺 Bei Picnic bestellen (${todo})</button>${inCart ? `<p class="hint" style="text-align:center;margin-top:4px">${inCart} ${inCart === 1 ? 'liegt' : 'liegen'} schon im Picnic-Warenkorb</p>` : ''}`
+        : `<button class="btn soft wide" data-a="picapp" style="margin-top:8px">📱 Alles im Picnic-Warenkorb – Picnic-App öffnen</button>`; })() : ''}
     ${!item && done.length && !open.length ? `<button class="btn green wide alldone" data-a="shopdone">✅ Alles eingekauft!</button><p class="hint" style="text-align:center;margin-top:4px">Kommt in den Vorrat – Claude kocht sich daraus Rezepte für euch aus.</p>` : ''}
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
     ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen – auch bei ${esc(pn())}</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
