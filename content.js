@@ -133,6 +133,8 @@ export const PREPS = [
     steps: ['Playlist anlegen', 'Die ersten 5 Lieder', 'Die nächsten 5 Lieder', 'Einen schönen Namen geben'] },
   { id: 'filme', icon: '📝', title: 'Film-Liste anlegen', text: 'Damit man am Abend nicht erst 40 Minuten sucht.',
     steps: ['3 Filme notieren, auf die du Lust hast', '2 Serien zum Weiterschauen', 'Liste irgendwo hin, wo du sie findest'] },
+  { id: 'zeichnen', icon: '✏️', title: 'Zeichen-Nest einrichten', text: 'Ein Platz im Wohnzimmer, an dem man den Raum vergisst: Rücken geschützt, Blick in den Raum (Prospect & Refuge). Fürs iPad mit Pencil.',
+    steps: ['Rücken an die Wand oder in eine Ecke – nichts Offenes hinter dir', 'Mit Blick in den Raum sitzen, die Tür im Blick', 'Fenster seitlich, nicht vorne (blendet) und nicht hinten (spiegelt)', 'Warme Seitenlampe statt Deckenlicht, nie direkt aufs Display', 'iPad schräg stellen (15–30°): Ständer, Lapdesk oder Kissen', 'Ellbogen frei – Sessel ohne hohe Armlehne', 'Beistelltisch für Tasse, Ladekabel, Vorlagen', 'Ein Punkt in der Ferne zum Augen-Ausruhen (alle 20 Min.)', 'Test: 2 Min. nur sitzen – willst du dich umdrehen, Platz wechseln'] },
 ];
 
 export const REWARDS = {
