@@ -4,9 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Gute Nudel</title>
-<meta name="theme-color" content="#fffaf1">
-<script>/* Android paints its system bars from this colour → always the colour of the tab bar, following dark mode live */
-(() => { const m = document.querySelector('meta[name="theme-color"]'), q = matchMedia('(prefers-color-scheme: dark)'), f = () => { const t = document.documentElement.dataset.theme; m.content = (t ? t === 'dark' : q.matches) ? '#1f1d24' : '#fffaf1'; }; f(); q.addEventListener('change', f); })();</script>
+<!-- Android system bars: always black (user, 2026-10-26); must match manifest theme_color + background_color -->
+<meta name="theme-color" content="#1f1d24">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">

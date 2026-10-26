@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-21.1';
+const VERSION = '2026-10-26.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -2123,7 +2123,7 @@ const BAKE_RX = /kuchen|torte|schnitte|muffin|plätzchen|keks|brownie|cookie|tar
 const SEASONS = { halloween: ['🎃', 'Spooky'], weihnachten: ['🎄', 'Weihnachtszeit'], ostern: ['🐣', 'Ostern'], sommer: ['🍓', 'Sommer'], herbst: ['🍂', 'Herbst'], winter: ['❄️', 'Winter'], fruehling: ['🌷', 'Frühling'] };
 const OLD_SPOOKY = ['vorrat-monster-haferkekse', 'vorrat-mumien-wuerstchen', 'vorrat-vampir-windbeutel', 'vorrat-grabstein-florentiner', 'vorrat-husarenkrapfen-augaepfel', 'vorrat-spinnennetz-brownies', 'vorrat-hexenzopf-babka', 'vorrat-scherben-tartelettes'];
 const seasonOf = r => SEASONS[r.season || (OLD_SPOOKY.includes(r.id) ? 'halloween' : '')] || null;
-const seasonTag = r => { const x = seasonOf(r); return x ? ` <span class="tag season" title="${x[1]}">${x[0]} ${x[1]}</span>` : ''; };
+const seasonTag = r => { const x = seasonOf(r); return x ? ` <span class="season" title="${x[1]}" aria-label="${x[1]}">${x[0]}</span>` : ''; };   // emoji only (user 2026-10-26)
 // 👅 taste profile (user 2026-10-18: easier to decide while swiping): r.taste = 3 words, r.hot = 0–3 🌶️
 const flavor = r => (r.taste && r.taste.length) || r.hot ? `<span class="flavor">👅 ${(r.taste || []).map(esc).join(' · ')}${r.hot ? ` <span class="hot" title="scharf">${'🌶️'.repeat(Math.min(3, r.hot))}</span>` : ''}</span>` : '';
 const isBake = r => r.cat === 'backen' || (r.tags || []).includes('backen') || (r.cat === 'dessert' && BAKE_RX.test(r.title || ''));
@@ -2388,8 +2388,10 @@ async function syncBook() {
   const done = (S.recipeInbox || []).filter(x => !x.del && (b.recipes || []).some(r => r.inbox === x.id));
   if (done.length) {
     done.forEach(x => { x.del = true; });
-    const r = b.recipes.find(y => y.inbox === done[0].id);
-    commit(); modal(`<h2>📖 Neu im Kochbuch!</h2><p><b>${esc(r.icon || '')} ${esc(r.title)}</b>${done.length > 1 ? ' und ' + (done.length - 1) + ' weitere' : ''} – aus deinem Foto, mit allen Zutaten.</p><div class="row"><button class="btn soft" data-a="close">Später</button><button class="btn" data-a="recipe" data-id="${esc(r.id)}" data-go="1">Ansehen</button></div>`);
+    const rs = b.recipes.filter(y => done.some(x => x.id === y.inbox)), r = rs[0];   // "Ansehen" swipes through ALL new ones (data-ctx → ui.kctx; user 2026-10-26)
+    commit(); modal(rs.length > 1
+      ? `<h2>📖 ${rs.length} neue Rezepte im Kochbuch!</h2><p>Aus deinen Fotos, mit allen Zutaten:</p><p>${rs.map(y => `${esc(y.icon || '')} ${esc(y.title)}`).join('<br>')}</p><p class="muted">Zum Nächsten einfach weiterblättern.</p><div class="row"><button class="btn soft" data-a="close">Später</button><button class="btn" data-a="recipe" data-id="${esc(r.id)}" data-go="1" data-ctx="${esc(rs.map(y => y.id).join(','))}">Alle ansehen</button></div>`
+      : `<h2>📖 Neu im Kochbuch!</h2><p><b>${esc(r.icon || '')} ${esc(r.title)}</b> – aus deinem Foto, mit allen Zutaten.</p><div class="row"><button class="btn soft" data-a="close">Später</button><button class="btn" data-a="recipe" data-id="${esc(r.id)}" data-go="1">Ansehen</button></div>`);
   } else render();
 }
 function retryInbox() { (S.recipeInbox || []).filter(x => !x.del && !x.up).forEach(uploadInbox); }
