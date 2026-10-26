@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-26.1';
+const VERSION = '2026-10-26.2';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1286,6 +1286,7 @@ const A = {
   swipe() { ui.sub = 'swipe'; render(); scrollTo(0, 0); },
   npread(el) { newsRead(el.dataset.id); },
   newsklump() { A.recipe({ dataset: { id: 'buch-reste-klumpatsch', go: '1' }, closest: () => null }); },
+  newszettel() { const ids = ZETTEL.filter(id => recipeById(id)); if (ids.length) A.recipe({ dataset: { id: ids[0], go: '1' }, closest: s => (s === '[data-ctx]' ? { dataset: { ctx: ids.join(',') } } : null) }); },   // pages through all 11
   newsshop() { ui.tab = 'ruhe'; ui.sub = null; A.qtab({ dataset: { v: 'einkauf' } }); },
   npgo(el) { const n = NEWS.find(x => x.id === el.dataset.id); if (!n) return; newsRead(n.id); A[n.go] && A[n.go](el); },
   npall() { modal(`<div style="text-align:left"><h2 style="text-align:center">🗞️ Alle Ausgaben</h2>${newsAll().map(n => `<div class="np-a"><h3><span class="np-ic">${n.ic}</span> ${esc(n.t)}</h3><p>${esc(n.x)}</p>${n.how ? `<ol class="np-how">${n.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}</div>`).join('')}<div class="row"><button class="btn" data-a="close">Fertig</button></div></div>`); (S.newsRead = [...new Set([...(S.newsRead || []), ...newsAll().map(n => n.id)])]); commit(); },
@@ -2869,7 +2870,10 @@ function viewSwipe() {
 }
 // ---------- 🗞️ Die Nudel-Zeitung (user 2026-10-18): what's new in the app and how it works, instead of "Daheim heute".
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
+const ZETTEL = ['buch-bitch-lasagna', 'buch-kimchi-eintopf', 'buch-thai-garnelen-curry', 'buch-chili', 'buch-chili-cheese-nupels', 'buch-ofenkartoffeln-eier-dip', 'buch-sushi-reis', 'buch-eingelegter-ingwer', 'buch-kaiserschmarrn', 'buch-mexikanische-apfeltorte', 'buch-vanillekipferl'];   // Julia's sticky notes, 2026-10-26
 const NEWS = [
+  { id: 'n-zettel', d: '2026-10-26', ic: '📝', t: 'Elf Klebezettel ziehen ins Kochbuch – Redaktion findet null Mengenangaben', x: 'Brühl. Am Montagvormittag schickte Julia in zehn Minuten elf Rezepte ab: grüne, orange und blaue Zettel, einer davon auf Werbeblock von ProSiebenSat.1. Claude zählte die Gramm-Angaben und gab bei der Lasagne auf. Sie heißt jetzt offiziell „Bitch-Lasagna“, die Redaktion übernimmt Titel wörtlich. Alle elf stehen ab sofort im Kochbuch, inklusive Originalfoto.',
+    how: ['Neu: Bitch-Lasagna, Kimchi-Eintopf, Thai-Garnelen-Curry, Chili, Chili-Cheese-Nupels, Ofen-Kartoffeln mit Eier-Senf-Dip, Sushi-Reis, Eingelegter Ingwer, Kaiserschmarrn, Mexikanische Apfeltorte, Vanillekipferl 🎄', 'Kommen mehrere Fotos auf einmal zurück, gibt’s jetzt „Alle ansehen“ – einfach durchblättern', 'Saison-Rezepte tragen nur noch ihr Emoji: 🎃 🎄 statt Schildchen', 'Das App-Symbol hat einen weißen Rand bekommen – damit die Nudel auf dem Handy nicht untergeht', 'Die Leiste ganz unten am Handy bleibt jetzt schwarz (nach dem Neu-Installieren)', 'Laut Zettel sind die Chili-Cheese-Nupels „fettisch“. Die Redaktion bestätigt das ungeprüft'], go: 'newszettel', btn: 'Alle 11 durchblättern' },
   { id: 'n-klumpatsch', d: '2026-10-20', ic: '🍳', t: 'Kochbuch-KI an Notizbuch gescheitert – „Reste-Klumpatsch“ trotzdem gedruckt', x: 'Brühl. Um 17:37 Uhr meldete der Rezept-Eingang ein neues Foto. Claude, zuständig für Kochbuch-Seiten, rechnete mit Grammangaben. Stattdessen begann die Seite mit: „Die Gegenwart ist ein schöner Ort. Mein Bauch ist dick, aber ich bin trotzdem glücklich.“ Darunter: sieben Zutaten, null Mengen, vier Schritte. Zwei davon lauten sinngemäß „Julia fragen“. Die Hausregel „Nichts erfinden“ ließ nur einen Weg: alles genau so abschreiben. Portionen: „wie viel Reste da sind“. Kochzeit: unbekannt. Kurz zuvor hatte derselbe Prüfer eine harmlose Yakisoba dreimal als „zu ähnlich“ abgelehnt – den Klumpatsch winkte er beim ersten Versuch durch.',
     how: ['Die „Rheine“ im Rezept ist keine Stadt im Münsterland, sondern die Reine: der Bräter', 'Kräuter™ bleibt geschützt – welche Kräuter, weiß nur der Autor', '„Geröstetes Sesam“ wurde wörtlich übernommen. Die Redaktion korrigiert keine Kunst', 'Schwangerschafts-Check bestanden: Haxe durch, nichts roh', 'Wichtigste Zutat laut Rezept: Julia. Die steht nicht auf der Einkaufsliste'], go: 'newsklump', btn: 'Zum Rezept' },
   { id: 'n-storyring', d: '2026-10-20', ic: '⏳', t: 'Wie lange läuft ein Event noch?', x: 'Events mit Ablaufdatum haben jetzt einen Ring wie bei Instagram-Storys: Er wird grau, je weniger Zeit bleibt. Ist die Zeit um, wandert das Event unter 🗓️ Vergangen.',
