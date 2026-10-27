@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-26.2';
+const VERSION = '2026-10-27.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1994,7 +1994,8 @@ function allRecipes() {
 // the original a changed recipe came from (built-in, photographed book or Claude's Vorrat), if any
 const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r => r.id === id) || vorratRecipes().find(r => r.id === id) || archRecipes().find(r => r.id === id) || null;
 // pregnancy: recipes with runny egg / cold smoked salmon get a note until the baby is here (gone by itself from February 2027)
-const PREG_LATER = ['vorrat-eggs-royale', 'vorrat-strammer-max-gurke', 'vorrat-spitzkohl-glasiert', 'ofenkartoffel'];
+const PREG_LATER = ['vorrat-eggs-royale', 'vorrat-strammer-max-gurke', 'vorrat-spitzkohl-glasiert', 'ofenkartoffel',
+  'buch-eierlikoertorte', 'buch-bienenstich', 'buch-kaese-sahne-torte'];   // Eierlikör; raw egg white / yolk folded into cold creams
 const pregLater = r => PREG_LATER.includes(r.id) && today() < '2027-02-01';
 const loveTag = r => r.level === 'fancy' ? '⛧ aus dem Grimoire' : '';   // Claude's fancy ones get their label; "mag sie" is gone (user)
 const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'][d.getMonth()]; };
