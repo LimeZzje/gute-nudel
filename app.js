@@ -3469,6 +3469,9 @@ async function start() {
   else if (!S.me) S.me = D.me();
   else if (S.me !== D.me()) S = D.freshState();
   S.me = D.me();
+  // does this phone hold real save data? Decided BEFORE babyReconcile/gbReconcile add their own log entries,
+  // otherwise a fresh phone looks "not empty" and never gets its backup back (2026-10-27 Julia's phone bug).
+  const hadData = S.log.some(e => !/^(baby|gb)-/.test(e.id));
   shopSnapNow();   // from here on, what leaves the shopping list was deleted on this phone
   rollover();
   scheduleChores();
@@ -3495,8 +3498,10 @@ async function start() {
     if (!r.ok) toast('Sicherung: ' + r.msg);
     else {
       const remote = await D.fetchBackup().catch(() => null);
-      if (remote && (!remote.me || remote.me === D.me()) && !S.log.length && remote.updatedAt > S.updatedAt) { await applyRestore(remote); syncPost(); return; }
-      D.scheduleBackup(S, 10); toast('Sicherung eingerichtet ✓');
+      if (remote && (!remote.me || remote.me === D.me()) && !hadData && remote.updatedAt > S.updatedAt) { await applyRestore(remote); syncPost(); return; }
+      // an empty phone must never push its empty state over the backup (a failed fetch also gives no remote)
+      if (hadData) { D.scheduleBackup(S, 10); toast('Sicherung eingerichtet ✓'); }
+      else toast('Sicherung: nichts zum Zurückholen gefunden');
     }
   }
   if (!S.welcomed) welcome();
