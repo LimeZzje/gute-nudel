@@ -1113,3 +1113,13 @@ nav#tabs .nl { white-space: nowrap; letter-spacing: -.02em; }
 .picsec-h { width: 100%; border: 0; background: var(--hntint); border-radius: 12px; padding: 12px 14px; font: inherit; color: var(--ink); cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 48px; }
 .picsec.open .picsec-h { margin-bottom: 4px; }
 .picsec .picsub { margin: 8px 6px 0; font-size: 14px; }
+/* 🗓️ Wochenplan (2026-10-30) */
+.plan-row { display: flex; align-items: center; gap: 8px; }
+.plan-row .diaryrow { flex: 1; min-width: 0; }
+.plan-row .mini-btn { margin-bottom: 8px; }
+.diaryrow.plan-empty { opacity: .75; }
+div.diaryrow.plan-empty { cursor: default; opacity: .45; }
+.diaryrow.plan-today { box-shadow: 0 0 0 2px var(--accent); }
+.plan-pick { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 12px; border-radius: 14px; background: var(--card); border: 2px dashed var(--accent); font-weight: 700; }
+.plan-pick > span { flex: 1; }
+.plan-gap { visibility: hidden; }

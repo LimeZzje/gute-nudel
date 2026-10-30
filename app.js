@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-30.1';
+const VERSION = '2026-10-30.2';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -114,7 +114,8 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     shop: { items: S.shop, gone: (S.shopGone || []).filter(g => Date.now() - g.ts < MONTH) },
     cooked: (S.cookLog || []).slice(-300),
     baby: S.babyMine || {},
-    ...(picLS.tok ? { pic: S.picNext || null } : {}),   // the Picnic slot, only from a phone that's logged in to Picnic
+    ...(picLS.tok ? { pic: S.picNext || null } : {}),
+    plan: S.plan || null,   // 🗓️ the Wochenplan, the newer `u` wins on both phones   // the Picnic slot, only from a phone that's logged in to Picnic
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
 }
@@ -273,6 +274,7 @@ async function syncPost() {
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
     if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; if (picCheer()) changed = true; }
     if (shopMerge(p.shop)) changed = true;
+    if (p.plan && (p.plan.u || 0) > ((S.plan || {}).u || 0)) { S.plan = p.plan; changed = true; }
     if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); }
     let babyNews = 0;
     if (p.baby && JSON.stringify(p.baby) !== JSON.stringify(S.partnerBaby || {})) { S.partnerBaby = p.baby; babyNews = babyReconcile().add; changed = true; }
@@ -1348,7 +1350,8 @@ const A = {
     const k = S.items.find(i => i.where === 'heute' && i.chore && ((S.chores.find(x => x.id === i.chore) || {}).tools || []).includes('recipes'));
     ui.rid = null; ui.sides = [];
     if (k) tick(k.id, null); else commit();
-    toast(v === 3 ? 'Notiert: Lieblingsessen 😍 – kommt öfter dran' : v === 1 ? 'Notiert 😕 – das schlage ich nicht mehr vor' : 'Notiert 🙂' + (k ? '' : ''));
+    const pl = planNow(), planned = pl && today() <= pl.end && pl.days.includes(r.id) ? ' · 🗓️ im Wochenplan abgehakt' : '';
+    toast((v === 3 ? 'Notiert: Lieblingsessen 😍 – kommt öfter dran' : v === 1 ? 'Notiert 😕 – das schlage ich nicht mehr vor' : 'Notiert 🙂') + planned);
     gbParty();
   },
   tool(el) {
@@ -2104,7 +2107,7 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
 const kidLevel = r => { const m = r.min || 0, n = (r.steps || []).length; return Math.min(3, (m <= 20 ? 1 : m <= 45 ? 2 : 3) + (n >= 9 ? 1 : 0)); };
 const KID_WORDS = ['ganz schnell', 'gemütlich', 'braucht etwas Zeit'];
 const kidStars = (r, words) => { const k = kidLevel(r); return `<span class="kstars" title="${KID_WORDS[k - 1]}"><em>${'★'.repeat(k)}</em><i>${'★'.repeat(3 - k)}</i>${words ? KID_WORDS[k - 1] + '<br>' : ''}</span>`; };
-const recipeRow = r => { const him = isCodex(r) && !r.plain, kid = isHerb(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : kid ? ' row-kid' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${kid ? ' ' + kidStars(r) : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}${isBake(r) ? ' <span class="tag bake">🧁 Backen</span>' : ''}${seasonTag(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
+const recipeRow = r => { const him = isCodex(r) && !r.plain, kid = isHerb(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : kid ? ' row-kid' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${kid ? ' ' + kidStars(r) : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}${isBake(r) ? ' <span class="tag bake">🧁 Backen</span>' : ''}${isProtein(r) ? ' <span class="tag" title="High Protein">💪</span>' : ''}${seasonTag(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
@@ -2144,19 +2147,22 @@ const bookApi = {
 function viewCook() {
   if (ui.rid && ui.cstep != null) return viewCookMode();
   if (ui.rid && !recipeById(ui.rid)) ui.rid = null;
-  return Bk.frame({ tabs: KTABS, cur: ksec(), page: kpage(ui.rid ? { sec: ksec(), rid: ui.rid } : { sec: ksec() }), label: klabel() });
+  return planBanner() + Bk.frame({ tabs: KTABS, cur: ksec(), page: kpage(ui.rid ? { sec: ksec(), rid: ui.rid } : { sec: ksec() }), label: klabel() });
 }
 function sectionPage(k) {
   if (k === 'codex') return viewShelf('codex');
   if (k === 'herb') return viewShelf('herb');
-  const body = k === 'next' ? viewNext() : k === 'gekocht' ? viewGekocht() : viewJetzt();
+  const body = k === 'next' ? viewNext() : k === 'gekocht' ? viewGekocht() : planCard() + viewJetzt();
   return `<div class="sec-head"><h2>${SEC_TITLE[k]}</h2>${Bk.sectionArt(k)}</div>` + body;
 }
 // the list for the swipe-through: every recipe row on the page, in order
 const ctxOf = html => [...new Set([...html.matchAll(/data-a="recipe" data-id="([^"]+)"/g)].map(m => m[1]))].join(',');
 const withCtx = html => `<div data-ctx="${esc(ctxOf(html))}">${html}</div>`;
 const stampRow = (r, html) => recipeRow({ ...r, badge: html });
-const CAT_SHORT = { haupt: '🍽️ Haupt', salat: '🥗 Salat', dessert: '🍨 Dessert', backen: '🧁 Backen', drink: '🍹 Drinks' };   // one row of chips in the book
+const CAT_SHORT = { haupt: '🍽️ Haupt', fruehstueck: '🍳 Frühstück', protein: '💪 Protein', salat: '🥗 Salat', dessert: '🍨 Dessert', backen: '🧁 Backen', drink: '🍹 Drinks' };   // one row of chips in the book
+// 💪 High Protein (Julia 2026-10-30): a TAG on any category ('protein' in r.tags), but its own chip in the book, after Frühstück
+const BOOK_CATS = K.CATS.slice(0, 2).concat([['protein', '💪 High Protein']], K.CATS.slice(2));
+const isProtein = r => (r.tags || []).includes('protein');
 // 🧁 Backen (user 2026-10-18): category 'backen' OR the tag 'backen' (a baked dessert like the Lime Pie is in Dessert AND Backen)
 const BAKE_RX = /kuchen|torte|schnitte|muffin|plätzchen|keks|brownie|cookie|tarte|pie|strudel|soufflé|crumble|gebäck|waffel|crossies|linzer/i;
 // 🎃 seasonal flair (user 2026-10-18): a recipe written for a season gets its icon (r.season; the first spooky set predates the field)
@@ -2167,7 +2173,7 @@ const seasonTag = r => { const x = seasonOf(r); return x ? ` <span class="season
 // 👅 taste profile (user 2026-10-18: easier to decide while swiping): r.taste = 3 words, r.hot = 0–3 🌶️
 const flavor = r => (r.taste && r.taste.length) || r.hot ? `<span class="flavor">👅 ${(r.taste || []).map(esc).join(' · ')}${r.hot ? ` <span class="hot" title="scharf">${'🌶️'.repeat(Math.min(3, r.hot))}</span>` : ''}</span>` : '';
 const isBake = r => r.cat === 'backen' || (r.tags || []).includes('backen') || (r.cat === 'dessert' && BAKE_RX.test(r.title || ''));
-const inCat = (r, k) => k === 'backen' ? isBake(r) : r.cat === k;
+const inCat = (r, k) => k === 'backen' ? isBake(r) : k === 'protein' ? isProtein(r) : r.cat === k;
 function viewJetzt() {   // per category: shopped for → all at home → only 1–2 things missing
   const cn = cookableNow(), dish = new Set((S.dishes || []).map(x => x.id)), home = new Set(cn.all.map(r => r.id));
   const by = cat => {
@@ -2176,11 +2182,11 @@ function viewJetzt() {   // per category: shopped for → all at home → only 1
       .concat(cn.all.filter(r => inCat(r, cat) && !dish.has(r.id) && !isCodex(r)).map(r => stampRow(r, `<span class="rstamp home">✅ alles daheim</span>`)))
       .concat(cn.almost.filter(r => inCat(r, cat) && !dish.has(r.id) && !home.has(r.id) && !isCodex(r)).map(recipeRow));
   };
-  const counts = Object.fromEntries(K.CATS.map(([k]) => [k, by(k).length]));
+  const counts = Object.fromEntries(BOOK_CATS.map(([k]) => [k, by(k).length]));
   if (!Object.values(counts).some(Boolean)) return `<div class="card"><p style="margin:0">Gerade passt nichts zu dem, was daheim ist.</p><p class="muted">Schau oben unter <b>🧊 Vorrat</b>, ob alles stimmt – oder such dir unter <b>Stöbern</b> was für den nächsten Einkauf aus.</p></div>`;
-  const cat = counts[ui.kcat] ? ui.kcat : K.CATS.find(([k]) => counts[k])[0];
+  const cat = counts[ui.kcat] ? ui.kcat : BOOK_CATS.find(([k]) => counts[k])[0];
   const rows = by(cat).join('');
-  return `<div class="chips ccats">${K.CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="kcat" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>`
+  return `<div class="chips ccats">${BOOK_CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="kcat" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>`
     + withCtx(rows) + `<p class="hint">Salz, Öl, Gewürze & Co. zählen als „immer da“.</p>`;
 }
 // ✠ Codex Culinarius Infernalis: his fancy recipes; what the pantry already allows gets a stamp and comes first
@@ -2191,14 +2197,14 @@ function viewShelf(kind) {
   const fresh = vrNew().filter(codex ? isCodex : isHerb).map(r => r.id); if (fresh.length) setTimeout(() => vrSeenAdd(fresh, true), 0);
   const V = vorrat(), all = allRecipes().filter(codex ? isCodex : isHerb).map(r => ({ r, h: V.length ? haveFor(r, V) : { need: 1, missing: [1, 2, 3] } }));
   const rank = x => !x.h.missing.length ? 0 : x.h.missing.length <= 2 ? 1 : 2;
-  const counts = Object.fromEntries(K.CATS.map(([k]) => [k, all.filter(x => inCat(x.r, k)).length]));
-  const cat = counts[ui[key]] ? ui[key] : (K.CATS.find(([k]) => counts[k]) || ['haupt'])[0];
+  const counts = Object.fromEntries(BOOK_CATS.map(([k]) => [k, all.filter(x => inCat(x.r, k)).length]));
+  const cat = counts[ui[key]] ? ui[key] : (BOOK_CATS.find(([k]) => counts[k]) || ['haupt'])[0];
   const stamp = codex ? `<span class="rstamp pantry">✠ mit dem Vorrat beschwörbar</span>` : `<span class="rstamp herb">🌿 mit dem Vorrat machbar</span>`;
   const rows = all.filter(x => inCat(x.r, cat)).sort((a, b) => rank(a) - rank(b))
     .map(({ r, h }) => !h.missing.length ? stampRow(r, stamp) : h.missing.length <= 2 ? recipeRow({ ...r, miss: h.missing }) : recipeRow(r)).join('');
   const head = codex ? `<div class="sec-head codex"><h2>Culinarius<br>Infernalis</h2>${Bk.sectionArt('codex')}</div>`
     : `<div class="sec-head"><h2>Kinderleicht</h2>${Bk.sectionArt('herb')}</div><p class="muted" style="margin:-4px 2px 10px">Was Claude euch aus dem Vorrat geschrieben hat.</p>`;
-  return head + (all.length ? `<div class="chips ccats">${K.CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="shelfcat" data-k="${key}" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>` + withCtx(rows)
+  return head + (all.length ? `<div class="chips ccats">${BOOK_CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="shelfcat" data-k="${key}" data-v="${k}" ${counts[k] ? '' : 'disabled'}>${CAT_SHORT[k] || l} <span class="cnt">${counts[k]}</span></button>`).join('')}</div>` + withCtx(rows)
     : `<p class="muted">Noch leer. Nach dem nächsten Einkauf ${codex ? 'beschwört Claude hier neue Werke' : 'wachsen hier neue Rezepte'}.</p>`);
 }
 function viewNext() {
@@ -2208,7 +2214,7 @@ function viewNext() {
     <p class="hint">Claude macht daraus eine Kochbuch-Seite mit Zutaten und Schritten – sie taucht hier auf, sobald sie fertig ist.</p></div>`;
   h += `<div id="rresults">${searchHtml()}</div>`;
   if (ui.rq) return h;
-  const ours = allRecipes().filter(isOurs), cats = K.CATS.map(([k, l]) => [k, CAT_SHORT[k] || l]).concat(ours.length ? [['ours', '📷 Unsere']] : []);
+  const ours = allRecipes().filter(isOurs), cats = BOOK_CATS.map(([k, l]) => [k, CAT_SHORT[k] || l]).concat(ours.length ? [['ours', '📷 Unsere']] : []);
   const cat = cats.some(([k]) => k === ui.ccat) ? ui.ccat : 'haupt';
   h += `<div class="chips ccats">${cats.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-a="ccat" data-v="${k}">${l}</button>`).join('')}</div>`;
   const list = (cat === 'ours' ? ours
@@ -2275,7 +2281,8 @@ function recipePage(r) {
     <p class="bp-meta">${theme === 'kid' ? kidStars(r, true) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}${seasonTag(r)}</p>${flavor(r) ? `<p class="bp-flavor">${flavor(r)}</p>` : ''}
     ${home ? `<span class="bp-tape">${him ? '✠ alles in der Speisekammer' : '🧊 alles daheim'}</span>` : ''}
     ${r.src ? `<p class="muted" style="margin:2px 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:4px 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.note ? `<p class="bp-note">${esc(r.note)}</p>` : ''}
-    <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>`;
+    ${ui.planPick != null ? `<button class="btn green wide" style="clear:both;margin:6px 0" data-a="planset" data-id="${r.id}" data-i="${ui.planPick}">🗓️ Für ${esc(planDayName(planLive().start, ui.planPick))} nehmen</button>` : ''}
+    <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button><button class="btn soft" data-a="planask" data-id="${r.id}">🗓️ Planen</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>`;
   if (r.plate) {
     const missing = Object.keys(K.PLATE).filter(k => !r.plate[k] && !sides.some(s => s.g === k));
     const want = Object.keys(K.PLATE).filter(k => !r.plate[k]);
@@ -2455,7 +2462,7 @@ function recipeModal() {
   const e = ui.re, cats = K.CATS;
   modal(`<div style="text-align:left"><h2 style="text-align:center">${e.id ? '✎ Rezept ändern' : '✏️ Eigenes Rezept'}</h2>
     <label class="field"><span>Name</span><input id="re-title" value="${esc(e.title)}" placeholder="z.B. Omas Linsensuppe" autocomplete="off"></label>
-    <div class="chips">${cats.map(([k, l]) => `<button class="chip ${e.cat === k ? 'on' : ''}" data-a="recat" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="chips">${cats.map(([k, l]) => `<button class="chip ${e.cat === k ? 'on' : ''}" data-a="recat" data-v="${k}">${l}</button>`).join('')}<button class="chip ${isProtein(e) ? 'on' : ''}" data-a="reprot" aria-pressed="${isProtein(e)}">💪 High Protein</button></div>
     <div style="display:flex;gap:10px"><label class="field" style="flex:1"><span>Symbol</span><input id="re-icon" value="${esc(e.icon)}" style="font-size:22px" autocomplete="off"></label>
       <label class="field" style="flex:1"><span>Minuten</span><input id="re-min" type="number" min="0" inputmode="numeric" value="${esc(e.min || '')}"></label>
       <label class="field" style="flex:1"><span>Für wie viele?</span><input id="re-serves" value="${esc(e.serves || '2')}" autocomplete="off"></label></div>
@@ -2502,6 +2509,7 @@ Object.assign(A, {
     recipeModal();
   },
   recat(el) { reRead(); ui.re.cat = el.dataset.v; recipeModal(); },
+  reprot() { reRead(); const t = ui.re.tags || []; ui.re.tags = isProtein(ui.re) ? t.filter(x => x !== 'protein') : t.concat('protein'); recipeModal(); },   // 💪 a tag on top of the category
   replate(el) { reRead(); const k = el.dataset.v; ui.re.plate[k] = ui.re.plate[k] ? 0 : 1; recipeModal(); },
   resave() {
     reRead(); const e = ui.re, msg = $('#re-msg');
@@ -2900,6 +2908,9 @@ function bubbles() {
   if (gbLive()) b.push({ a: 'kuchen', ic: '🎂', l: 'Geburtstag', on: true, t0: G.START, t1: G.END });
   if (picNow()) { const t = new Date(picNow().start); b.push({ a: 'picdeliv', ic: '🚚', l: 'Picnic', n: t.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + t.getHours(), on: true }); }
   if (babyLive()) b.push({ a: 'baby', ic: '👶', l: 'Baby', on: true, t0: B.START, t1: B.END });
+  const pl = planNow();   // 🗓️ the running week as a story ring; a finished one asks for the next week for 3 days
+  if (pl && !pl.over) b.push({ a: 'plan', ic: '🗓️', l: 'Wochenplan', t0: dayStart(pl.start), t1: dayStart(addDays(pl.start, PLAN_N)) });
+  else if (pl && today() <= addDays(pl.end, 3)) b.push({ a: 'plan', ic: '🗓️', l: 'Neu planen?', on: true });
   if (pastEvents().length) b.push({ a: 'events', ic: '🗓️', l: 'Vergangen', past: true });   // always last, grey ring (user)
   if (!b.length) return '';
   return `<div class="bubs" role="list">${b.map(x => { const tm = x.t1 ? storyLeft(x.t0, x.t1) : null, n = tm ? tm.txt : x.n;
@@ -2914,6 +2925,64 @@ function storyLeft(t0, t1) {
   const long = ms >= 864e5 ? d + (d === 1 ? ' Tag' : ' Tage') : ms >= 36e5 ? h + (h === 1 ? ' Stunde' : ' Stunden') : m + ' Minuten';
   return { p, txt, long };
 }
+// ---------- 🗓️ Wochenplan (Julia 2026-10-30): up to 7 recipes, each on a day, from the day the first one is pinned ----------
+// Cooking a planned dish (either phone, any day of the plan) ticks it. Over after its 7th day, or when all 7 days are planned
+// and cooked → "Neue Woche planen" / "Gleiche nochmal". Edits never move the start (user's pick). Shared like the Picnic slot:
+// post.plan, the newer `u` wins (both phones may plan); a reset is {start: null}, so it travels too.
+const PLAN_N = 7;
+const dayStart = k => parse(k).getTime() + 3 * 3600e3;   // a day runs until 3 am, like today()
+function planNow() {   // → null (no plan) or {start, end, days[7], done[7], n, cooked, over}
+  const p = S.plan; if (!p || !p.start) return null;
+  const end = addDays(p.start, PLAN_N - 1), days = Array.from({ length: PLAN_N }, (_, i) => (p.days || [])[i] || null);
+  const left = cookedLog().filter(x => x.day >= p.start && x.day <= end).map(x => x.rid);   // the same dish twice needs cooking twice
+  const done = days.map(id => { const i = id ? left.indexOf(id) : -1; if (i >= 0) left.splice(i, 1); return i >= 0; });
+  const n = days.filter(Boolean).length, cooked = done.filter(Boolean).length;
+  return { start: p.start, end, days, done, n, cooked, over: today() > end || (n === PLAN_N && cooked === n) };
+}
+const planLive = () => { const p = planNow(); return p && !p.over ? p : { start: today(), days: Array(PLAN_N).fill(null), done: [] }; };   // where a new pin goes
+const planDayName = (start, i) => { const k = addDays(start, i); return k === today() ? 'Heute' : k === addDays(today(), 1) ? 'Morgen' : C.DAYNAMES[parse(k).getDay()]; };
+function planSet(i, rid) {
+  const p = planLive(), days = p.days.slice(); days[i] = rid;
+  S.plan = days.some(Boolean) ? { start: p.start, days, u: Date.now() } : { start: null, days: [], u: Date.now() };   // emptied = gone; the next pin starts a new week
+}
+function planCard() {   // on the Kochbuch's "Kochen" page
+  const p = planNow(), live = p && !p.over, i = live ? Math.round((parse(today()) - parse(p.start)) / 864e5) : -1, r = live && p.days[i] && recipeById(p.days[i]);
+  return `<button class="card hcard plan-card" data-a="plan"><span class="hc-txt"><b>🗓️ Wochenplan</b><span class="muted">${r ? `Heute: ${r.icon} ${esc(r.title)}${p.done[i] ? ' ✅' : ''}` : live ? `${p.cooked} von ${p.n} gekocht` : 'Plan dir bis zu 7 Gerichte für die Woche'}</span></span><span class="hc-go">›</span></button>`;
+}
+function viewPlan() {
+  const p = planNow(), over = p && p.over, q = over ? p : planLive(), t = today();
+  let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button><div class="sec-title" style="margin-top:0">🗓️ Wochenplan</div>`;
+  if (over) h += `<div class="card"><h3>Die Woche ist rum 🎉</h3><p style="margin:4px 0 10px">${p.cooked} von ${p.n} ${p.n === 1 ? 'Gericht' : 'Gerichten'} gekocht.</p><div class="row"><button class="btn soft" data-a="planagain">🔁 Gleiche nochmal</button><button class="btn" data-a="plannew">🗓️ Neue Woche planen</button></div></div>`;
+  else h += `<p class="muted" style="margin:0 4px 10px">${p ? `${shortDate(q.start)} – ${shortDate(q.end)} · ${p.cooked} von ${p.n} gekocht. Gekocht ist gekocht – egal an welchem Tag.` : 'Such dir bis zu 7 Gerichte aus, jedes bekommt seinen Tag. Die Woche startet mit dem ersten.'}</p>`;
+  h += `<div data-ctx="${esc([...new Set(q.days.filter(Boolean))].join(','))}">` + q.days.map((id, i) => {
+    const r = id && recipeById(id), k = addDays(q.start, i), d = parse(k), done = !!(q.done || [])[i];
+    const dd = `<span class="dd">${d.toLocaleDateString('de-DE', { weekday: 'short' })}<b>${d.getDate()}.</b></span>`, cls = `card diaryrow${k === t ? ' plan-today' : ''}`;
+    if (r) return `<div class="plan-row"><button class="${cls}" data-a="recipe" data-id="${esc(r.id)}">${dd}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b>${k === t ? '<br><span class="muted">heute</span>' : ''}</span><span class="dt">${done ? '✅' : ''}</span></button>${over ? '' : `<button class="mini-btn" data-a="planrm" data-i="${i}" aria-label="Aus dem Plan nehmen">✕</button>`}</div>`;
+    if (over || k < t) return `<div class="plan-row"><div class="${cls} plan-empty">${dd}<span class="ri"></span><span class="rt muted">–</span></div>${over ? '' : '<span class="mini-btn plan-gap" aria-hidden="true"></span>'}</div>`;
+    return `<div class="plan-row"><button class="${cls} plan-empty" data-a="planpick" data-i="${i}">${dd}<span class="ri">＋</span><span class="rt muted">Gericht aussuchen</span></button><span class="mini-btn plan-gap" aria-hidden="true"></span></div>`;
+  }).join('') + '</div>';
+  return h + `<p class="hint">Oder im Kochbuch bei einem Rezept auf „🗓️ Planen“.</p>`;
+}
+const planBanner = () => ui.planPick == null ? '' : `<div class="plan-pick"><span>🗓️ Such dir ein Gericht für <b>${esc(planDayName(planLive().start, ui.planPick))}</b> aus</span><button class="mini-btn" data-a="planpickx" aria-label="Abbrechen">✕</button></div>`;
+A.plan = () => { closeModal(); ui.tab = 'home'; ui.sub = 'plan'; render(); scrollTo(0, 0); };
+Object.assign(A, {
+  planpick(el) { ui.planPick = +el.dataset.i; ui.tab = 'hello'; ui.sub = null; ui.qtab = 'kochbuch'; ui.lastQ.hello = 'kochbuch'; ui.rid = null; ui.cstep = null; ui.ktab = 'next'; render(); scrollTo(0, 0); },
+  planpickx() { ui.planPick = null; render(); },
+  planask(el) {
+    const r = recipeById(el.dataset.id), q = planLive(), t = today(); if (!r) return;
+    modal(`<h2>🗓️ ${esc(r.title)}</h2><p>An welchem Tag?</p><div class="steps">${q.days.map((id, i) => { const k = addDays(q.start, i), o = id && recipeById(id); return k < t ? ''
+      : `<button class="pick" data-a="planset" data-id="${esc(r.id)}" data-i="${i}"><span style="flex:1"><b>${esc(planDayName(q.start, i))}</b> <span class="muted">${esc(shortDate(k))}</span></span>${o ? `<span class="muted">${o.id === r.id ? '✓ schon da' : 'statt ' + o.icon}</span>` : ''}</button>`; }).join('')}</div>
+      <div class="row"><button class="btn soft" data-a="close">Abbrechen</button></div>`);
+  },
+  planset(el) {
+    const r = recipeById(el.dataset.id), i = +el.dataset.i; if (!r) return;
+    planSet(i, r.id); ui.planPick = null; ui.rid = null; ui.cstep = null; commit(true);
+    toast(`🗓️ ${planDayName(S.plan.start, i)}: ${r.title}`); A.plan();
+  },
+  planrm(el) { planSet(+el.dataset.i, null); commit(true); },
+  plannew() { S.plan = { start: null, days: [], u: Date.now() }; commit(true); },
+  planagain() { const p = planNow(); if (!p) return; S.plan = { start: today(), days: p.days, u: Date.now() }; commit(true); toast('🔁 Gleiche Woche nochmal – ab heute'); },
+});
 // 🍽️ the deck, full screen like Tinder (from its bubble); empty → back home
 function viewSwipe() {
   const c = deckCard();
@@ -2924,6 +2993,8 @@ function viewSwipe() {
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
 const ZETTEL = ['buch-bitch-lasagna', 'buch-kimchi-eintopf', 'buch-thai-garnelen-curry', 'buch-chili', 'buch-chili-cheese-nupels', 'buch-ofenkartoffeln-eier-dip', 'buch-sushi-reis', 'buch-eingelegter-ingwer', 'buch-kaiserschmarrn', 'buch-mexikanische-apfeltorte', 'buch-vanillekipferl'];   // Julia's sticky notes, 2026-10-26
 const NEWS = [
+  { id: 'n-wochenplan', d: '2026-10-30', ic: '🗓️', t: 'Julia plant die Woche – Köttbullar haben ab sofort einen Termin', x: 'Wer jeden Abend „Was essen wir heute?“ fragt, bekommt jetzt eine Antwort, die schon eine Woche alt ist. Der neue Wochenplan nimmt bis zu sieben Gerichte aus dem Kochbuch, jedes an seinen Tag. Dazu zieht ein Frühstück ins Kochbuch ein, und wer Muskeln will, findet sie unter 💪.',
+    how: ['Kochbuch → Kochen: ganz oben „🗓️ Wochenplan“ – oder bei jedem Rezept auf „🗓️ Planen“ und einen Tag wählen', 'Ein leerer Tag → „＋ Gericht aussuchen“ → im Kochbuch ein Rezept öffnen → „Für … nehmen“', 'Die Woche startet mit dem ersten Gericht. Umplanen verschiebt nichts', 'Gekocht wird automatisch abgehakt – egal auf welchem Handy, egal an welchem Tag', 'Nach sieben Tagen (oder wenn alles gekocht ist): „Neue Woche planen“ oder „Gleiche nochmal“', 'Neu im Kochbuch: 🍳 Frühstück und 💪 Protein mit je fünf Rezepten. Und Claude schreibt nach dem Einkauf jetzt einen zufälligen Mix: mal Frühstück, mal Salat, mal Backen'], go: 'plan', btn: 'Zum Wochenplan' },
   { id: 'n-suche', d: '2026-10-30', ic: '🔎', t: 'Gurke bleibt Gurke – und Milchreis ist keine Milch', x: 'Im Vorrat lagen zuletzt zwei Tomaten, drei Frischkäse und eine Gurke, die sich „Salatgurke“ nannte. Ab heute steht jedes Ding nur noch einmal da, die Mengen zusammengezählt. Und wer Milch zum Kochen nimmt, wird nicht mehr nach dem Milchreis gefragt.',
     how: ['Kochbuch → Stöbern: in die Suche einfach eine Zutat tippen, z.B. „Zucchini“ – du siehst alle Rezepte damit, darunter steht „🔎 mit …“', 'Mehrere Wörter gehen auch: „Hähnchen Reis“', 'Im Vorrat: gleiche Sachen stehen in einer Zeile (Salatgurke + Gurke, zwei Packungen Sahne …). Antippen = Menge für alles zusammen ändern, ✕ = alles davon aufgebraucht', 'Kommt Picnic, sehen jetzt beide Handys auf Home, wann – nicht nur das, auf dem Picnic angemeldet ist'], go: 'newssuche', btn: 'Zur Rezept-Suche' },
   { id: 'n-zettel', d: '2026-10-26', ic: '📝', t: 'Elf Klebezettel ziehen ins Kochbuch – Redaktion findet null Mengenangaben', x: 'Brühl. Am Montagvormittag schickte Julia in zehn Minuten elf Rezepte ab: grüne, orange und blaue Zettel, einer davon auf Werbeblock von ProSiebenSat.1. Claude zählte die Gramm-Angaben und gab bei der Lasagne auf. Sie heißt jetzt offiziell „Bitch-Lasagna“, die Redaktion übernimmt Titel wörtlich. Alle elf stehen ab sofort im Kochbuch, inklusive Originalfoto.',
@@ -3004,6 +3075,7 @@ function viewHome() {
   if (ui.sub === 'baby') return viewBaby();
   if (ui.sub === 'kuchen') return viewKuchen();
   if (ui.sub === 'events') return viewEvents();
+  if (ui.sub === 'plan') return viewPlan();
   if (ui.sub === 'hello') return viewHello();
   if (ui.sub === 'swipe') return viewSwipe();
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
@@ -3422,6 +3494,7 @@ function mergeStates(local, remote, base = null) {
   m.picCheered = [...new Set([].concat(older.picCheered || [], newer.picCheered || []))];
   m.newsRead = [...new Set([].concat(older.newsRead || [], newer.newsRead || []))];   // (per recipe, the newer decision wins: ↶ undo sticks)
   m.hnOpen = newer.hnOpen || older.hnOpen;
+  m.plan = ((older.plan || {}).u || 0) > ((newer.plan || {}).u || 0) ? older.plan : newer.plan;   // 🗓️ the last edit wins
   { const g = new Map(); [].concat(older.shopGone || [], newer.shopGone || []).forEach(x => x && g.set(x.id, x)); m.shopGone = [...g.values()].slice(-500); }   // 🎁 unwrapped on any of her devices = unwrapped
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)
@@ -3566,4 +3639,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { deck: () => deck(), seasonOf: r => seasonOf(r), kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(a, b), vorratGroups: () => vorratGroups(), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores, choreDue, choreDone, picDeliveries, picQueries, picCheer, postObj, consumeFor, searchHtml };
+window.__gn = { deck: () => deck(), seasonOf: r => seasonOf(r), kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(a, b), vorratGroups: () => vorratGroups(), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores, choreDue, choreDone, picDeliveries, picQueries, picCheer, postObj, consumeFor, searchHtml, planNow: () => planNow(), today: () => today() };

@@ -3,7 +3,7 @@
 // passende SIDES vor (ein Tipp, und sie kommen mit auf die Einkaufsliste und in den Kochmodus).
 // ing: [Menge, Zutat] · steps: [Text, Minuten für den Timer (optional)] · Abkürzungen sind ausdrücklich erlaubt.
 
-export const CATS = [['haupt', '🍽️ Hauptgerichte'], ['salat', '🥗 Salate'], ['dessert', '🍨 Desserts'], ['backen', '🧁 Backen'], ['drink', '🍹 Drinks ohne Alkohol']];
+export const CATS = [['haupt', '🍽️ Hauptgerichte'], ['fruehstueck', '🍳 Frühstück'], ['salat', '🥗 Salate'], ['dessert', '🍨 Desserts'], ['backen', '🧁 Backen'], ['drink', '🍹 Drinks ohne Alkohol']];
 export const PLATE = { kh: ['🍝', 'Sättigung'], ew: ['🥩', 'Eiweiß'], gm: ['🥦', 'Gemüse'] };
 
 export const RECIPES = [
@@ -94,6 +94,53 @@ export const RECIPES = [
   { id: 'ofenkartoffel', cat: 'haupt', title: 'Ofenkartoffel mit Kräuterquark & Lachs', icon: '🥔', min: 50, tags: ['ofen', 'einfach'], plate: { kh: 1, ew: 1, gm: 0 },
     ing: [['2 große', 'Kartoffeln (mehligkochend)'], ['250 g', 'Kräuterquark'], ['100 g', 'Räucherlachs'], ['etwas', 'Schnittlauch']],
     steps: [['Ofen auf 200 °C. Kartoffeln waschen, mehrmals mit der Gabel einstechen, in Alufolie wickeln.'], ['Ab in den Ofen, bis sie ganz weich sind.', 50], ['Aufschneiden, Quark rein, Lachs drauf, Schnittlauch drüber.']] },
+
+  // ---------- Frühstück (Julia 2026-10-30) · Eier immer ganz fest (Schwangerschaft) ----------
+  { id: 'overnight-oats', cat: 'fruehstueck', title: 'Overnight Oats mit Beeren', icon: '🫐', min: 5, tags: ['süß', 'ohne kochen', 'vorbereiten'], taste: ['cremig', 'fruchtig', 'mild'],
+    note: 'Abends 5 Minuten, morgens nur noch Löffel raus.',
+    ing: [['100 g', 'zarte Haferflocken'], ['200 ml', 'Milch'], ['150 g', 'Joghurt'], ['1 EL', 'Honig'], ['150 g', 'Beeren (TK oder frisch)'], ['1 EL', 'Chiasamen (wer mag)']],
+    steps: [['Haferflocken, Milch, Joghurt, Honig und Chiasamen in zwei Gläsern verrühren.'], ['Beeren obendrauf, Deckel drauf, über Nacht in den Kühlschrank.'], ['Morgens umrühren – fertig. Zu fest? Einen Schluck Milch dazu.']] },
+  { id: 'ruehrei-toast', cat: 'fruehstueck', title: 'Rührei-Toast mit Schnittlauch', icon: '🍳', min: 10, tags: ['herzhaft', 'schnell'], taste: ['herzhaft', 'buttrig', 'frisch'],
+    ing: [['4', 'Eier'], ['2 EL', 'Milch'], ['1 EL', 'Butter'], ['4 Scheiben', 'Toast oder Bauernbrot'], ['½ Bund', 'Schnittlauch']],
+    steps: [['Eier mit Milch, Salz und Pfeffer verquirlen. Toast toasten.'], ['Butter in der Pfanne, Eier rein, bei mittlerer Hitze langsam schieben, bis kein flüssiges Ei mehr da ist.', 4], ['Schnittlauch drüberschneiden, aufs Brot.']] },
+  { id: 'bauernfruehstueck', cat: 'fruehstueck', title: 'Bauernfrühstück mit Speck', icon: '🥔', min: 25, tags: ['deftig', 'pfanne', 'sonntag'], taste: ['deftig', 'röstig', 'würzig'],
+    note: 'Das Sonntags-Frühstück für richtig Hunger.',
+    ing: [['500 g', 'Kartoffeln (festkochend)'], ['100 g', 'Speckwürfel'], ['1', 'Zwiebel'], ['4', 'Eier'], ['2', 'Gewürzgurken']],
+    steps: [['Kartoffeln schälen, in dünne Scheiben schneiden. Zwiebel würfeln.'], ['Kartoffeln in reichlich Öl braten, ab und zu wenden, bis sie goldbraun und weich sind.', 15], ['Speck und Zwiebel dazu, 3 Minuten mitbraten.', 3],
+            ['Eier verquirlen, salzen, drübergießen, Deckel drauf und stocken lassen, bis das Ei ganz fest ist.', 5], ['Mit Gewürzgurken servieren.']] },
+  { id: 'pancakes', cat: 'fruehstueck', title: 'Fluffige Pancakes mit Ahornsirup', icon: '🥞', min: 20, tags: ['süß', 'pfanne', 'sonntag'], taste: ['fluffig', 'süß', 'buttrig'],
+    ing: [['200 g', 'Mehl'], ['2 TL', 'Backpulver'], ['1 EL', 'Zucker'], ['2', 'Eier'], ['250 ml', 'Milch'], ['2 EL', 'Butter'], ['etwas', 'Ahornsirup'], ['150 g', 'Beeren oder 1 Banane']],
+    steps: [['Mehl, Backpulver, Zucker und eine Prise Salz mischen. Eier und Milch dazu, nur kurz glatt rühren (ein paar Klümpchen sind okay).'], ['1 EL Butter schmelzen, unter den Teig rühren.'],
+            ['Pfanne mit etwas Butter auf mittlere Hitze. Je 2 EL Teig pro Pancake, wenden, wenn oben Bläschen platzen – von beiden Seiten goldbraun und durch.', 12], ['Stapeln, Ahornsirup und Obst drauf.']] },
+  { id: 'croque', cat: 'fruehstueck', title: 'Überbackener Schinken-Käse-Toast', icon: '🥪', min: 15, tags: ['herzhaft', 'ofen', 'schnell'], taste: ['käsig', 'knusprig', 'herzhaft'],
+    ing: [['4 Scheiben', 'Toast'], ['4 Scheiben', 'Kochschinken'], ['100 g', 'geriebener Käse (Gouda oder Emmentaler)'], ['1 TL', 'Senf'], ['1 EL', 'Butter']],
+    steps: [['Ofen auf 220 °C (Umluft 200 °C). Toast dünn mit Butter und Senf bestreichen.'], ['Schinken drauf, Käse drüber, aufs Blech.'], ['Backen, bis der Käse blubbert und der Toast knusprig ist (der Schinken wird dabei ganz heiß).', 8]] },
+
+  // ---------- 💪 High Protein (Julia 2026-10-30): ein Tag, kein eigener Bereich – tags enthält 'protein' ----------
+  { id: 'teriyaki-bowl', cat: 'haupt', title: 'Teriyaki-Hähnchen-Bowl mit Brokkoli', icon: '🍗', min: 25, tags: ['protein', 'asiatisch', 'schnell'], taste: ['süß-salzig', 'glasiert', 'frisch'], plate: { kh: 1, ew: 1, gm: 1 },
+    note: '💪 ca. 50 g Eiweiß pro Portion.',
+    ing: [['400 g', 'Hähnchenbrust'], ['150 g', 'Reis'], ['300 g', 'Brokkoli'], ['100 ml', 'Teriyaki-Soße'], ['1 TL', 'Sesam'], ['2', 'Frühlingszwiebeln']],
+    steps: [['Reis nach Packung kochen.', 15], ['Hähnchen in Würfel schneiden und in Öl rundum anbraten, bis es innen ganz weiß ist.', 7], ['Brokkoli in kleinen Röschen 4 Minuten in Salzwasser garen.', 4],
+            ['Teriyaki-Soße zum Hähnchen, 2 Minuten köcheln, bis es glänzt.', 2], ['Reis, Brokkoli und Hähnchen in Schüsseln, Frühlingszwiebeln und Sesam drüber.']] },
+  { id: 'linsen-bolognese', cat: 'haupt', title: 'Bolognese mit Rinderhack & roten Linsen', icon: '🍝', min: 30, tags: ['protein', 'italienisch', 'deftig'], taste: ['herzhaft', 'tomatig', 'sämig'], plate: { kh: 1, ew: 1, gm: 1 },
+    note: '💪 ca. 45 g Eiweiß pro Portion – die Linsen merkt man nicht, sie machen die Soße nur dicker.',
+    ing: [['250 g', 'Rinderhackfleisch'], ['80 g', 'rote Linsen'], ['1', 'Zwiebel'], ['1', 'Karotte'], ['1 Dose (400 g)', 'gehackte Tomaten'], ['1 EL', 'Tomatenmark'], ['200 g', 'Nudeln'], ['30 g', 'Parmesan']],
+    steps: [['Zwiebel und Karotte fein würfeln.'], ['Hackfleisch in Öl krümelig braten, bis nichts Rosa mehr da ist. Zwiebel, Karotte und Tomatenmark 3 Minuten mitbraten.', 8],
+            ['Tomaten, Linsen und 250 ml Wasser dazu, salzen, pfeffern, mit Deckel köcheln, bis die Linsen weich sind.', 15], ['Nudeln nach Packung kochen.'], ['Mit Parmesan servieren.']] },
+  { id: 'garnelen-bohnen', cat: 'haupt', title: 'Garnelen-Pfanne mit weißen Bohnen & Tomaten', icon: '🍤', min: 20, tags: ['protein', 'mediterran', 'schnell', 'fisch'], taste: ['knoblauchig', 'frisch', 'leicht scharf'], hot: 1, plate: { kh: 1, ew: 1, gm: 1 },
+    note: '💪 ca. 40 g Eiweiß pro Portion.',
+    ing: [['300 g', 'Garnelen (TK, aufgetaut)'], ['1 Dose', 'weiße Bohnen'], ['250 g', 'Kirschtomaten'], ['2 Zehen', 'Knoblauch'], ['1 Prise', 'Chiliflocken'], ['1 Handvoll', 'Petersilie'], ['½', 'Zitrone'], ['1', 'Baguette']],
+    steps: [['Knoblauch in Scheiben, Tomaten halbieren, Bohnen abgießen.'], ['Knoblauch und Chili in Olivenöl kurz anbraten, Tomaten dazu, bis sie weich werden.', 4],
+            ['Bohnen und Garnelen dazu, braten, bis die Garnelen rundum rosa und innen ganz durch sind.', 5], ['Salzen, Zitrone und Petersilie drüber, mit Baguette.']] },
+  { id: 'thunfisch-bohnensalat', cat: 'salat', title: 'Thunfisch-Bohnen-Salat mit Ei', icon: '🐟', min: 15, tags: ['protein', 'schnell'], taste: ['frisch', 'würzig', 'sättigend'], plate: { kh: 0, ew: 1, gm: 1 },
+    note: '💪 ca. 45 g Eiweiß pro Portion – ein ganzes Abendessen in einer Schüssel.',
+    ing: [['2 Dosen', 'Thunfisch im eigenen Saft'], ['1 Dose', 'Kidneybohnen'], ['3', 'Eier'], ['1', 'rote Zwiebel'], ['1', 'Paprika'], ['3 EL', 'Olivenöl'], ['2 EL', 'Essig'], ['1 TL', 'Senf']],
+    steps: [['Eier 10 Minuten hart kochen (ganz fest), kalt abschrecken.', 10], ['Bohnen abspülen, Thunfisch abtropfen. Zwiebel in feine Ringe, Paprika würfeln.'],
+            ['Öl, Essig, Senf, Salz und Pfeffer verrühren, alles untermischen.'], ['Eier vierteln und obendrauf legen.']] },
+  { id: 'quark-bowl', cat: 'fruehstueck', title: 'Quark-Bowl mit Beeren & Nüssen', icon: '🥣', min: 5, tags: ['protein', 'süß', 'ohne kochen'], taste: ['cremig', 'fruchtig', 'nussig'],
+    note: '💪 ca. 35 g Eiweiß pro Portion.',
+    ing: [['500 g', 'Magerquark'], ['100 ml', 'Milch'], ['1 EL', 'Honig'], ['200 g', 'Beeren (TK oder frisch)'], ['30 g', 'Walnüsse oder Mandeln'], ['2 EL', 'Haferflocken']],
+    steps: [['Quark mit Milch und Honig cremig rühren.'], ['In zwei Schüsseln, Beeren, Nüsse und Haferflocken drüber.']] },
 
   // ---------- Salate ----------
   { id: 'gurkensalat', cat: 'salat', title: 'Gurkensalat mit Dill', icon: '🥒', min: 10, tags: ['schnell', 'beilage'], plate: { kh: 0, ew: 0, gm: 1 },
