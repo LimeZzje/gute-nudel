@@ -85,3 +85,17 @@ export function sameThing(ing, have) {
   const alt = /\boder\b/i.test(String(have).replace(/\([^)]*\)/g, '')) ? all : all.slice(0, 1);
   return a.some(x => x.length >= 3 && alt.some(y => y === x || (y.endsWith(x) && y.length - x.length >= 3 && !NOT.has(y))));
 }
+
+// Amounts (2026-10-08, from app.js): "500 g", "1,5 kg", "2 Dosen" … → {n, unit, label}. g/kg and ml/l are converted, a bare number or
+// "Stück" counts pieces; any other word (Dose, Scheiben, EL, Packung) only adds up with the same word.
+export const FR = { '½': .5, '¼': .25, '¾': .75, '⅓': 1 / 3, '⅔': 2 / 3 };
+const UNITS = { g: ['g', 1], gramm: ['g', 1], kg: ['g', 1000], ml: ['ml', 1], l: ['ml', 1000], liter: ['ml', 1000], cl: ['ml', 10], dl: ['ml', 100] };
+export function parseQty(q) {
+  if (q == null || q === '') return null;
+  let t = String(q).trim().replace(/^ca\.?\s*/i, '').replace(/(\d)\s*([½¼¾⅓⅔])/g, (m, a, b) => String(+a + FR[b])).replace(/[½¼¾⅓⅔]/g, m => String(FR[m]));
+  const m = t.match(/^(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?\s*([A-Za-zÄÖÜäöüß]*\.?)/); if (!m) return null;
+  const n = parseFloat(m[1].replace(',', '.')), w = m[2].replace(/\.$/, ''), k = w.toLowerCase();
+  if (UNITS[k]) return { n: n * UNITS[k][1], unit: UNITS[k][0] };
+  if (!w || /^(stück|stk|st|er)$/.test(k)) return { n, unit: 'stk' };   // Picnic's "10er" eggs = 10 Stück
+  return { n, unit: k.replace(/(n|en|s)$/, ''), label: w };   // Dose/Dosen, Scheibe/Scheiben add up
+}

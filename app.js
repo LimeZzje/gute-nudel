@@ -1,6 +1,7 @@
 import * as C from './content.js';
 import * as K from './cookbook.js';
 import * as Sh from './shop.js';
+import * as Nw from './naehr.js';
 import * as D from './data.js';
 import { plantSVG } from './plant.js';
 import * as Car from './car.js';
@@ -12,7 +13,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-30.2';
+const VERSION = '2026-10-30.3';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -122,19 +123,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
 // 🧊 Vorrat (shared, 2026-10-08): "Alles eingekauft!" puts the bought things in; cooking (or ✕) takes them out.
 // Each phone only posts its own adds + uses (post/<me>.json → vorrat), the fridge = both adds minus both uses. Claude reads it too.
 const VDAY = 864e5;
-// Amounts (2026-10-08): "500 g", "1,5 kg", "2 Dosen" … → {n, unit, label}. g/kg and ml/l are converted, a bare number or
-// "Stück" counts pieces; any other word (Dose, Scheiben, EL, Packung) only adds up with the same word.
-const FR = { '½': .5, '¼': .25, '¾': .75, '⅓': 1 / 3, '⅔': 2 / 3 };
-const UNITS = { g: ['g', 1], gramm: ['g', 1], kg: ['g', 1000], ml: ['ml', 1], l: ['ml', 1000], liter: ['ml', 1000], cl: ['ml', 10], dl: ['ml', 100] };
-function parseQty(q) {
-  if (q == null || q === '') return null;
-  let t = String(q).trim().replace(/^ca\.?\s*/i, '').replace(/(\d)\s*([½¼¾⅓⅔])/g, (m, a, b) => String(+a + FR[b])).replace(/[½¼¾⅓⅔]/g, m => String(FR[m]));
-  const m = t.match(/^(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?\s*([A-Za-zÄÖÜäöüß]*\.?)/); if (!m) return null;
-  const n = parseFloat(m[1].replace(',', '.')), w = m[2].replace(/\.$/, ''), k = w.toLowerCase();
-  if (UNITS[k]) return { n: n * UNITS[k][1], unit: UNITS[k][0] };
-  if (!w || /^(stück|stk|st|er)$/.test(k)) return { n, unit: 'stk' };   // Picnic's "10er" eggs = 10 Stück
-  return { n, unit: k.replace(/(n|en|s)$/, ''), label: w };   // Dose/Dosen, Scheibe/Scheiben add up
-}
+const parseQty = Sh.parseQty;   // "500 g", "2 Dosen" → {n, unit, label} (moved to shop.js 2026-10-30 so naehr.js and the tests share it)
 const qtyOk = (a, b) => !!(a && b && a.unit === b.unit);
 function fmtQty(q) {
   if (!q) return '';
@@ -2271,6 +2260,13 @@ function viewDaheim() {
   }
   return h + `<p class="hint">Tippen = Menge ändern oder umräumen · ✕ = aufgebraucht. „Jetzt kochen“ nimmt raus, was ein Rezept braucht.</p>`;
 }
+// 🔢 Nährwerte (2026-10-30, user): estimated from the ingredients (naehr.js), only on the recipe page; a guessed piece count says so
+const PLURAL = { Portion: 'Portionen', Stück: 'Stück', Glas: 'Gläser' };
+function nutriLine(r) {
+  const n = Nw.nutrition(r); if (!n) return '';
+  const g = x => Math.round(x) + ' g', per = n.guess ? `pro ${n.label}, bei ca. ${n.n} ${PLURAL[n.label] || n.label}` : 'pro ' + n.label;
+  return `<p class="bp-nutri">ca. ${Math.round(n.kcal / 10) * 10} kcal · ${g(n.f)} Fett · ${g(n.kh)} KH · ${g(n.ew)} Eiweiß <span class="muted">${per}${n.missing.length ? ' · ohne ' + esc(n.missing.join(', ')) : ''}</span></p>`;
+}
 // one recipe as a book page: the style's head + the working parts (plate check, ingredients → list, steps → Jetzt kochen)
 function recipePage(r) {
   const theme = styleOf(r), sides = sidesOf(), c = S.cook[r.id], cooked = !!(c && c.n) || cookedLog().some(x => x.rid === r.id), V = vorrat();
@@ -2278,7 +2274,7 @@ function recipePage(r) {
   const d = Bk.deco(theme, r, { cooked, taste: tasteOf(r) }), him = theme === 'him';
   let h = d.side + d.stamp;
   h += `${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<h2 class="bp-title">${theme === 'kid' ? '' : r.icon + ' '}${esc(r.title)}</h2>
-    <p class="bp-meta">${theme === 'kid' ? kidStars(r, true) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}${seasonTag(r)}</p>${flavor(r) ? `<p class="bp-flavor">${flavor(r)}</p>` : ''}
+    <p class="bp-meta">${theme === 'kid' ? kidStars(r, true) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}${seasonTag(r)}</p>${nutriLine(r)}${flavor(r) ? `<p class="bp-flavor">${flavor(r)}</p>` : ''}
     ${home ? `<span class="bp-tape">${him ? '✠ alles in der Speisekammer' : '🧊 alles daheim'}</span>` : ''}
     ${r.src ? `<p class="muted" style="margin:2px 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:4px 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.note ? `<p class="bp-note">${esc(r.note)}</p>` : ''}
     ${ui.planPick != null ? `<button class="btn green wide" style="clear:both;margin:6px 0" data-a="planset" data-id="${r.id}" data-i="${ui.planPick}">🗓️ Für ${esc(planDayName(planLive().start, ui.planPick))} nehmen</button>` : ''}

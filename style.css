@@ -999,6 +999,7 @@ label.btn { display: inline-flex; align-items: center; justify-content: center; 
 /* 👅 taste profile on the swipe card + recipe page */
 .flavor { display: inline-block; padding: 3px 10px; border-radius: 99px; background: rgba(224,134,74,.12); color: var(--ink); font-size: 14px; font-weight: 700; }
 .dd-him .flavor { background: rgba(243,227,200,.12); color: #f3e3c8; }
+.bp-nutri { margin: 0 0 6px; font-size: .88em; }
 .bp-flavor { margin: 4px 0; } .flavor .hot { letter-spacing: -2px; }
 /* 🫧 event bubbles under the greeting (bubbles(), like Instagram stories) */
 .bubs { display: flex; gap: 14px; overflow-x: auto; padding: 4px 4px 12px; margin: 0 -4px 6px; scrollbar-width: none; }
