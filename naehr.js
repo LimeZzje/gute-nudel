@@ -167,7 +167,12 @@ function match(part) {
   return best;
 }
 // "Spitzkohl oder Weißkohl" → Spitzkohl, "Parmesan, frisch gerieben" → Parmesan, "Bio-Zitrone (…) – für …" → Zitrone
+const MEMO = new Map(), NMEMO = new Map();   // the book lists ask for every recipe on each render
 export function food(name) {
+  if (!MEMO.has(name)) MEMO.set(name, findFood(name));
+  return MEMO.get(name);
+}
+function findFood(name) {
   const t = String(name || '').replace(/\([^)]*\)/g, ' ').split(/\s[–-]\s|;/)[0];
   for (const p of [t.split(',')[0].split(/\boder\b|\//)[0], t.split(',')[0], t]) { const f = p.trim() && match(p); if (f) return f; }
   // "Käse (z.B. Cheddar)", "Kokosmilch (oder Kokossirup)": the thing may sit in the brackets
@@ -223,6 +228,11 @@ export function portions(r, total) {
 }
 // the estimate for one recipe: {kcal, f, kh, ew, n, label, guess, missing: [names]} per portion, or null when nothing is known
 export function nutrition(r) {
+  const key = JSON.stringify([r.serves, r.cat, r.ing]);
+  if (!NMEMO.has(key)) NMEMO.set(key, calc(r));
+  return NMEMO.get(key);
+}
+function calc(r) {
   const sum = [0, 0, 0, 0], missing = []; let total = 0, known = 0;
   for (const [q, name] of r.ing || []) {
     if (!name) continue;
@@ -236,4 +246,7 @@ export function nutrition(r) {
   const p = portions(r, total), d = x => x / p.n;
   return { kcal: d(sum[0]), f: d(sum[1]), kh: d(sum[2]), ew: d(sum[3]), n: p.n, label: p.label, guess: p.guess, missing };
 }
+// 💪 High Protein (user 2026-10-30): enough per portion (≥ 25 g, a usual per-meal target) AND dense (≥ 20 % of the kcal,
+// the EU "high protein" rule), so a huge heavy plate doesn't count just by size
+export const highProtein = n => !!n && n.ew >= 25 && n.ew * 4 >= n.kcal * 0.2;
 export const FOODS = FOOD.length;

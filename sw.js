@@ -1,6 +1,6 @@
 // Offline support. Online: always the newest app files from the network (so updates apply at once);
 // offline: the copy from the cache. GitHub (backup + photos) never goes through here.
-const V = 'gn-129';
+const V = 'gn-130';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'data.js', 'content.js', 'cookbook.js', 'shop.js', 'naehr.js', 'plant.js', 'car.js', 'spiel.js', 'entspannen.js', 'baby.js', 'geburtstag.js', 'hellonudel.js', 'hn_slides.js', 'manifest.json',
   'fonts/nunito.woff2', 'fonts/caveat.woff2', 'fonts/pixel.woff2', 'fonts/creepster.woff2', 'fonts/dancing.woff2', 'fonts/fraktur.woff2', 'fonts/fell.woff2', 'fonts/fell-i.woff2', 'fonts/patrick.woff2', 'book.js', 'icons/icon-192.png', 'icons/icon-512.png'];
 

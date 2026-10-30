@@ -13,7 +13,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-30.4';
+const VERSION = '2026-10-30.5';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -2097,7 +2097,7 @@ function cookableNow() { // all of it at home / only 1–2 things missing (Claud
 const kidLevel = r => { const m = r.min || 0, n = (r.steps || []).length; return Math.min(3, (m <= 20 ? 1 : m <= 45 ? 2 : 3) + (n >= 9 ? 1 : 0)); };
 const KID_WORDS = ['ganz schnell', 'gemütlich', 'braucht etwas Zeit'];
 const kidStars = (r, words) => { const k = kidLevel(r); return `<span class="kstars" title="${KID_WORDS[k - 1]}"><em>${'★'.repeat(k)}</em><i>${'★'.repeat(3 - k)}</i>${words ? KID_WORDS[k - 1] + '<br>' : ''}</span>`; };
-const recipeRow = r => { const him = isCodex(r) && !r.plain, kid = isHerb(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : kid ? ' row-kid' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${kid ? ' ' + kidStars(r) : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}${isBake(r) ? ' <span class="tag bake">🧁 Backen</span>' : ''}${isProtein(r) ? ' <span class="tag" title="High Protein">💪</span>' : ''}${seasonTag(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
+const recipeRow = r => { const him = isCodex(r) && !r.plain, kid = isHerb(r) && !r.plain, mine = r.book || (r.own && (!origOf(r.id) || bookRecipes().some(b => b.id === r.id))); return `<button class="card recipe-row${him ? ' row-him' : kid ? ' row-kid' : ''}" data-a="recipe" data-id="${r.id}">${r.vr && !r.arch ? (him ? '<span class="rnew wax" title="Neu">✠<b>NOVUM</b></span>' : '<span class="rnew kidnew">NEU!</span>') : ''}<span class="ri">${r.icon}</span><span class="rt"><b>${esc(r.title)}</b><br><span class="muted">${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min.' : ''}${kid ? ' ' + kidStars(r) : ''}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : mine ? (ownerOf(r) === 'stefan' ? ' · 💙 von ihm' : ' · 💛 von ihr') : r.own ? ' · ✏️ angepasst' : ''}${tasteOf(r) ? ' ' + tasteOf(r) : ''}${isBake(r) ? ' <span class="tag bake">🧁 Backen</span>' : ''}${isProtein(r) ? ` <span class="tag" title="High Protein: Eiweiß pro Portion">${protBadge(r)}</span>` : ''}${seasonTag(r)}</span>${pregLater(r) ? '<br><span class="preglater">🤰 erst ab Februar</span>' : ''}${r.miss ? `<br><span class="miss">fehlt nur: ${r.miss.map(esc).join(', ')}</span>` : ''}${r.badge ? '<br>' + r.badge : ''}</span>${plateHtml(r, [])}</button>`; };
 // ---------- the Kochbuch = one book (2026-10-11, user): thumb-index tabs Daheim · Jetzt · Nächstes Mal · Gekocht ----------
 // 🧊 Daheim = what's home · Jetzt = what can I cook now (all at home first, then "fehlt nur wenig") · Nächstes Mal = what we
 // want next time (search, everything) · Gekocht = the diary. A row opens its recipe page with a page-turn; swiping on a recipe
@@ -2152,7 +2152,10 @@ const stampRow = (r, html) => recipeRow({ ...r, badge: html });
 const CAT_SHORT = { haupt: '🍽️ Haupt', fruehstueck: '🍳 Frühstück', protein: '💪 Protein', salat: '🥗 Salat', dessert: '🍨 Dessert', backen: '🧁 Backen', drink: '🍹 Drinks' };   // one row of chips in the book
 // 💪 High Protein (Julia 2026-10-30): a TAG on any category ('protein' in r.tags), but its own chip in the book, after Frühstück
 const BOOK_CATS = K.CATS.slice(0, 2).concat([['protein', '💪 High Protein']], K.CATS.slice(2));
-const isProtein = r => (r.tags || []).includes('protein');
+// .5 (user): calculated from the Nährwerte (Nw.highProtein: ≥ 25 g and ≥ 20 % of the kcal); the hand-set tag still counts on top
+const protTag = r => (r.tags || []).includes('protein');
+const isProtein = r => protTag(r) || Nw.highProtein(Nw.nutrition(r));
+const protBadge = r => { const n = Nw.nutrition(r); return n ? '💪 ' + Math.round(n.ew) + ' g' : '💪'; };
 // 🧁 Backen (user 2026-10-18): category 'backen' OR the tag 'backen' (a baked dessert like the Lime Pie is in Dessert AND Backen)
 const BAKE_RX = /kuchen|torte|schnitte|muffin|plätzchen|keks|brownie|cookie|tarte|pie|strudel|soufflé|crumble|gebäck|waffel|crossies|linzer/i;
 // 🎃 seasonal flair (user 2026-10-18): a recipe written for a season gets its icon (r.season; the first spooky set predates the field)
@@ -2459,7 +2462,7 @@ function recipeModal() {
   const e = ui.re, cats = K.CATS;
   modal(`<div style="text-align:left"><h2 style="text-align:center">${e.id ? '✎ Rezept ändern' : '✏️ Eigenes Rezept'}</h2>
     <label class="field"><span>Name</span><input id="re-title" value="${esc(e.title)}" placeholder="z.B. Omas Linsensuppe" autocomplete="off"></label>
-    <div class="chips">${cats.map(([k, l]) => `<button class="chip ${e.cat === k ? 'on' : ''}" data-a="recat" data-v="${k}">${l}</button>`).join('')}<button class="chip ${isProtein(e) ? 'on' : ''}" data-a="reprot" aria-pressed="${isProtein(e)}">💪 High Protein</button></div>
+    <div class="chips">${cats.map(([k, l]) => `<button class="chip ${e.cat === k ? 'on' : ''}" data-a="recat" data-v="${k}">${l}</button>`).join('')}<button class="chip ${protTag(e) ? 'on' : ''}" data-a="reprot" aria-pressed="${protTag(e)}">💪 High Protein</button></div>
     <div style="display:flex;gap:10px"><label class="field" style="flex:1"><span>Symbol</span><input id="re-icon" value="${esc(e.icon)}" style="font-size:22px" autocomplete="off"></label>
       <label class="field" style="flex:1"><span>Minuten</span><input id="re-min" type="number" min="0" inputmode="numeric" value="${esc(e.min || '')}"></label>
       <label class="field" style="flex:1"><span>Für wie viele?</span><input id="re-serves" value="${esc(e.serves || '2')}" autocomplete="off"></label></div>
@@ -2506,7 +2509,7 @@ Object.assign(A, {
     recipeModal();
   },
   recat(el) { reRead(); ui.re.cat = el.dataset.v; recipeModal(); },
-  reprot() { reRead(); const t = ui.re.tags || []; ui.re.tags = isProtein(ui.re) ? t.filter(x => x !== 'protein') : t.concat('protein'); recipeModal(); },   // 💪 a tag on top of the category
+  reprot() { reRead(); const t = ui.re.tags || []; ui.re.tags = protTag(ui.re) ? t.filter(x => x !== 'protein') : t.concat('protein'); recipeModal(); },   // 💪 a tag on top of the category
   replate(el) { reRead(); const k = el.dataset.v; ui.re.plate[k] = ui.re.plate[k] ? 0 : 1; recipeModal(); },
   resave() {
     reRead(); const e = ui.re, msg = $('#re-msg');
