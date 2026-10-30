@@ -44,3 +44,44 @@ export function classify(text, learned = {}) {
   }
   return best ? best[1] : 'sonst';
 }
+
+// ---------- one thing, many names (2026-10-30, user: "Milch" asked about Milchreis, Salatgurke + Gurke were two things) ----------
+// German compounds end in the actual thing (Voll|milch, Kirsch|tomaten, Salat|gurke), so a name matches when its noun ENDS in
+// the other's noun — Milchreis is rice, not milk. Brands, pack words and leading adjectives drop out; plurals fold together.
+const BRANDS = /\b(gut\s*&\s*günstig|gut\s*und\s*günstig|edeka|herzstücke|rewe|beste wahl|ja!|k-classic|milsani|kühne|mildessa|de cecco|barilla|burgis|knorr|maggi|dr\.?\s*oetker|alnatura|bio|coca-cola|philadelphia|picnic)\b/gi;
+const FILLER = new Set(['einweg', 'mehrweg', 'natur', 'stück', 'am', 'im', 'vom', 'glas', 'dose', 'packung', 'beutel', 'tk', 'frisch', 'klassisch', 'original', 'etwas', 'oder', 'und', 'mit']);
+// different words for the same thing (folded stems, see stem): → one name
+const SAME = { salatgurk: 'gurk', schlangengurk: 'gurk', mohr: 'karott', mohrrub: 'karott', karotte: 'karott', porree: 'lauch', rinderhack: 'hackfleisch', hack: 'hackfleisch',
+  gemischteshackfleisch: 'hackfleisch', schlagsahn: 'sahn', schlagrahm: 'sahn', rahm: 'sahn', kartoffeldrilling: 'kartoffel', drilling: 'kartoffel', sandwichtoast: 'toast', toastbrot: 'toast' };
+const FAM = { ei: 'eier', eier: 'eier', eigelb: 'eier', eiweiss: 'eier', eiern: 'eier' };
+const fold = w => w.toLowerCase().replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss');
+// Tomate/Tomaten, Nudel/Nudeln, Äpfel/Apfel, Champignons → one stem (umlauts as ae/oe/ue only in SAME keys)
+export function stem(w) {
+  w = fold(w); if (FAM[w]) return FAM[w];
+  if (w.length > 4 && /en$/.test(w)) w = w.slice(0, -2); else if (w.length > 3 && /[nes]$/.test(w)) w = w.slice(0, -1);
+  return SAME[w] || w;
+}
+// compounds that end in a thing but aren't it: Milchreis is no Reis for a recipe, Erdnussbutter no Butter
+const NOT = new Set(['milchrei', 'erdnussbutter', 'kakaobutter', 'kraeuterbutter', 'krauterbutter', 'buttermilch', 'kokosmilch', 'sojamilch', 'hafermilch', 'mandelmilch', 'apfelmus', 'pflaumenmus', 'tomatenmark']);
+// the nouns of a name, as stems: "Edeka Herzstücke Gorgonzola am Stück" → [gorgonzola], "Rote Zwiebel" → [zwiebel],
+// "Sandwich-Toast" → [toast]. Capitalised words are nouns; a name typed all lowercase keeps all its words.
+export function nouns(t) {
+  let s = String(t || '').replace(/\([^)]*\)/g, ' ').replace(BRANDS, ' ').replace(/\d+([.,]\d+)?\s*%?/g, ' ');
+  const raw = s.split(/[\s\-–/,+]+/).filter(w => w && /[a-zäöüß]/i.test(w) && !FILLER.has(w.toLowerCase()));
+  let ws = raw.some(w => /^[A-ZÄÖÜ]/.test(w)) ? raw.filter(w => /^[A-ZÄÖÜ]/.test(w)) : raw;
+  // a capitalised adjective in front ("Rote Zwiebel", "Tiefgefrorene Himbeeren", "Gemischtes Hackfleisch") isn't the thing
+  if (ws.length > 1 && /(e|er|es|en|em)$/.test(ws[0]) && /^[A-ZÄÖÜ]/.test(ws[0]) && !/[A-ZÄÖÜ]/.test(ws[0].slice(1)) && /^(rot|grün|gelb|weiß|schwarz|frisch|tiefgefror|tiefgekühlt|gemischt|gekocht|geräuchert|getrocknet|gehackt|passiert|festkochend|mehligkochend|klein|groß|jung|alt|mild|scharf|süß|sauer|fein|grob|zart|kernig|wiener|griechisch|italienisch)/i.test(ws[0])) ws = ws.slice(1);
+  const st = ws.map(stem), joined = SAME[st.join('')];
+  return joined ? [joined] : st;
+}
+// one key per thing: Salatgurke = Gurke, Frischkäse (Philadelphia) = Frischkäse, Sandwich Toast = Sandwich-Toast
+export const thingKey = t => nouns(t).join(' ') || fold(norm(t));
+// does the recipe's ingredient find this Vorrat thing? The Vorrat name may be more specific (Vollmilch for Milch,
+// Kirschtomaten for Tomaten), never the other way round (Reis must not take the Milchreis).
+// On the Vorrat side only the first noun is the thing ("Tafelschokolade Vollmilch" is chocolate), plus alternatives after "oder".
+export function sameThing(ing, have) {
+  const a = nouns(ing), all = nouns(have); if (!a.length || !all.length) return false;
+  if (thingKey(ing) === thingKey(have)) return true;
+  const alt = /\boder\b/i.test(String(have).replace(/\([^)]*\)/g, '')) ? all : all.slice(0, 1);
+  return a.some(x => x.length >= 3 && alt.some(y => y === x || (y.endsWith(x) && y.length - x.length >= 3 && !NOT.has(y))));
+}

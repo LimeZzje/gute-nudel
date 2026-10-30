@@ -12,7 +12,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-27.1';
+const VERSION = '2026-10-30.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -114,6 +114,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     shop: { items: S.shop, gone: (S.shopGone || []).filter(g => Date.now() - g.ts < MONTH) },
     cooked: (S.cookLog || []).slice(-300),
     baby: S.babyMine || {},
+    ...(picLS.tok ? { pic: S.picNext || null } : {}),   // the Picnic slot, only from a phone that's logged in to Picnic
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
 }
@@ -130,7 +131,7 @@ function parseQty(q) {
   const m = t.match(/^(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?\s*([A-Za-zÄÖÜäöüß]*\.?)/); if (!m) return null;
   const n = parseFloat(m[1].replace(',', '.')), w = m[2].replace(/\.$/, ''), k = w.toLowerCase();
   if (UNITS[k]) return { n: n * UNITS[k][1], unit: UNITS[k][0] };
-  if (!w || /^(stück|stk|st)$/.test(k)) return { n, unit: 'stk' };
+  if (!w || /^(stück|stk|st|er)$/.test(k)) return { n, unit: 'stk' };   // Picnic's "10er" eggs = 10 Stück
   return { n, unit: k.replace(/(n|en|s)$/, ''), label: w };   // Dose/Dosen, Scheibe/Scheiben add up
 }
 const qtyOk = (a, b) => !!(a && b && a.unit === b.unit);
@@ -178,6 +179,7 @@ function vorrat() {
     if (!x.id || seen.has(x.id)) continue; seen.add(x.id);
     if (x.pic && owner[x.pic] !== (x.by || '')) continue;   // the other phone's copy of the same delivery
     let left = itemQty(x), gone = false;
+    if (left && left.unit === 'er') left = { n: left.n, unit: 'stk' };   // Picnic "10er" eggs, stored before 2026-10-30
     for (const u of uses) {
       if ((u.item || u.id) !== x.id) continue;
       if (u.set) left = u.set;
@@ -188,6 +190,26 @@ function vorrat() {
     if (!gone) out.push({ ...x, name: itemName(x), left });
   }
   return out;
+}
+// one row per THING (2026-10-30, user: Salatgurke + Gurke, two Tomaten packs, old Sahne next to new): same thingKey = one group,
+// amounts added up per unit. The group answers to its oldest item's id; using or setting it acts on all its items.
+function vorratGroups(V = vorrat()) {
+  const by = new Map();
+  for (const x of V) { const k = Sh.thingKey(x.name); if (!by.has(k)) by.set(k, []); by.get(k).push(x); }
+  return [...by.values()].map(xs => {
+    const per = {};
+    for (const x of xs) if (x.left) per[x.left.unit] = per[x.left.unit] ? { ...per[x.left.unit], n: per[x.left.unit].n + x.left.n } : { ...x.left };
+    const units = Object.values(per), name = xs.map(x => x.name).sort((a, b) => a.length - b.length)[0];
+    return { id: xs[0].id, ids: xs.map(x => x.id), items: xs, name, q: xs.find(x => x.q) && xs.find(x => x.q).q,
+      left: units.length === 1 && xs.every(x => x.left) ? units[0] : null, amounts: units };
+  });
+}
+const vGroup = id => vorratGroups().find(g => g.ids.includes(id));
+const groupQty = g => g.left ? fmtQty(g.left) : g.amounts.length ? g.amounts.map(fmtQty).join(' + ') : g.q || '';
+// "all gone" / "now there's this much" for a whole group: the amount sits on the first item, the rest are used up
+function useGroup(id, extra) {
+  const g = vGroup(id), ids = g ? g.ids : [id];
+  if (extra && extra.set) { useRec(ids[0], extra); ids.slice(1).forEach(i => useRec(i)); } else ids.forEach(i => useRec(i));
 }
 const useRec = (item, extra = {}) => { (S.vorratUsed = S.vorratUsed || []).push({ id: uid(), item, ts: Date.now(), ...extra }); };
 function useVorrat(ids) { ids.forEach(id => useRec(id)); }
@@ -208,10 +230,20 @@ function consumeFor(r) {
     out.ask.push({ id: x.id, name: x.name, have: x.left ? fmtQty(x.left) : '', need: need || '' });
   };
   for (const u of r.uses || []) { const id = typeof u === 'string' ? u : u.id, x = V.find(y => y.id === id); if (x) take(x, typeof u === 'string' ? true : (u.q || true)); }
+  // by name: the whole group of that thing (two Sahne packs → taken from the older one first, then the next)
+  const G = vorratGroups(V);
   for (const [q, t] of r.ing || []) {
     if (!t || isPantry(t)) continue;
-    const n = Sh.norm(t), x = V.find(y => !done.has(y.id) && vMatch(n, Sh.norm(y.name)));
-    if (x) take(x, q || '');
+    const g = G.find(y => y.items.some(x => !done.has(x.id)) && vMatch(t, y.name)); if (!g) continue;
+    const xs = g.items.filter(x => !done.has(x.id)), rq = parseQty(q || ''), fit = rq && xs.filter(x => qtyOk(x.left, rq));
+    if (!fit || !fit.length) { xs.forEach(x => done.add(x.id)); out.ask.push({ id: xs[0].id, name: g.name, have: groupQty(g), need: q || '' }); continue; }
+    let need = rq.n;
+    for (const x of fit) {
+      if (need <= 1e-6) break;
+      done.add(x.id);
+      if (need >= x.left.n - 1e-6) { useRec(x.id); need -= x.left.n; } else { useRec(x.id, { amt: { ...rq, n: need } }); need = 0; }
+    }
+    out.taken.push(g.name + ' ' + fmtQty(rq));
   }
   return out;
 }
@@ -237,6 +269,7 @@ async function syncPost() {
     if (p.name && p.name !== S.partnerName) { S.partnerName = p.name; changed = true; }
     const thx = (p.thanks || []).filter(t => t && t.id && !(S.thanksSeen || []).includes(t.id));
     if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
+    if ('pic' in p && JSON.stringify(p.pic) !== JSON.stringify(S.partnerPic || null)) { S.partnerPic = p.pic; changed = true; }
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
     if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; if (picCheer()) changed = true; }
     if (shopMerge(p.shop)) changed = true;
@@ -635,10 +668,10 @@ function viewRuhe() {
 function hnStops() {
   const open = S.shop.filter(x => !x.done).length, inCart = S.shop.filter(x => !x.done && x.pic).length;
   const fresh = (S.vorratAdd || []).filter(x => x && x.pic && Date.now() - (x.ts || 0) < 864e5).length;
-  const cook = cookableNow().all.length, n = S.picNext && new Date(S.picNext.start);
+  const cook = cookableNow().all.length, pn0 = picNow(), n = pn0 && new Date(pn0.start);
   return {
     einkauf: ['🛒', 'Einkaufs\u00ADwagen', open - inCart ? `${open - inCart} drauf` : inCart ? `🧺 ${inCart} bei Picnic` : 'leer'],   // only what is still to buy yourself
-    vorrat: ['🧊', 'Vorrat', fresh ? `+${fresh} neu da` : `${vorrat().length} Sachen`],
+    vorrat: ['🧊', 'Vorrat', fresh ? `+${fresh} neu da` : `${vorratGroups().length} Sachen`],
     kochbuch: ['📖', 'Kochbuch', cook ? `${cook} kochbar` : 'stöbern'],
     van: n && !isNaN(n) ? n.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + n.getHours() + ' Uhr' : '',
   };
@@ -1263,16 +1296,16 @@ const A = {
     S.shop = S.shop.filter(x => !x.done); commit(true); confetti(50);
     toast('🧊 ' + got.length + (got.length === 1 ? ' Sache' : ' Sachen') + ' im Vorrat');
   },
-  vorratdel(el) { useVorrat([el.dataset.id]); commit(true); },
-  vask(el) { const id = el.dataset.id; if (el.dataset.v === 'gone') useRec(id); vaskDone(id); },
+  vorratdel(el) { useGroup(el.dataset.id); commit(true); },
+  vask(el) { const id = el.dataset.id; if (el.dataset.v === 'gone') useGroup(id); vaskDone(id); },
   vorratqty(el) {   // ✎ the amount by hand
-    const x = vorrat().find(y => y.id === el.dataset.id); if (!x) return;
-    modal(`<div style="text-align:left"><h2 style="text-align:center">🧊 ${esc(x.name)}</h2><p class="muted">Wie viel ist noch da?</p>
-      <form class="add" data-f="vorratset" data-id="${esc(x.id)}"><input name="t" value="${esc(x.left ? fmtQty(x.left) : '')}" placeholder="z.B. 250 g, 3 Stück, 1 Dose" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Speichern">✓</button></form>
+    const x = vGroup(el.dataset.id); if (!x) return;
+    modal(`<div style="text-align:left"><h2 style="text-align:center">🧊 ${esc(x.name)}</h2>${x.ids.length > 1 ? `<p class="muted" style="margin:0">${x.items.map(y => esc(y.name) + (y.left ? ' ' + esc(fmtQty(y.left)) : '')).join(' · ')}</p>` : ''}<p class="muted">Wie viel ist noch da?</p>
+      <form class="add" data-f="vorratset" data-id="${esc(x.id)}"><input name="t" value="${esc(x.left ? fmtQty(x.left) : '')}" placeholder="${x.amounts.length > 1 ? 'zusammen, z.B. ' + esc(groupQty(x)) : 'z.B. 250 g, 3 Stück, 1 Dose'}" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Speichern">✓</button></form>
       <p class="muted" style="margin:12px 0 6px">Wo liegt es?</p><div class="chips">${PLACES.map(([k, ic, l]) => `<button class="chip ${placeOf(x) === k ? 'on' : ''}" data-a="vplace" data-id="${esc(x.id)}" data-v="${k}">${ic} ${l}</button>`).join('')}</div>
       <div class="row"><button class="btn soft" data-a="close">Abbrechen</button><button class="btn soft" data-a="vorratdelm" data-id="${esc(x.id)}" style="color:var(--danger)">Ist alle</button></div></div>`);
   },
-  vplace(el) { const x = vorrat().find(y => y.id === el.dataset.id); if (!x) return; S.vorratPlace = { ...(S.vorratPlace || {}), [Sh.norm(x.name)]: el.dataset.v }; closeModal(); commit(); },
+  vplace(el) { const x = vGroup(el.dataset.id); if (!x) return; S.vorratPlace = { ...(S.vorratPlace || {}), [Sh.norm(x.name)]: el.dataset.v }; closeModal(); commit(); },
   kcat(el) { ui.kcat = el.dataset.v; render(); },
   shelfcat(el) { ui[el.dataset.k] = el.dataset.v; render(); },
   ktab(el) {   // a thumb tab: turn to that section (backwards if it lies before, or when leaving a recipe)
@@ -1285,6 +1318,7 @@ const A = {
   vrseen() { vrSeenAdd(vorratRecipes().map(r => r.id)); },
   swipe() { ui.sub = 'swipe'; render(); scrollTo(0, 0); },
   npread(el) { newsRead(el.dataset.id); },
+  newssuche() { ui.tab = 'hello'; ui.sub = null; ui.qtab = 'kochbuch'; ui.lastQ.hello = 'kochbuch'; ui.rid = null; ui.ktab = 'next'; ui.rq = ''; render(); scrollTo(0, 0); const i = $('#rsearch'); if (i) i.focus(); },
   newsklump() { A.recipe({ dataset: { id: 'buch-reste-klumpatsch', go: '1' }, closest: () => null }); },
   newszettel() { const ids = ZETTEL.filter(id => recipeById(id)); if (ids.length) A.recipe({ dataset: { id: ids[0], go: '1' }, closest: s => (s === '[data-ctx]' ? { dataset: { ctx: ids.join(',') } } : null) }); },   // pages through all 11
   newsshop() { ui.tab = 'ruhe'; ui.sub = null; A.qtab({ dataset: { v: 'einkauf' } }); },
@@ -1293,7 +1327,7 @@ const A = {
   dswipe(el) { const id = el.dataset.id, yes = el.dataset.v === 'yes'; swipeSet(id, yes ? 'yes' : 'no'); toast(yes ? '💚 Bleibt im Kochbuch' : '👋 Aussortiert'); if (!deck().length) { toast('✓ Alle neuen Rezepte sortiert'); if (ui.sub === 'swipe') { ui.sub = null; render(); } } },
   dundo() { const id = ui.lastSwipe; if (!id) return; swipeSet(id, null); toast('↶ Zurück im Stapel'); },
   ktabgo(el) { ui.tab = 'ruhe'; ui.qtab = 'kochbuch'; ui.rid = null; ui.ktab = el.dataset.v; render(); scrollTo(0, 0); },
-  vorratdelm(el) { useVorrat([el.dataset.id]); closeModal(); commit(true); },
+  vorratdelm(el) { useGroup(el.dataset.id); closeModal(); commit(true); },
   cnext() { ui.cstep++; render(); },
   cingall() { ui.cingAll = !ui.cingAll; render(); },
   cprev() { ui.cstep = Math.max(0, ui.cstep - 1); render(); },
@@ -1729,6 +1763,12 @@ const picTotal = (r, n) => { const q = picQty({ unit: r.pick.unit, n }); return 
 // and the matching shopping items leave the list. Only deliveries after this phone first looked (gn_picnic_since),
 // so orders from before Gute Nudel don't flood the Vorrat. Picnic's delivery counts, not our cart (she may change it there).
 let picDelivAt = 0;
+// the next delivery for THIS person (2026-10-30, user: the time wasn't on his Home): own phone's if it's logged in to Picnic,
+// else the partner's (post `pic`). Gone 3 h after the slot ends, in case nobody opened the app since.
+function picNow() {
+  const n = picLS.tok ? S.picNext : S.partnerPic, end = n && Date.parse(n.end || n.start);
+  return n && !isNaN(new Date(n.start)) && !(end && Date.now() > end + 3 * 36e5) ? n : null;
+}
 async function picDeliveries(force) {
   if (!picLS.tok || (!force && Date.now() - picDelivAt < 10 * 60e3)) return;
   picDelivAt = Date.now();
@@ -1787,7 +1827,7 @@ const picWhen = (a, b) => {
   return s.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'numeric' }) + ', ' + hm(s) + (isNaN(e) ? '' : '–' + hm(e));
 };
 function picDelivModal() {
-  const n = S.picNext; if (!n) return;
+  const n = picNow(); if (!n) return;
   const inCart = S.shop.filter(x => x.pic).length;
   modal(`<div style="text-align:center"><p style="font-size:44px;margin:4px 0">🚚</p><h2>Picnic kommt</h2>
     <p><b>${esc(picWhen(n.start, n.end))} Uhr</b></p>
@@ -1934,9 +1974,9 @@ function shopBody(item, inTab) {
 `;
 }
 function vorratHtml() {
-  const V = vorrat();
+  const V = vorratGroups();
   return `<div class="vorrat"><div class="sechead"><span>🧊 Daheim im Vorrat <span class="muted">(${V.length})</span></span></div>
-    ${V.map(x => `<div class="shoprow"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${x.left ? `<b class="qty">${esc(fmtQty(x.left))}</b>` : x.q ? `<b class="qty">${esc(x.q)}</b>` : '<span class="muted" style="font-size:14px">Menge?</span>'}</button><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('') || '<p class="muted">Noch leer. Nach dem Einkaufen „Alles eingekauft!“ drücken – oder hier eintragen, was eh da ist.</p>'}
+    ${V.map(x => `<div class="shoprow"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : '<span class="muted" style="font-size:14px">Menge?</span>'}</button><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('') || '<p class="muted">Noch leer. Nach dem Einkaufen „Alles eingekauft!“ drücken – oder hier eintragen, was eh da ist.</p>'}
     <form class="add" data-f="vorratadd"><input name="t" placeholder="Hab ich daheim… z.B. 500 g Nudeln" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Zum Vorrat">+</button></form>
     <p class="hint">Tippen = Menge ändern · ✕ = aufgebraucht. Beim „Jetzt kochen“ wird abgezogen, was das Rezept braucht.</p></div>`;
 }
@@ -2046,15 +2086,13 @@ function plateHtml(r, sides) {
   return '<span class="plate">' + Object.entries(K.PLATE).map(([k, [ic, l]]) => { const on = r.plate[k] || sides.some(s => s.g === k); return `<span class="pb ${on ? 'on' : ''}" title="${l}">${ic}</span>`; }).join('') + '</span>';
 }
 const tasteOf = r => { const c = S.cook[r.id]; return c && c.taste ? K.TASTE.find(t => t[2] === c.taste)[0] : ''; };
-// recipe ingredient ↔ Vorrat name: substring (Tomate ↔ Kirschtomaten), plus words too short for that matched by family
-// (2026-10-12, user: "1 Ei" was missing while "Eier (6)" sat in the Vorrat — "ei" is too short for the substring rule)
-const VFAM = { ei: 'eier', eier: 'eier', eigelb: 'eier', eiweiß: 'eier', eiweiss: 'eier', eiern: 'eier' };
-const vFams = t => t.split(/[^a-zäöüß]+/).map(w => VFAM[w]).filter(Boolean);
-const vMatch = (n, v) => (n.length >= 3 && v.length >= 3 && (v.includes(n) || n.includes(v))) || vFams(n).some(f => vFams(v).includes(f));
+// recipe ingredient ↔ Vorrat name (Tomate ↔ Kirschtomaten, 1 Ei ↔ Eier, Gurke ↔ Salatgurke; Sh.sameThing has the rules)
+const vMatch = (ing, have) => Sh.sameThing(ing, have);   // 2026-10-30: by the thing's noun (shop.js), Milch no longer finds Milchreis
 function haveFor(r, V) { // → {need, missing[]} over the real ingredients (staples skipped); too little of something = missing
+  V = vorratGroups(V);   // two packs of the same thing count together
   const need = (r.ing || []).filter(([, t]) => t && !isPantry(t));
-  return { need: need.length, missing: need.filter(([q, t]) => { const x = V.find(y => vMatch(Sh.norm(t), Sh.norm(y.name))), rq = parseQty(q);
-    return !x || (x.left && rq && qtyOk(x.left, rq) && x.left.n < rq.n - 1e-6); }).map(([q, t]) => { const x = V.find(y => vMatch(Sh.norm(t), Sh.norm(y.name))); return x && x.left ? t + ' (nur ' + fmtQty(x.left) + ')' : t; }) };
+  return { need: need.length, missing: need.filter(([q, t]) => { const x = V.find(y => vMatch(t, y.name)), rq = parseQty(q);
+    return !x || (x.left && rq && qtyOk(x.left, rq) && x.left.n < rq.n - 1e-6); }).map(([q, t]) => { const x = V.find(y => vMatch(t, y.name)); return x && x.left ? t + ' (nur ' + fmtQty(x.left) + ')' : t; }) };
 }
 function cookableNow() { // all of it at home / only 1–2 things missing (Claude's Vorrat recipes included)
   const V = vorrat(); if (!V.length) return { all: [], almost: [] };
@@ -2164,7 +2202,7 @@ function viewShelf(kind) {
     : `<p class="muted">Noch leer. Nach dem nächsten Einkauf ${codex ? 'beschwört Claude hier neue Werke' : 'wachsen hier neue Rezepte'}.</p>`);
 }
 function viewNext() {
-  let h = `<div class="rsrow"><input id="rsearch" class="rsearch" type="search" placeholder="🔎 Rezept suchen…" value="${esc(ui.rq || '')}" autocomplete="off" enterkeyhint="search"><button class="ricon" data-a="rphoto" aria-label="Rezept fotografieren">📷</button><button class="ricon" data-a="redit" aria-label="Eigenes Rezept schreiben">✏️</button></div>`;
+  let h = `<div class="rsrow"><input id="rsearch" class="rsearch" type="search" placeholder="🔎 Rezept oder Zutat suchen…" value="${esc(ui.rq || '')}" autocomplete="off" enterkeyhint="search"><button class="ricon" data-a="rphoto" aria-label="Rezept fotografieren">📷</button><button class="ricon" data-a="redit" aria-label="Eigenes Rezept schreiben">✏️</button></div>`;
   const wait = (S.recipeInbox || []).filter(x => !x.del);
   if (wait.length) h += `<div class="card"><h3>📷 Wird gerade umgeschrieben</h3>${wait.map(x => `<div class="shoprow"><span style="flex:1">${x.n} ${x.n === 1 ? 'Foto' : 'Fotos'}${x.note ? ' · „' + esc(x.note) + '“' : ''}<br><span class="muted">${x.up ? 'abgeschickt am ' + esc(shortDate(key(new Date(x.ts)))) : '⏳ wird noch hochgeladen…'}</span></span><button class="mini-btn" data-a="rinboxdel" data-id="${x.id}" aria-label="Zurückziehen">✕</button></div>`).join('')}
     <p class="hint">Claude macht daraus eine Kochbuch-Seite mit Zutaten und Schritten – sie taucht hier auf, sobald sie fertig ist.</p></div>`;
@@ -2179,10 +2217,23 @@ function viewNext() {
   if (cat === 'haupt') h += `<p class="hint">${Object.values(K.PLATE).map(([i, l]) => i + ' ' + l).join(' · ')} – fehlt etwas auf dem Teller, schlägt dir das Rezept was dazu vor.</p>`;
   return h;
 }
-function searchHtml() {   // every recipe; title, ingredients and tags count
-  const q = Sh.norm(ui.rq || ''); if (!q) return '';
-  const hits = allRecipes().filter(r => !isCodex(r) && (r.title + ' ' + r.ing.map(x => x[1]).join(' ') + ' ' + r.tags.join(' ')).toLowerCase().includes(q));
-  const rows = hits.slice(0, 40).map(recipeRow).join(''); return rows ? withCtx(rows) : '<p class="muted">Nichts gefunden.</p>';
+// every recipe; title, ingredients and tags count. 2026-10-30 (Julia: type an ingredient, see the recipes with it): every word
+// must hit, forgiving about plurals (Tomaten finds Tomate, Eier finds 1 Ei); a hit in the ingredients shows which one.
+function searchHtml() {
+  const words = Sh.norm(ui.rq || '').split(/\s+/).filter(w => w.length >= 2).map(w => Sh.stem(w)); if (!words.length) return '';
+  const has = (t, w) => Sh.stem(t) === w || Sh.nouns(t).concat(String(t).toLowerCase().split(/[^a-zäöüß]+/).map(Sh.stem)).some(x => x.startsWith(w) || (w.length >= 4 && x.endsWith(w)));   // "tom…" while typing, Kirsch|tomaten
+  const hits = [];
+  for (const r of allRecipes()) {
+    if (isCodex(r)) continue;
+    const ing = (r.ing || []).map(x => x[1]).filter(Boolean), tags = r.tags || [];
+    const inTitle = w => has(r.title, w) || tags.some(t => has(t, w)), inIng = w => ing.filter(t => has(t, w));
+    if (!words.every(w => inTitle(w) || inIng(w).length)) continue;
+    const via = [...new Set(words.flatMap(w => inTitle(w) ? [] : inIng(w)))];
+    hits.push({ r, title: words.every(inTitle), via });
+  }
+  hits.sort((a, b) => b.title - a.title);
+  const rows = hits.slice(0, 40).map(h => recipeRow(h.via.length ? { ...h.r, badge: `<span class="muted">🔎 mit ${h.via.slice(0, 3).map(esc).join(', ')}</span>` } : h.r)).join('');
+  return rows ? withCtx(rows) : '<p class="muted">Nichts gefunden – auch nicht in den Zutaten.</p>';
 }
 function viewGekocht() {
   const L = cookedLog();
@@ -2204,13 +2255,13 @@ const PLACES = [['kuehl', '🧀', 'Kühlschrank'], ['obst', '🍎', 'Obst & Gem�
 const placeOf = x => { const k = Sh.norm(x.name); if ((S.vorratPlace || {})[k]) return S.vorratPlace[k];
   const sec = Sh.classify(x.name, S.shopLearn || {}); return sec === 'kuehl' || sec === 'fleisch' ? 'kuehl' : sec === 'obst' ? 'obst' : sec === 'tk' ? 'tk' : 'schrank'; };
 function viewDaheim() {
-  const V = vorrat();
+  const V = vorratGroups();
   let h = `<form class="add" data-f="vorratadd"><input name="t" placeholder="Hab ich daheim… z.B. 500 g Nudeln" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Zum Vorrat">+</button></form>`;
   if (!V.length) return h + `<div class="card"><p style="margin:0">Noch nichts eingetragen.</p><p class="muted">Nach dem Einkaufen in der Einkaufsliste „✅ Alles eingekauft!“ drücken – dann ist alles hier. Oder oben eintragen, was eh da ist.</p></div>`;
   for (const [k, ic, l] of PLACES) {
     const xs = V.filter(x => placeOf(x) === k).sort((a, b) => a.name.localeCompare(b.name, 'de'));
     if (!xs.length) continue;
-    h += `<div class="card vplace"><h3>${ic} ${l} <span class="muted">(${xs.length})</span></h3>${xs.map(x => `<div class="shoprow"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${x.left ? `<b class="qty">${esc(fmtQty(x.left))}</b>` : x.q ? `<b class="qty">${esc(x.q)}</b>` : ''}</button><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('')}</div>`;
+    h += `<div class="card vplace"><h3>${ic} ${l} <span class="muted">(${xs.length})</span></h3>${xs.map(x => `<div class="shoprow"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('')}</div>`;
   }
   return h + `<p class="hint">Tippen = Menge ändern oder umräumen · ✕ = aufgebraucht. „Jetzt kochen“ nimmt raus, was ein Rezept braucht.</p>`;
 }
@@ -2494,8 +2545,8 @@ const FORMS = {
   addplan(t) { const it = { id: uid(), text: t, where: 'liste', created: Date.now() }; S.items.push(it); ui.picks.add(it.id); commit(); },
   addtoday(t) { S.items.push({ id: uid(), text: t, where: 'heute', created: Date.now() }); S.today.planned = true; commit(); },
   vorratadd(t) { S.vorratAdd = (S.vorratAdd || []).concat(t.split(',').map(x => x.trim()).filter(Boolean).map(x => { const a = splitAmount(x); return { id: uid(), text: a.name, qty: a.qty, ts: Date.now(), by: D.me() }; })); commit(true); },
-  vorratset(t, form) { const id = form.dataset.id, q = parseQty(t) || (splitAmount('x ' + t).qty); if (!q) { toast('Menge nicht verstanden – z.B. „250 g“'); return; } useRec(id, { set: q }); closeModal(); commit(true); },
-  vaskset(t, form) { const id = form.dataset.id, q = parseQty(t); if (!q) { toast('Menge nicht verstanden – z.B. „200 g“'); return; } useRec(id, { set: q }); vaskDone(id); },
+  vorratset(t, form) { const id = form.dataset.id, q = parseQty(t) || (splitAmount('x ' + t).qty); if (!q) { toast('Menge nicht verstanden – z.B. „250 g“'); return; } useGroup(id, { set: q }); closeModal(); commit(true); },
+  vaskset(t, form) { const id = form.dataset.id, q = parseQty(t); if (!q) { toast('Menge nicht verstanden – z.B. „200 g“'); return; } useGroup(id, { set: q }); vaskDone(id); },
   addlist(t) { S.items.push({ id: uid(), text: t, where: 'liste', created: Date.now() }); commit(); },
   extra(t, form) {
     const n = workToday().length, stars = n < C.CAP ? 1 : 0;
@@ -2847,7 +2898,7 @@ function bubbles() {
   if (n) b.push({ a: 'swipe', ic: '🍽️', l: 'Rezepte', n, on: true });
   if (Date.now() < HN.END) b.push(hnUnwrapped() ? { a: 'hello', ic: '🕊️', l: 'Hello Nudel', t0: HN.START, t1: HN.END } : { a: 'hello', ic: '🎁', l: 'Geschenk!', on: true, t0: HN.START, t1: HN.END });
   if (gbLive()) b.push({ a: 'kuchen', ic: '🎂', l: 'Geburtstag', on: true, t0: G.START, t1: G.END });
-  if (S.picNext && !isNaN(new Date(S.picNext.start))) { const t = new Date(S.picNext.start); b.push({ a: 'picdeliv', ic: '🚚', l: 'Picnic', n: t.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + t.getHours(), on: true }); }
+  if (picNow()) { const t = new Date(picNow().start); b.push({ a: 'picdeliv', ic: '🚚', l: 'Picnic', n: t.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + t.getHours(), on: true }); }
   if (babyLive()) b.push({ a: 'baby', ic: '👶', l: 'Baby', on: true, t0: B.START, t1: B.END });
   if (pastEvents().length) b.push({ a: 'events', ic: '🗓️', l: 'Vergangen', past: true });   // always last, grey ring (user)
   if (!b.length) return '';
@@ -2873,6 +2924,8 @@ function viewSwipe() {
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
 const ZETTEL = ['buch-bitch-lasagna', 'buch-kimchi-eintopf', 'buch-thai-garnelen-curry', 'buch-chili', 'buch-chili-cheese-nupels', 'buch-ofenkartoffeln-eier-dip', 'buch-sushi-reis', 'buch-eingelegter-ingwer', 'buch-kaiserschmarrn', 'buch-mexikanische-apfeltorte', 'buch-vanillekipferl'];   // Julia's sticky notes, 2026-10-26
 const NEWS = [
+  { id: 'n-suche', d: '2026-10-30', ic: '🔎', t: 'Gurke bleibt Gurke – und Milchreis ist keine Milch', x: 'Im Vorrat lagen zuletzt zwei Tomaten, drei Frischkäse und eine Gurke, die sich „Salatgurke“ nannte. Ab heute steht jedes Ding nur noch einmal da, die Mengen zusammengezählt. Und wer Milch zum Kochen nimmt, wird nicht mehr nach dem Milchreis gefragt.',
+    how: ['Kochbuch → Stöbern: in die Suche einfach eine Zutat tippen, z.B. „Zucchini“ – du siehst alle Rezepte damit, darunter steht „🔎 mit …“', 'Mehrere Wörter gehen auch: „Hähnchen Reis“', 'Im Vorrat: gleiche Sachen stehen in einer Zeile (Salatgurke + Gurke, zwei Packungen Sahne …). Antippen = Menge für alles zusammen ändern, ✕ = alles davon aufgebraucht', 'Kommt Picnic, sehen jetzt beide Handys auf Home, wann – nicht nur das, auf dem Picnic angemeldet ist'], go: 'newssuche', btn: 'Zur Rezept-Suche' },
   { id: 'n-zettel', d: '2026-10-26', ic: '📝', t: 'Elf Klebezettel ziehen ins Kochbuch – Redaktion findet null Mengenangaben', x: 'Brühl. Am Montagvormittag schickte Julia in zehn Minuten elf Rezepte ab: grüne, orange und blaue Zettel, einer davon auf Werbeblock von ProSiebenSat.1. Claude zählte die Gramm-Angaben und gab bei der Lasagne auf. Sie heißt jetzt offiziell „Bitch-Lasagna“, die Redaktion übernimmt Titel wörtlich. Alle elf stehen ab sofort im Kochbuch, inklusive Originalfoto.',
     how: ['Neu: Bitch-Lasagna, Kimchi-Eintopf, Thai-Garnelen-Curry, Chili, Chili-Cheese-Nupels, Ofen-Kartoffeln mit Eier-Senf-Dip, Sushi-Reis, Eingelegter Ingwer, Kaiserschmarrn, Mexikanische Apfeltorte, Vanillekipferl 🎄', 'Kommen mehrere Fotos auf einmal zurück, gibt’s jetzt „Alle ansehen“ – einfach durchblättern', 'Saison-Rezepte tragen nur noch ihr Emoji: 🎃 🎄 statt Schildchen', 'Das App-Symbol hat einen weißen Rand bekommen – damit die Nudel auf dem Handy nicht untergeht', 'Die Leiste ganz unten am Handy bleibt jetzt schwarz (nach dem Neu-Installieren)', 'Laut Zettel sind die Chili-Cheese-Nupels „fettisch“. Die Redaktion bestätigt das ungeprüft'], go: 'newszettel', btn: 'Alle 11 durchblättern' },
   { id: 'n-klumpatsch', d: '2026-10-20', ic: '🍳', t: 'Kochbuch-KI an Notizbuch gescheitert – „Reste-Klumpatsch“ trotzdem gedruckt', x: 'Brühl. Um 17:37 Uhr meldete der Rezept-Eingang ein neues Foto. Claude, zuständig für Kochbuch-Seiten, rechnete mit Grammangaben. Stattdessen begann die Seite mit: „Die Gegenwart ist ein schöner Ort. Mein Bauch ist dick, aber ich bin trotzdem glücklich.“ Darunter: sieben Zutaten, null Mengen, vier Schritte. Zwei davon lauten sinngemäß „Julia fragen“. Die Hausregel „Nichts erfinden“ ließ nur einen Weg: alles genau so abschreiben. Portionen: „wie viel Reste da sind“. Kochzeit: unbekannt. Kurz zuvor hatte derselbe Prüfer eine harmlose Yakisoba dreimal als „zu ähnlich“ abgelehnt – den Klumpatsch winkte er beim ersten Versuch durch.',
@@ -3513,4 +3566,4 @@ async function start() {
   armBack();
 }
 start();
-window.__gn = { deck: () => deck(), seasonOf: r => seasonOf(r), kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(Sh.norm(a), Sh.norm(b)), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores, choreDue, choreDone, picDeliveries, picQueries, picCheer };
+window.__gn = { deck: () => deck(), seasonOf: r => seasonOf(r), kidLevel: r => kidLevel(r), recipeById: id => recipeById(id), vMatch: (a, b) => vMatch(a, b), vorratGroups: () => vorratGroups(), vorrat: () => vorrat(), vrNew: () => vrNew(), isHerb: r => isHerb(r), parseQty, splitAmount, fmtQty, goBack, rankOf: C.rankOf, mergeStates, syncDevices, get S() { return S; }, ui, render, commit, D, rollover, syncPost, scheduleChores, choreDue, choreDone, picDeliveries, picQueries, picCheer, postObj, consumeFor, searchHtml };
