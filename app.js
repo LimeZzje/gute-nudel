@@ -13,7 +13,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-30.3';
+const VERSION = '2026-10-30.4';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -1310,6 +1310,7 @@ const A = {
   swipe() { ui.sub = 'swipe'; render(); scrollTo(0, 0); },
   npread(el) { newsRead(el.dataset.id); },
   newssuche() { ui.tab = 'hello'; ui.sub = null; ui.qtab = 'kochbuch'; ui.lastQ.hello = 'kochbuch'; ui.rid = null; ui.ktab = 'next'; ui.rq = ''; render(); scrollTo(0, 0); const i = $('#rsearch'); if (i) i.focus(); },
+  newsnaehr() { A.recipe({ dataset: { id: 'koettbullar', go: '1' }, closest: () => null }); },
   newsklump() { A.recipe({ dataset: { id: 'buch-reste-klumpatsch', go: '1' }, closest: () => null }); },
   newszettel() { const ids = ZETTEL.filter(id => recipeById(id)); if (ids.length) A.recipe({ dataset: { id: ids[0], go: '1' }, closest: s => (s === '[data-ctx]' ? { dataset: { ctx: ids.join(',') } } : null) }); },   // pages through all 11
   newsshop() { ui.tab = 'ruhe'; ui.sub = null; A.qtab({ dataset: { v: 'einkauf' } }); },
@@ -2989,6 +2990,8 @@ function viewSwipe() {
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
 const ZETTEL = ['buch-bitch-lasagna', 'buch-kimchi-eintopf', 'buch-thai-garnelen-curry', 'buch-chili', 'buch-chili-cheese-nupels', 'buch-ofenkartoffeln-eier-dip', 'buch-sushi-reis', 'buch-eingelegter-ingwer', 'buch-kaiserschmarrn', 'buch-mexikanische-apfeltorte', 'buch-vanillekipferl'];   // Julia's sticky notes, 2026-10-26
 const NEWS = [
+  { id: 'n-naehr', d: '2026-10-30', ic: '🔢', t: 'Das Kochbuch hat nachgerechnet – jedes Rezept kennt jetzt seine Kalorien', x: 'Wie viel steckt eigentlich in einer Portion Köttbullar? Bisher wusste das nur die Waage im Bad, mit Verspätung. Jetzt rechnet die App es selbst aus: Zutat für Zutat, Gramm für Gramm, geteilt durch die Portionen. Das Ergebnis steht bei jedem Rezept, ganz ohne Abtippen.',
+    how: ['Ein Rezept öffnen: unter dem Titel steht „ca. … kcal · … g Fett · … g KH · … g Eiweiß pro Portion“', 'Es ist eine Schätzung („ca.“) – Salz, Pfeffer und Kräuter zählen nicht, eine Prise schon gar nicht', 'Bei Kuchen und Blechen zählt die App die Stücke selbst, z.B. „pro Stück, bei ca. 12 Stück“', 'Fehlt bei einer Zutat die Menge, steht „ohne …“ dabei. Fehlen zu viele (handgeschriebene Zettel „nach Hunger“), bleibt die Zeile lieber weg', 'Gilt für alle Rezepte: eingebaute, fotografierte, Claudes Vorrat-Rezepte und eure eigenen'], go: 'newsnaehr', btn: 'Köttbullar nachrechnen' },
   { id: 'n-wochenplan', d: '2026-10-30', ic: '🗓️', t: 'Julia plant die Woche – Köttbullar haben ab sofort einen Termin', x: 'Wer jeden Abend „Was essen wir heute?“ fragt, bekommt jetzt eine Antwort, die schon eine Woche alt ist. Der neue Wochenplan nimmt bis zu sieben Gerichte aus dem Kochbuch, jedes an seinen Tag. Dazu zieht ein Frühstück ins Kochbuch ein, und wer Muskeln will, findet sie unter 💪.',
     how: ['Kochbuch → Kochen: ganz oben „🗓️ Wochenplan“ – oder bei jedem Rezept auf „🗓️ Planen“ und einen Tag wählen', 'Ein leerer Tag → „＋ Gericht aussuchen“ → im Kochbuch ein Rezept öffnen → „Für … nehmen“', 'Die Woche startet mit dem ersten Gericht. Umplanen verschiebt nichts', 'Gekocht wird automatisch abgehakt – egal auf welchem Handy, egal an welchem Tag', 'Nach sieben Tagen (oder wenn alles gekocht ist): „Neue Woche planen“ oder „Gleiche nochmal“', 'Neu im Kochbuch: 🍳 Frühstück und 💪 Protein mit je fünf Rezepten. Und Claude schreibt nach dem Einkauf jetzt einen zufälligen Mix: mal Frühstück, mal Salat, mal Backen'], go: 'plan', btn: 'Zum Wochenplan' },
   { id: 'n-suche', d: '2026-10-30', ic: '🔎', t: 'Gurke bleibt Gurke – und Milchreis ist keine Milch', x: 'Im Vorrat lagen zuletzt zwei Tomaten, drei Frischkäse und eine Gurke, die sich „Salatgurke“ nannte. Ab heute steht jedes Ding nur noch einmal da, die Mengen zusammengezählt. Und wer Milch zum Kochen nimmt, wird nicht mehr nach dem Milchreis gefragt.',
