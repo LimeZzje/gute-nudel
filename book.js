@@ -349,6 +349,7 @@ function start(dir, page, to, own) {
   const tmp = document.createElement('div'); tmp.innerHTML = pageEl(page, ''); const other = tmp.firstElementChild;
   const leaf = dir > 0 ? cur : other, under = dir > 0 ? other : cur;
   if (dir > 0) st.insertBefore(other, cur); else st.appendChild(other);
+  if (A && A.hydrate) A.hydrate(other);   // photos on the page that turns in
   leaf.classList.add('leaf'); under.classList.add('under');
   const back = document.createElement('div'); back.className = 'bk-back'; leaf.appendChild(back);
   const shade = document.createElement('div'); shade.className = 'bk-shade'; under.appendChild(shade);
@@ -372,6 +373,7 @@ function start(dir, page, to, own) {
           keep.key = stay.dataset.key; keep.top = 0; stay.scrollTop = 0;
           stay.addEventListener('scroll', () => { keep.top = stay.scrollTop; }, { passive: true });
           if (!own) A.onTurn(to);
+          if (typeof own === 'function') own(stay);   // flipTo's `land`: e.g. back to the list at the old spot
         }
         busy = false; syncChrome();
       }, 400);
@@ -380,9 +382,9 @@ function start(dir, page, to, own) {
 }
 function turn(dir) { if (!A || busy) return; const to = A.i() + dir; if (to < 0 || to >= A.n()) return; start(dir, A.at(to), to).finish(true); }
 // the app already moved on (a tab, a recipe from the list): show `page` with one turn
-export function flipTo(page, dir) {
+export function flipTo(page, dir, land) {
   if (busy || !document.getElementById('bkstage')) return false;
-  start(dir, page, null, true).finish(true); return true;
+  start(dir, page, null, land || true).finish(true); return true;
 }
 
 // ---------- styles ----------

@@ -13,7 +13,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-10-30.5';
+const VERSION = '2026-11-01.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -114,6 +114,7 @@ function postObj() { // what the partner reads: my handed-over tasks and my answ
     vorrat: vorratPost(),
     shop: { items: S.shop, gone: (S.shopGone || []).filter(g => Date.now() - g.ts < MONTH) },
     cooked: (S.cookLog || []).slice(-300),
+    dishPics: (S.dishPics || []).filter(x => x.up).slice(-300),   // 📷 photos of the cooked dishes (the files: gerichte/<id>.jpg)
     baby: S.babyMine || {},
     ...(picLS.tok ? { pic: S.picNext || null } : {}),
     plan: S.plan || null,   // 🗓️ the Wochenplan, the newer `u` wins on both phones   // the Picnic slot, only from a phone that's logged in to Picnic
@@ -251,7 +252,7 @@ let syncing = false;
 async function syncPost() {
   if (syncing || !D.canPost() || !navigator.onLine) return;
   syncing = true;
-  syncBook(); retryInbox();   // the shared recipe book + photos still waiting for their upload
+  syncBook(); retryInbox(); retryDish();   // the shared recipe book + photos still waiting for their upload
   try {
     const p = (await D.readPartnerPost()) || { out: [], replies: [] };
     if (p.me && p.me === D.me()) return;              // never treat my own mailbox as the partner's
@@ -265,6 +266,7 @@ async function syncPost() {
     if (shopMerge(p.shop)) changed = true;
     if (p.plan && (p.plan.u || 0) > ((S.plan || {}).u || 0)) { S.plan = p.plan; changed = true; }
     if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); }
+    if (p.dishPics && JSON.stringify(p.dishPics) !== JSON.stringify(S.partnerDishPics)) { S.partnerDishPics = p.dishPics; changed = true; }
     let babyNews = 0;
     if (p.baby && JSON.stringify(p.baby) !== JSON.stringify(S.partnerBaby || {})) { S.partnerBaby = p.baby; babyNews = babyReconcile().add; changed = true; }
     const pc = Car.raw(p.car);
@@ -1241,6 +1243,7 @@ const A = {
   ccat(el) { ui.ccat = el.dataset.v; render(); if (el.classList.contains('hcard')) { const c = document.querySelector('.ccats'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
   recipe(el) {   // in the book: turn the page to it (the list it came from = what a swipe goes through)
     const inBook = !el.dataset.go && !el.closest('#ov') && !!el.closest('#cbook') && !ui.rid;
+    if (inBook) ui.kback = { sec: ksec(), top: ($('#bkstage .bk-page.cur') || {}).scrollTop || 0 }; else if (!ui.rid) ui.kback = null;   // ‹ back lands here again
     if (el.dataset.go || !inQ('kochbuch') || el.closest('#ov')) { closeModal(); ui.tab = 'ruhe'; ui.sub = null; ui.qtab = 'kochbuch'; }
     const c = el.closest('[data-ctx]');
     ui.kctx = c && c.dataset.ctx ? c.dataset.ctx.split(',') : el.dataset.go ? (S.dishes || []).map(x => x.id) : [el.dataset.id];
@@ -1302,6 +1305,7 @@ const A = {
   ktab(el) {   // a thumb tab: turn to that section (backwards if it lies before, or when leaving a recipe)
     const to = el.dataset.v, from = KTABS.findIndex(([k]) => k === ksec()), ti = KTABS.findIndex(([k]) => k === to), wasR = !!ui.rid;
     if (to === ksec() && !wasR) return;
+    if (to === ksec() && wasR) { backToList(); return; }
     ui.rq = ''; ui.cstep = null; ui.rid = null; ui.ktab = to;
     if (Bk.flipTo(kpage({ sec: to }), wasR || ti < from ? -1 : 1)) return;
     render(); scrollTo(0, 0);
@@ -1326,9 +1330,11 @@ const A = {
   cookstop() { endCookMode(); render(); },
   steptimer(el) { const r = recipeById(ui.rid), i = el.dataset.i != null ? +el.dataset.i : ui.cstep, [, m] = cookSteps(r, sidesOf())[i]; phoneTimer(m); },
   cooktimer() { A.steptimer({ dataset: {} }); },
-  cookdone() {
-    const r = recipeById(ui.rid);
-    modal(`<h2>Guten Appetit! ${r.icon}</h2><p>Wie hat’s geschmeckt?</p><div class="row">${K.TASTE.map(([e, l, v]) => `<button class="btn soft" data-a="taste" data-v="${v}" style="font-size:16px">${e}<br>${l}</button>`).join('')}</div>`);
+  cookdone(el) {   // el = the button; without = redrawn after the 📷 photo
+    const r = recipeById(ui.rid); if (el) ui.dishShot = null;
+    const shot = ui.dishShot && allDishPics().find(x => x.id === ui.dishShot);
+    modal(`<h2>Guten Appetit! ${r.icon}</h2>${shot ? `<img class="dishpic dishpop" data-dish="${esc(shot.id)}" alt=""><p class="muted" style="margin:4px 0 0">📷 Foto ist im Rezept</p>` : `<label class="btn blue wide" style="margin:2px 0 4px">📷 Foto vom Essen<input type="file" accept="image/*" capture="environment" data-ch="dishadd" data-id="${esc(r.id)}" hidden></label>`}<p>Wie hat’s geschmeckt?</p><div class="row">${K.TASTE.map(([e, l, v]) => `<button class="btn soft" data-a="taste" data-v="${v}" style="font-size:16px">${e}<br>${l}</button>`).join('')}</div>`, '', !!shot);
+    loadDishPics();
   },
   taste(el) {
     const r = recipeById(ui.rid), v = +el.dataset.v, c = S.cook[r.id] || { n: 0 };
@@ -2132,6 +2138,7 @@ function kpage(st) {   // one page of the book: {key, theme, html}
 const klabel = () => { const s = KTABS.find(([k]) => k === ksec())[1]; if (!ui.rid) return s; const n = kseq().length - 1; return `${s} · Rezept ${kidx()} von ${n}`; };
 const bookApi = {
   at: i => kpage(kseq()[i]), i: kidx, n: () => kseq().length, label: klabel, tab: ksec,
+  hydrate(el) { loadRecPhotos(el); loadDishPics(el); },   // a page that turns in (swipe) loads its photos too
   onTurn(i) { const st = kseq()[i]; if (st.rid) { ui.rid = st.rid; ui.sides = []; ui.ingPick = {}; ui.ingExtra = []; } else { ui.rid = null; ui.ktab = st.sec; } },
 };
 function viewCook() {
@@ -2244,8 +2251,8 @@ function viewGekocht() {
   for (const x of L) {
     const d = new Date(x.day + 'T12:00'), m = d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }), r = recipeById(x.rid);
     if (m !== month) { month = m; rows += `<div class="sec-title">${esc(m)}</div>`; }
-    const taste = x.taste ? K.TASTE.find(t => t[2] === x.taste)[0] : '';
-    rows += `<button class="card diaryrow" ${r ? `data-a="recipe" data-id="${esc(x.rid)}"` : 'disabled'}><span class="dd">${x.old ? '<span class="muted">zuletzt</span>' : d.toLocaleDateString('de-DE', { weekday: 'short' })}<b>${d.getDate()}.</b></span><span class="ri">${(r || x).icon || '🍽️'}</span><span class="rt"><b>${esc((r || x).title || '')}</b></span><span class="dt">${taste}</span></button>`;
+    const taste = x.taste ? K.TASTE.find(t => t[2] === x.taste)[0] : '', pic = dishPicsOf(x.rid).find(y => y.day === x.day);
+    rows += `<button class="card diaryrow" ${r ? `data-a="recipe" data-id="${esc(x.rid)}"` : 'disabled'}><span class="dd">${x.old ? '<span class="muted">zuletzt</span>' : d.toLocaleDateString('de-DE', { weekday: 'short' })}<b>${d.getDate()}.</b></span>${pic ? `<img class="dishpic ri-pic" data-dish="${esc(pic.id)}" alt="">` : `<span class="ri">${(r || x).icon || '🍽️'}</span>`}<span class="rt"><b>${esc((r || x).title || '')}</b></span><span class="dt">${taste}</span></button>`;
   }
   return h + withCtx(rows) + `<p class="hint">Antippen = Rezept, von dort direkt wieder auf die Einkaufsliste.</p>`;
 }
@@ -2275,14 +2282,17 @@ function nutriLine(r) {
 function recipePage(r) {
   const theme = styleOf(r), sides = sidesOf(), c = S.cook[r.id], cooked = !!(c && c.n) || cookedLog().some(x => x.rid === r.id), V = vorrat();
   const home = V.length && r.ing.some(([, t]) => t && !isPantry(t)) && !haveFor(r, V).missing.length;
-  const d = Bk.deco(theme, r, { cooked, taste: tasteOf(r) }), him = theme === 'him';
-  let h = d.side + d.stamp;
-  h += `${r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}<h2 class="bp-title">${theme === 'kid' ? '' : r.icon + ' '}${esc(r.title)}</h2>
+  const d = Bk.deco(theme, r, { cooked, taste: tasteOf(r) }), him = theme === 'him', dp = dishPicsOf(r.id);
+  let h = inQ('kochbuch') ? `<button class="bp-back" data-a="rback">‹ ${esc(KTABS.find(([k]) => k === ksec())[1])}</button>` : '';
+  // 📷 her own dish photo wins the top spot (user 2026-11-01); the cookbook's picture stays behind "📷 Original-Seite".
+  // The photo comes BEFORE the side drawing + stamp: after them it dropped below the floats and left a gap.
+  h += `${dp.length ? `<button class="dishtop" data-a="dishview" data-id="${esc(dp[0].id)}" aria-label="Foto ansehen"><img class="recphoto dishpic" data-dish="${esc(dp[0].id)}" alt=""></button>` : r.photo ? `<img class="recphoto" data-photo="${esc(r.photo)}" alt="">` : ''}${d.side + d.stamp}<h2 class="bp-title">${theme === 'kid' ? '' : r.icon + ' '}${esc(r.title)}</h2>
     <p class="bp-meta">${theme === 'kid' ? kidStars(r, true) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}${seasonTag(r)}</p>${nutriLine(r)}${flavor(r) ? `<p class="bp-flavor">${flavor(r)}</p>` : ''}
     ${home ? `<span class="bp-tape">${him ? '✠ alles in der Speisekammer' : '🧊 alles daheim'}</span>` : ''}
     ${r.src ? `<p class="muted" style="margin:2px 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:4px 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.note ? `<p class="bp-note">${esc(r.note)}</p>` : ''}
     ${ui.planPick != null ? `<button class="btn green wide" style="clear:both;margin:6px 0" data-a="planset" data-id="${r.id}" data-i="${ui.planPick}">🗓️ Für ${esc(planDayName(planLive().start, ui.planPick))} nehmen</button>` : ''}
-    <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button><button class="btn soft" data-a="planask" data-id="${r.id}">🗓️ Planen</button>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>`;
+    <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button><button class="btn soft" data-a="planask" data-id="${r.id}">🗓️ Planen</button><label class="btn soft">📷 Foto<input type="file" accept="image/*" data-ch="dishadd" data-id="${esc(r.id)}" hidden></label>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>
+    ${dp.length > 1 ? `<div class="dishstrip">${dp.slice(1).map(x => `<button class="dishthumb" data-a="dishview" data-id="${esc(x.id)}"><img class="dishpic" data-dish="${esc(x.id)}" alt=""><span>${esc(shortDate(x.day))}</span></button>`).join('')}</div>` : ''}`;
   if (r.plate) {
     const missing = Object.keys(K.PLATE).filter(k => !r.plate[k] && !sides.some(s => s.g === k));
     const want = Object.keys(K.PLATE).filter(k => !r.plate[k]);
@@ -2540,7 +2550,81 @@ A.rshotadd = async el => {
   for (const f of [...el.files].slice(0, 6)) { try { ui.rshots.push(await shrink(f)); } catch (e) { toast('Ein Bild ging nicht'); } }
   photoModal();
 };
-function loadRecPhotos() { document.querySelectorAll('img.recphoto[data-photo]:not([src])').forEach(async img => { const u = await D.repoPhotoURL(img.dataset.photo); if (u) img.src = u; else img.remove(); }); }
+// ‹ back from a recipe = the list it came from, at the same spot; its row lights up (user 2026-11-01: Julia tapped
+// "Kochen" again and scrolled back down). Pill on the page, Android back, and the own thumb tab all land here.
+function backToList() {
+  const b = ui.kback, rid = ui.rid; ui.rid = null; ui.sides = [];
+  const land = pg => {
+    if (!pg) return;
+    if (b && b.sec === ksec()) pg.scrollTop = b.top;
+    const row = rid && pg.querySelector(`[data-a="recipe"][data-id="${CSS.escape(rid)}"]`); if (!row) return;
+    const rr = row.getBoundingClientRect(), pr = pg.getBoundingClientRect();
+    if (rr.top < pr.top || rr.bottom > pr.bottom) row.scrollIntoView({ block: 'center' });
+    row.classList.add('flashrow'); setTimeout(() => row.classList.remove('flashrow'), 1800);
+  };
+  if (!Bk.flipTo(kpage({ sec: ksec() }), -1, land)) { render(); land($('#bkstage .bk-page.cur')); }
+}
+A.rback = () => backToList();
+// 📷 photos of the cooked dish (user 2026-11-01): from the "Guten Appetit" popup or 📷 Foto on any recipe page. Every cooking can
+// get one: newest = the big picture on top, older ones in a strip, each also on its day in "Gekocht". Mine: S.dishPics
+// [{id, rid, day, ts, by, up}], parked on the phone until uploaded (gerichte/<id>.jpg, private repo), then posted to the partner.
+const allDishPics = () => { const seen = new Set(); return [...(S.dishPics || []), ...(S.partnerDishPics || [])].filter(x => x && !seen.has(x.id) && seen.add(x.id)).sort((a, b) => b.ts - a.ts); };
+const dishPicsOf = rid => allDishPics().filter(x => x.rid === rid);
+const dishURLs = {};
+async function dishURL(x) {
+  if (dishURLs[x.id]) return dishURLs[x.id];
+  const local = await loadShots('dish:' + x.id); if (local) return (dishURLs[x.id] = local);
+  return x.up ? D.repoPhotoURL('gerichte/' + x.id + '.jpg') : null;
+}
+function loadDishPics(root = document) {
+  root.querySelectorAll('img.dishpic[data-dish]:not([src])').forEach(async img => { const x = allDishPics().find(y => y.id === img.dataset.dish), u = x && await dishURL(x); if (u) img.src = u; });
+}
+const dishUp = new Set();
+async function uploadDish(x) {   // on failure it stays parked and is retried with the next sync
+  if (!D.canPost() || !navigator.onLine || dishUp.has(x.id)) return false;
+  dishUp.add(x.id);
+  try {
+    const d = await loadShots('dish:' + x.id); if (!d) return false;
+    await D.putBinary('gerichte/' + x.id + '.jpg', d.split(',')[1], 'Foto vom Essen');
+    const y = (S.dishPics || []).find(z => z.id === x.id); if (!y) return false;   // deleted meanwhile
+    y.up = true; dropShots('dish:' + x.id); commit(true); return true;
+  } catch (e) { console.warn('dish', e); return false; } finally { dishUp.delete(x.id); }
+}
+function retryDish() { (S.dishPics || []).filter(x => !x.up).forEach(uploadDish); }
+A.dishadd = async el => {
+  const f = el.files && el.files[0], rid = el.dataset.id; if (!f || !rid) return;
+  let d; try { d = await shrink(f, 1600); } catch (e) { toast('Das Bild ging nicht'); return; }
+  const x = { id: uid(), rid, day: today(), ts: Date.now(), by: D.me(), up: false };
+  if (!(await saveShots('dish:' + x.id, d))) { toast('Zu groß für den Handyspeicher'); return; }
+  dishURLs[x.id] = d; (S.dishPics = S.dishPics || []).push(x);
+  const pop = !!$('#ov') && ui.cstep != null;
+  if (pop) { ui.dishShot = x.id; A.cookdone(); }   // the "Guten Appetit" popup shows it, rating still open
+  commit();
+  const up = await uploadDish(x);
+  if (!up) toast('📷 Gespeichert – geht hoch, sobald Internet da ist'); else if (!pop) toast('📷 Foto ist im Rezept');
+};
+A.dishview = el => {   // full screen; ‹ › through this dish's photos, 🗑 for my own (tap twice)
+  const x0 = allDishPics().find(y => y.id === el.dataset.id); if (!x0) return;
+  const list = dishPicsOf(x0.rid); let i = Math.max(0, list.findIndex(y => y.id === x0.id)), sure = false;
+  const v = document.createElement('div'); v.className = 'viewer';
+  const show = async () => {
+    const x = list[i], mine = x.by === D.me(), n = list.length > 1;
+    v.innerHTML = `<button class="x" data-v="x" aria-label="Schließen">✕</button><img alt="Foto vom Essen"><div class="vbar">${n ? '<button data-v="-1" aria-label="Neueres">‹</button>' : ''}<span>${esc(shortDate(x.day))}${mine ? '' : ' · von ' + esc(pn())}</span>${n ? '<button data-v="1" aria-label="Älteres">›</button>' : ''}</div>${mine ? `<button class="vdel" data-v="del">${sure ? 'Wirklich löschen?' : '🗑 Foto löschen'}</button>` : ''}`;
+    const u = await dishURL(x); if (u) v.querySelector('img').src = u;
+  };
+  v.addEventListener('click', e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    if (b.dataset.v === 'x') return v.remove();
+    if (b.dataset.v === 'del') { if (!sure) { sure = true; return show(); } v.remove(); dishDel(list[i]); return; }
+    sure = false; i = (i + +b.dataset.v + list.length) % list.length; show();
+  });
+  document.body.appendChild(v); show();
+};
+async function dishDel(x) {
+  S.dishPics = (S.dishPics || []).filter(y => y.id !== x.id); dropShots('dish:' + x.id); commit(true); toast('Foto gelöscht');
+  if (x.up) { try { await D.deleteFile('gerichte/' + x.id + '.jpg'); } catch (e) {} }
+}
+function loadRecPhotos(root = document) { root.querySelectorAll('img.recphoto[data-photo]:not([src])').forEach(async img => { const u = await D.repoPhotoURL(img.dataset.photo); if (u) img.src = u; else img.remove(); }); }
 
 const FORMS = {
   ingextra(t) { ui.ingExtra = (ui.ingExtra || []).concat(t.split(',').map(x => x.trim()).filter(Boolean)); render(); const i = document.querySelector('form[data-f="ingextra"] input'); if (i) i.focus(); },
@@ -3392,7 +3476,7 @@ function render() {
   }
   $('#main').innerHTML = VIEWS[ui.tab]();
   renderTop();
-  loadRecPhotos();
+  loadRecPhotos(); loadDishPics();
   if (inQ('kochbuch') && ui.sub !== 'hello') Bk.mount(bookApi);
   if (refocus) { const i = document.querySelector(`form[data-f="${refocus}"] input`); if (i) i.focus(); }
   if (ui.tab === 'schaetze') {
@@ -3415,7 +3499,7 @@ function goBack() {
   if (st) { st.remove(); render(); return; }
   if (inQ('kochbuch') && ui.rid) {
     if (ui.cstep != null) { endCookMode(); render(); return; }
-    ui.rid = null; ui.sides = []; if (!Bk.flipTo(kpage({ sec: ksec() }), -1)) render(); return;
+    backToList(); return;
   }
   if (ui.sub === 'kuchen' && ui.rid) { if (ui.cstep != null) endCookMode(); else { ui.rid = null; ui.sides = []; } render(); scrollTo(0, 0); return; }
   if (ui.sub) { A.babyback(); return; }
@@ -3490,7 +3574,7 @@ function mergeStates(local, remote, base = null) {
     const seen = new Set();
     return a.concat(b).filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return !inBase || !inBase.has(x.id) || (inA.has(x.id) && inB.has(x.id)); });
   };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events', 'cookLog'].forEach(k => { m[k] = join(k); });
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events', 'cookLog', 'dishPics'].forEach(k => { m[k] = join(k); });
   m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
   m.swiped = Object.assign({}, older.swiped || {}, newer.swiped || {});
   m.picCheered = [...new Set([].concat(older.picCheered || [], newer.picCheered || []))];
