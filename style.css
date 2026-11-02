@@ -255,6 +255,13 @@ nav#tabs button.on .i { filter: none; opacity: 1; transform: translateY(-1px); }
 .confetti { position: fixed; z-index: 90; top: -10px; width: 10px; height: 14px; pointer-events: none; animation: fall linear forwards; }
 @keyframes fall { to { transform: translateY(105vh) rotate(720deg); } }
 
+.toast-u { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.toast-undo { border: 1.5px solid currentColor; background: none; color: inherit; border-radius: 10px; padding: 6px 12px; font: inherit; font-weight: 800; }
+/* 🧊 on a recipe ingredient that the Vorrat has */
+.ingrow .vhave { flex: none; border: 1.5px solid currentColor; background: none; color: inherit; border-radius: 999px; padding: 4px 10px; min-height: 36px; font: inherit; font-size: 15px; font-weight: 700; opacity: .8; white-space: nowrap; }
+.ingrow .vhave.low { opacity: 1; color: var(--danger); }
+.vh-btns { flex-wrap: wrap; justify-content: flex-start; }
+.bp-quick { margin-top: 8px; }
 .toast { position: fixed; left: 16px; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 85; background: var(--ink); color: var(--paper); border-radius: 14px; padding: 12px 16px; font-weight: 700; text-align: center; animation: fade .2s; max-width: 520px; margin: 0 auto; }
 
 .field { display: block; margin: 10px 0; text-align: left; }

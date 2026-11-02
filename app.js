@@ -13,7 +13,7 @@ import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as Bk from './book.js';
 
-const VERSION = '2026-11-01.1';
+const VERSION = '2026-11-02.1';
 let S = null;                                   // the state (see data.js freshState)
 const ui = { tab: 'home', htab: 'heute', qtab: 'haushalt', lastQ: {}, sub: null, picks: new Set(), showAllQuests: false, rsize: 'klein', ridea: null, openPrep: null, rx: { size: null, en: null, cur: null, skip: [] } };
 const $ = s => document.querySelector(s);
@@ -444,6 +444,14 @@ function toast(msg) {
   document.querySelectorAll('.toast').forEach(t => t.remove());
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2600);
+}
+// a toast with "↩ rückgängig" (6 s), e.g. after taking something out of the Vorrat from a recipe
+function undoToast(msg, undo) {
+  toast(msg); const t = document.querySelector('.toast'); if (!t) return;
+  clearTimeout(toastT); t.classList.add('toast-u');
+  const b = document.createElement('button'); b.className = 'toast-undo'; b.textContent = '↩ rückgängig';
+  b.addEventListener('click', e => { e.stopPropagation(); clearTimeout(toastT); t.remove(); undo(); });
+  t.appendChild(b); toastT = setTimeout(() => t.remove(), 6000);
 }
 function modal(html, cls = '', keep = false) {
   const cur = $('#ov');   // keep: the open one just gets new content (no close/open flicker, scroll stays)
@@ -1266,8 +1274,36 @@ const A = {
     commit(); shopModal();   // the list right away, as a pop-over
     toast(add.length + nExtra ? (add.length + nExtra) + ' Sachen dazugekommen 🛒' : 'Steht schon alles drauf 🛒');
   },
+  // ✅ "Schon gekocht" (user 2026-11-02: cooking for himself without the guide): the same rating popup as the end of
+  // cooking mode; the Vorrat use-up happens on the rating (taste), so closing the popup changes nothing
+  quickcook(el) { ui.quick = true; A.cookdone(el); },
+  // 🧊 on a recipe ingredient: which Vorrat row it is + Ist alle / Ist alle + 🛒 / Nur noch wenig
+  vhave(el) {
+    const g = vGroup(el.dataset.id); if (!g) return; const t = el.dataset.v, q = el.dataset.q;
+    modal(`<div style="text-align:left"><h2 style="text-align:center">🧊 ${esc(t)}</h2>
+      <p style="margin:0">Im Vorrat: <b>${esc(g.name)}${groupQty(g) ? ' · ' + esc(groupQty(g)) : ''}</b></p>
+      ${g.ids.length > 1 ? `<p class="muted" style="margin:2px 0 0">${g.items.map(y => esc(y.name) + (y.left ? ' ' + esc(fmtQty(y.left)) : '')).join(' · ')}</p>` : ''}
+      ${q ? `<p class="muted" style="margin:2px 0 0">Das Rezept braucht ${esc(q)}</p>` : ''}
+      <div class="row vh-btns"><button class="btn soft" data-a="vgone" data-id="${esc(g.id)}" style="color:var(--danger)">Ist alle</button><button class="btn green" data-a="vgone" data-id="${esc(g.id)}" data-v="shop">Ist alle + 🛒</button></div>
+      <p class="muted" style="margin:14px 0 6px">Nur noch wenig? So viel ist noch da:</p>
+      <form class="add" data-f="vorratset" data-id="${esc(g.id)}"><input name="t" placeholder="z.B. 100 g, 1 Stück" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Speichern">✓</button></form>
+      <div class="row"><button class="btn soft" data-a="close">Abbrechen</button></div></div>`);
+  },
+  vgone(el) {
+    const g = vGroup(el.dataset.id); if (!g) { closeModal(); return; }
+    const n0 = (S.vorratUsed || []).length; useGroup(g.id); const recs = new Set(S.vorratUsed.slice(n0).map(u => u.id));
+    const had = new Set(S.shop.map(x => x.id)), shop = el.dataset.v === 'shop', r = recipeById(ui.rid);
+    if (shop) addToShop(g.name, null, '', r ? r.title : null);
+    const added = new Set(S.shop.filter(x => !had.has(x.id)).map(x => x.id));
+    closeModal(); commit(true);
+    undoToast(`🧊 ${g.name} ist raus${shop ? ' · 🛒 auf der Liste' : ''}`, () => {
+      S.vorratUsed = (S.vorratUsed || []).filter(u => !recs.has(u.id));
+      if (added.size) S.shop = S.shop.filter(x => !added.has(x.id));
+      commit(true); toast('↩ ' + g.name + ' ist wieder im Vorrat');
+    });
+  },
   cookstart() {   // cooked = off Home's "Heute kochen?", and what it needs leaves the Vorrat
-    ui.cstep = 0; const r = recipeById(ui.rid), had = (S.dishes || []).some(x => x.id === ui.rid);
+    ui.cstep = 0; ui.quick = false; const r = recipeById(ui.rid), had = (S.dishes || []).some(x => x.id === ui.rid);
     S.dishes = (S.dishes || []).filter(x => x.id !== ui.rid);
     const c = r ? consumeFor(r) : { taken: [], ask: [] };
     if (had || c.taken.length || c.ask.length) commit(true); else render();
@@ -1341,6 +1377,8 @@ const A = {
     S.cook[r.id] = { n: c.n + 1, last: today(), taste: v };
     (S.cookLog = S.cookLog || []).push({ id: uid(), rid: r.id, title: r.title, icon: r.icon, day: today(), ts: Date.now(), taste: v });
     if (G.isCake(r.id)) gbReconcile();   // 🎂 the first cake ends the event: +5 ⭐ each
+    let qc = null;   // ✅ "Schon gekocht": what it used leaves the Vorrat now (cooking mode did that at its start)
+    if (ui.quick) { ui.quick = false; S.dishes = (S.dishes || []).filter(x => x.id !== r.id); qc = consumeFor(r); }
     endCookMode(); closeModal();
     // the "Kochen" chore on today's page counts as done
     const k = S.items.find(i => i.where === 'heute' && i.chore && ((S.chores.find(x => x.id === i.chore) || {}).tools || []).includes('recipes'));
@@ -1349,6 +1387,11 @@ const A = {
     const pl = planNow(), planned = pl && today() <= pl.end && pl.days.includes(r.id) ? ' · 🗓️ im Wochenplan abgehakt' : '';
     toast((v === 3 ? 'Notiert: Lieblingsessen 😍 – kommt öfter dran' : v === 1 ? 'Notiert 😕 – das schlage ich nicht mehr vor' : 'Notiert 🙂') + planned);
     gbParty();
+    if (qc) {
+      if (qc.taken.length || qc.ask.length) commit(true);
+      if (qc.taken.length) setTimeout(() => toast('🧊 Aus dem Vorrat: ' + qc.taken.join(', ')), 2700);
+      if (qc.ask.length) askVorrat(qc.ask);
+    }
   },
   tool(el) {
     const t = el.dataset.t, c = el.dataset.c && S.chores.find(x => x.id === el.dataset.c);
@@ -2303,14 +2346,21 @@ function recipePage(r) {
   }
   const ing = r.ing.concat(...sides.map(s => s.ing.map(x => [x[0], x[1], s.title])));
   const sel = ing.filter(([q, t]) => t && ingWanted(t, q)).length, total = sel + (ui.ingExtra || []).length;
-  h += `<div class="card" style="clear:both"><h3>${him ? 'Opfergaben' : 'Was du brauchst'}</h3><p class="muted" style="margin-top:0">Was du gerade noch daheim hast, einfach abwählen.</p>
+  // 🧊 per ingredient that the Vorrat has (user 2026-11-02): tap it when it's actually gone → out of the Vorrat right here
+  const VG = vorratGroups(V), vg = t => t && !isPantry(t) && VG.find(y => vMatch(t, y.name));
+  const anyV = ing.some(([, t]) => vg(t));
+  h += `<div class="card" style="clear:both"><h3>${him ? 'Opfergaben' : 'Was du brauchst'}</h3><p class="muted" style="margin-top:0">Was du gerade noch daheim hast, einfach abwählen.${anyV ? ' 🧊 = liegt im Vorrat – antippen, wenn’s doch alle ist.' : ''}</p>
     <div class="steps">${ing.map(([q, t, from]) => { const on = t && ingWanted(t, q), why = canAddUp(t, q) ? '+ zur Menge auf der Liste' : onList(t) ? 'steht schon drauf' : isPantry(t) ? 'Vorrat?' : '';
-      return `<button class="pick ${on ? 'on' : ''}" data-a="ingtoggle" data-v="${esc(t)}" data-q="${esc(q || '')}"><span class="box">${on ? '✓' : ''}</span><span style="flex:1">${esc(t)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}${why && (!on || canAddUp(t, q)) ? ` <span class="tag">${why}</span>` : ''}</span><span class="muted">${esc(q)}</span></button>`; }).join('')}</div>
+      const row = `<button class="pick ${on ? 'on' : ''}" data-a="ingtoggle" data-v="${esc(t)}" data-q="${esc(q || '')}"><span class="box">${on ? '✓' : ''}</span><span style="flex:1">${esc(t)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}${why && (!on || canAddUp(t, q)) ? ` <span class="tag">${why}</span>` : ''}</span><span class="muted">${esc(q)}</span></button>`;
+      const g = vg(t); if (!g) return row;
+      const rq = parseQty(q || ''), low = g.left && rq && qtyOk(g.left, rq) && g.left.n < rq.n - 1e-6;
+      return `<div class="shoprow ingrow">${row}<button class="vhave${low ? ' low' : ''}" data-a="vhave" data-id="${esc(g.id)}" data-v="${esc(t)}" data-q="${esc(q || '')}" aria-label="Im Vorrat: ${esc(g.name)} – antippen, wenn es alle ist">🧊${low ? ' nur ' + esc(groupQty(g)) : ''}</button></div>`; }).join('')}</div>
     ${(ui.ingExtra || []).length ? `<div class="steps">${ui.ingExtra.map((t, i) => `<div class="shoprow"><span class="pick on" style="cursor:default"><span class="box">✓</span><span style="flex:1">${esc(t)} <span class="tag">dazu</span></span></span><button class="mini-btn" data-a="ingextradel" data-i="${i}" aria-label="Entfernen">✕</button></div>`).join('')}</div>` : ''}
     <form class="add" data-f="ingextra"><input name="t" placeholder="Noch was dazu? (z.B. Getränke)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Dazu">+</button></form>
     <div class="row"><button class="btn soft" data-a="cookshop2" ${sel + (ui.ingExtra || []).length ? '' : 'disabled'}>🛒 ${total ? total + (total === 1 ? ' Sache' : ' Sachen') + ' auf die Liste' : 'Alles da'}</button></div></div>`;
   h += `<div class="card"><h3>${him ? 'Ritus' : 'So geht’s'}</h3><ol class="steps-ol">${cookSteps(r, sides).map(([t, m], i) => `<li>${esc(t)}${m ? ` <button class="toolbtn steptimer" data-a="steptimer" data-i="${i}" aria-label="Handy-Timer ${m} Minuten">⏰ ${m} Min.</button>` : ''}</li>`).join('')}</ol>
-    <button class="btn green wide bp-go" data-a="cookstart">${him ? '🕯️ Das Ritual beginnen' : '🍳 Jetzt kochen'}</button></div>`;
+    <button class="btn green wide bp-go" data-a="cookstart">${him ? '🕯️ Das Ritual beginnen' : '🍳 Jetzt kochen'}</button>
+    <button class="btn soft wide bp-quick" data-a="quickcook">${him ? '✠ Schon vollbracht' : '✅ Schon gekocht'} <span class="muted">– ohne Anleitung</span></button></div>`;
   return h + d.foot + (him ? Bk.candles() : '');
 }
 const cookSteps = (r, sides) => r.steps.concat(sides.map(s => ['Dazu – ' + s.title + ': ' + s.step[0], s.step[1]]));
