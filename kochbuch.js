@@ -275,14 +275,16 @@ export const placeOf = x => { const k = Sh.norm(x.name); if ((S.vorratPlace || {
   const sec = Sh.classify(x.name, S.shopLearn || {}); return sec === 'kuehl' || sec === 'fleisch' ? 'kuehl' : sec === 'obst' ? 'obst' : sec === 'tk' ? 'tk' : 'schrank'; };
 export function viewDaheim() {
   const V = vorratGroups();
+  const use = ui.vuse; // 🍳 "Ich hab gebraucht…": tick what she used for cooking off-book (no stars)
   let h = `<form class="add" data-f="vorratadd"><input name="t" placeholder="Hab ich daheim… z.B. 500 g Nudeln" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Zum Vorrat">+</button></form>`;
   if (!V.length) return h + `<div class="card"><p style="margin:0">Noch nichts eingetragen.</p><p class="muted">Nach dem Einkaufen in der Einkaufsliste „✅ Alles eingekauft!“ drücken – dann ist alles hier. Oder oben eintragen, was eh da ist.</p></div>`;
   for (const [k, ic, l] of PLACES) {
     const xs = V.filter(x => placeOf(x) === k).sort((a, b) => a.name.localeCompare(b.name, 'de'));
     if (!xs.length) continue;
-    h += `<div class="card vplace"><h3>${ic} ${l} <span class="muted">(${xs.length})</span></h3>${xs.map(x => `<div class="shoprow"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('')}</div>`;
+    h += `<div class="card vplace"><h3>${ic} ${l} <span class="muted">(${xs.length})</span></h3>${xs.map(x => use ? `<div class="shoprow"><button class="pick ${use.has(x.id) ? 'on' : ''}" data-a="vusetick" data-id="${esc(x.id)}"><span class="box">${use.has(x.id) ? '✓' : ''}</span><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button></div>` : `<div class="shoprow"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('')}</div>`;
   }
-  return h + `<p class="hint">Tippen = Menge ändern oder umräumen · ✕ = aufgebraucht. „Jetzt kochen“ nimmt raus, was ein Rezept braucht.</p>`;
+  if (use) return h + `<div class="row"><button class="btn soft" data-a="vuse">Abbrechen</button><button class="btn green" data-a="vusedone"${use.size ? '' : ' disabled'}>Fertig${use.size ? ' (' + use.size + ')' : ''}</button></div><p class="hint">Antippen, was du gebraucht hast – „Fertig“ nimmt es aus dem Vorrat. Gibt keine Sterne.</p>`;
+  return h + `<div class="row"><button class="btn soft" data-a="vuse">🍳 Ich hab gebraucht…</button></div><p class="hint">Tippen = Menge ändern oder umräumen · ✕ = aufgebraucht. „Jetzt kochen“ nimmt raus, was ein Rezept braucht.</p>`;
 }
 // 🔢 Nährwerte (2026-10-30, user): estimated from the ingredients (naehr.js), only on the recipe page; a guessed piece count says so
 const PLURAL = { Portion: 'Portionen', Stück: 'Stück', Glas: 'Gläser' };

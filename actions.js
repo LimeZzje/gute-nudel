@@ -265,6 +265,18 @@ Object.assign(A, {
     toast('🧊 ' + got.length + (got.length === 1 ? ' Sache' : ' Sachen') + ' im Vorrat');
   },
   vorratdel(el) { useGroup(el.dataset.id); commit(true); },
+  vuse() { ui.vuse = ui.vuse ? null : new Set(); render(); },   // 🍳 "Ich hab gebraucht…": tick mode on the Daheim list
+  vusetick(el) { const id = el.dataset.id; if (ui.vuse.has(id)) ui.vuse.delete(id); else ui.vuse.add(id); render(); },
+  vusedone() {   // books the ticked things off like "Ist alle" (same use records → the partner's phone merges them); no stars
+    const ids = [...(ui.vuse || [])]; if (!ids.length) return;
+    const n0 = (S.vorratUsed || []).length, names = ids.map(id => { const g = vGroup(id); return g ? g.name : ''; }).filter(Boolean);
+    ids.forEach(id => useGroup(id)); const recs = new Set(S.vorratUsed.slice(n0).map(u => u.id));
+    ui.vuse = null; commit(true);
+    undoToast(`🍳 ${names.length === 1 ? names[0] + ' ist raus' : names.length + ' Sachen sind raus'}`, () => {
+      S.vorratUsed = (S.vorratUsed || []).filter(u => !recs.has(u.id));
+      commit(true); toast('↩ wieder im Vorrat');
+    });
+  },
   vask(el) { const id = el.dataset.id; if (el.dataset.v === 'gone') useGroup(id); vaskDone(id); },
   vorratqty(el) {   // ✎ the amount by hand
     const x = vGroup(el.dataset.id); if (!x) return;
