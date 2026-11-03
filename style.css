@@ -1141,6 +1141,10 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .plan-pick { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 12px; border-radius: 14px; background: var(--card); border: 2px dashed var(--accent); font-weight: 700; }
 .plan-pick > span { flex: 1; }
 .plan-gap { visibility: hidden; }
+.pw-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 0 0 12px; }
+.pw-day { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0 4px; border: 2px solid transparent; border-radius: 12px; background: var(--card); color: var(--ink); font: inherit; font-size: 11px; cursor: pointer; min-width: 0; }
+.pw-day b { font-size: 15px; } .pw-day .pw-ic { font-size: 18px; min-height: 22px; } .pw-day .pw-ok { font-size: 10px; min-height: 12px; }
+.pw-day.today { box-shadow: 0 0 0 2px var(--accent); } .pw-day.on { border-color: var(--ink); }
 
 /* ‹ back from a recipe to its list (2026-11-01) + the row it came from lights up */
 .bp-back { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 4px; margin: 0 0 10px; padding: 7px 14px 7px 10px; border: 1.5px solid currentColor; border-radius: 999px; background: transparent; color: inherit; opacity: .78; font: 800 15px/1 Nunito, sans-serif; cursor: pointer; }
