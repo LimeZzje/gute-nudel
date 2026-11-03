@@ -12,6 +12,7 @@ import { inQ } from './daheim.js';
 import { shopModal } from './einkauf.js';
 import { addToShop, archRecipes, kpage, ksec, origOf, protTag, recipeById, vorratRecipes, vrSeenAdd } from './kochbuch.js';
 import { render } from './app.js';
+import { readDue } from './faellig.js';
 
 // ---------- 📷 photographed recipes + ✏️ own recipes ----------
 // Photos are shrunk on the phone (long side 2000 px, JPEG) – sharp enough to read, small enough to upload.
@@ -235,6 +236,7 @@ async function dishDel(x) {
 }
 export function loadRecPhotos(root = document) { root.querySelectorAll('img.recphoto[data-photo]:not([src])').forEach(async img => { const u = await D.repoPhotoURL(img.dataset.photo); if (u) img.src = u; else img.remove(); }); }
 
+const dueOf = form => { const d = readDue(form); return d ? { due: d } : {}; };   // optional due date from the add form
 export const FORMS = {
   ingextra(t) { ui.ingExtra = (ui.ingExtra || []).concat(t.split(',').map(x => x.trim()).filter(Boolean)); render(); const i = document.querySelector('form[data-f="ingextra"] input'); if (i) i.focus(); },
   shopadd(t) { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const a = splitAmount(x); addToShop(a.name, a.qty, a.qty ? '' : '', null); }); commit(); shopModal(null, true); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
@@ -243,12 +245,12 @@ export const FORMS = {
     S.answered[id] = { status: 'nein', reason: t, ts: Date.now() }; S.incoming = S.incoming.filter(y => y !== x); ui.declining = null;
     commit(true); toast('Okay – ' + pn() + ' bekommt sie mit deiner Begründung zurück.');
   },
-  addplan(t) { const it = { id: uid(), text: t, where: 'liste', created: Date.now() }; S.items.push(it); ui.picks.add(it.id); commit(); },
-  addtoday(t) { S.items.push({ id: uid(), text: t, where: 'heute', created: Date.now() }); S.today.planned = true; commit(); },
+  addplan(t, form) { const it = { id: uid(), text: t, where: 'liste', created: Date.now(), ...dueOf(form) }; S.items.push(it); ui.picks.add(it.id); commit(); },
+  addtoday(t, form) { S.items.push({ id: uid(), text: t, where: 'heute', created: Date.now(), ...dueOf(form) }); S.today.planned = true; commit(); },
   vorratadd(t) { S.vorratAdd = (S.vorratAdd || []).concat(t.split(',').map(x => x.trim()).filter(Boolean).map(x => { const a = splitAmount(x); return { id: uid(), text: a.name, qty: a.qty, ts: Date.now(), by: D.me() }; })); commit(true); },
   vorratset(t, form) { const id = form.dataset.id, q = parseQty(t) || (splitAmount('x ' + t).qty); if (!q) { toast('Menge nicht verstanden – z.B. „250 g“'); return; } useGroup(id, { set: q }); closeModal(); commit(true); },
   vaskset(t, form) { const id = form.dataset.id, q = parseQty(t); if (!q) { toast('Menge nicht verstanden – z.B. „200 g“'); return; } useGroup(id, { set: q }); vaskDone(id); },
-  addlist(t) { S.items.push({ id: uid(), text: t, where: 'liste', created: Date.now() }); commit(); },
+  addlist(t, form) { S.items.push({ id: uid(), text: t, where: 'liste', created: Date.now(), ...dueOf(form) }); commit(); },
   extra(t, form) {
     const n = workToday().length, stars = n < C.CAP ? 1 : 0;
     S.log.push({ id: uid(), text: t, kind: 'extra', day: today(), ts: Date.now(), stars }); earn(stars);

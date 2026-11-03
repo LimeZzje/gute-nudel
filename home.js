@@ -19,6 +19,7 @@ import { carAll, carDay, carDayLabel, carTime, forMe, isCar, shared } from './te
 import { PLAN_N, dayStart, planNow, viewPlan, viewSwipe } from './wochenplan.js';
 import { babyLive, gbLive, hnUnwrapped, pastEvents, viewBaby, viewEvents, viewHello, viewKuchen } from './events.js';
 import { render } from './app.js';
+import { dueCard } from './faellig.js';
 
 // ---------- HOME: the start screen – what's going on today, a few numbers, the two of you ----------
 function daySlot() { const h = new Date().getHours(); return h < 5 ? 'nacht' : h < 11 ? 'morgen' : h < 14 ? 'mittag' : h < 18 ? 'nachmittag' : h < 23 ? 'abend' : 'nacht'; }
@@ -203,7 +204,7 @@ export function viewHome() {
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
-  h += bubbles() + incomingCard() + giftCards();   // (the events live in the bubbles now, user 2026-10-18)
+  h += bubbles() + incomingCard() + giftCards() + dueCard();   // (the events live in the bubbles now, user 2026-10-18)
   h += newspaper();   // above the to-dos (user 2026-10-20)
   // today: the ring + the next few things, ticked right here
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;

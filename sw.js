@@ -1,9 +1,9 @@
 // Offline support. Online: always the newest app files from the network (so updates apply at once);
 // offline: the copy from the cache. GitHub (backup + photos) never goes through here.
-const V = 'gn-133';
+const V = 'gn-134';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'data.js', 'content.js', 'cookbook.js', 'shop.js', 'naehr.js', 'plant.js', 'car.js', 'spiel.js', 'entspannen.js', 'baby.js', 'geburtstag.js', 'hellonudel.js', 'hn_slides.js', 'manifest.json',
   'state.js', 'core.js', 'sync.js', 'rank.js', 'chores.js', 'heute.js', 'daheim.js', 'relax.js', 'schaetze.js', 'woche.js', 'settings.js', 'actions.js',
-  'einkauf.js', 'kochbuch.js', 'recipes.js', 'termine.js', 'home.js', 'wochenplan.js', 'events.js', 'merge.js',
+  'einkauf.js', 'kochbuch.js', 'recipes.js', 'termine.js', 'home.js', 'wochenplan.js', 'events.js', 'merge.js', 'faellig.js',
   'fonts/nunito.woff2', 'fonts/caveat.woff2', 'fonts/pixel.woff2', 'fonts/creepster.woff2', 'fonts/dancing.woff2', 'fonts/fraktur.woff2', 'fonts/fell.woff2', 'fonts/fell-i.woff2', 'fonts/patrick.woff2', 'book.js', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });

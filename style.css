@@ -1146,3 +1146,14 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .diaryrow .ri-pic { width: 44px; height: 44px; object-fit: cover; border-radius: 10px; flex: none; background: var(--paper2); }
 .dishpop { display: block; width: 100%; max-height: 34vh; object-fit: cover; border-radius: 14px; background: var(--paper2); }
 .viewer .vdel { margin-top: 14px; background: rgba(255, 255, 255, .1); color: #ffb4b4; border: 0; border-radius: 12px; min-height: 44px; padding: 0 18px; font: 800 15px Nunito, sans-serif; }
+
+/* due dates (G13, 2026-11-04.2) */
+.add .due-in { flex: 0 0 auto; width: 8.6em; font-size: 14px; padding: 6px 4px; color: var(--ink2); }
+.due-in.big { width: 100%; font-size: 20px; padding: 10px 6px; margin: 6px 0 12px; border: 0; border-bottom: 2px solid var(--line); background: transparent; color: var(--ink); }
+.tag.due { background: var(--accent2); border-radius: 99px; padding: 1px 8px; }
+.tag.due.soon { color: var(--accent); }
+.tag.due.late { background: var(--danger); color: #fff !important; }
+.due-card .due-line { font-size: 15px; margin: 2px 0; }
+.due-card .due-line.late b { color: var(--danger); }
+.due-card .due-line.soon b { color: var(--accent); }
+.due-hint { margin: 2px 0 8px; }

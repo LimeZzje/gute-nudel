@@ -21,6 +21,7 @@ import { deck, game, viewHome, wireDeck } from './home.js';
 import { planNow } from './wochenplan.js';
 import { babyParty, babyReconcile, gbParty, gbReconcile, hnDeckClose } from './events.js';
 import { mergeStates } from './merge.js';
+import './faellig.js';   // due dates: fills A with duepick / snooze ...
 import './actions.js';   // fills the action table A (exports nothing)
 
 // ---------- header ----------

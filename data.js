@@ -26,14 +26,14 @@ export function freshState() {
   return {
     v: 1, me: null, created: Date.now(), updatedAt: 0, name: '',
     stars: 0, earned: 0,
-    items: [],             // {id, text, where: 'heute'|'liste', created, carried}
+    items: [],             // {id, text, where: 'heute'|'liste', created, carried, due? ('YYYY-MM-DD', optional)}
     log: [],               // {id, text, kind: task|extra|rest|setup|prep|reward|unlock, day, ts, stars, iid?}
     today: { day: '', planned: false, capShown: false, closed: false },
     book: { pages: 0 },
     plant: { stage: 0, harvests: [] },
     recipe: null,          // old Gemütlich recipe in progress (replaced by ritual)
     ritual: null,          // 🛋️ ritual in progress: {id, mini, done: [bool]}
-    myRituals: [],         // her own rituals: {id, icon, title, size: kurz|abend|besonders, en: 'pof', steps[]}
+    myRituals: [],         // her own rituals: {id, icon, title, size: kurz|abend|besonders, en: 'pof', steps[], due? ('YYYY-MM-DD', optional)}
     relaxRate: {},         // ritual id -> 1 😕 | 2 🙂 | 3 😍 (latest rating)
     preps: {},             // id -> [bool]
     quest: null,           // active quest id

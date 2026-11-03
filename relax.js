@@ -6,6 +6,7 @@ import { dayLog, esc, evening, isRest, modal, parse, today } from './core.js';
 import { S, ui } from './state.js';
 import { pn } from './sync.js';
 import { ago } from './settings.js';
+import { dueBtns, dueTag } from './faellig.js';
 
 // ---------- 🛋️ ENTSPANNEN (since 2026-10-08): time + energy → ONE ritual, the app does the thinking ----------
 export const rxP = t => String(t).replace(/\{p\}/g, pn());
@@ -47,8 +48,8 @@ export function viewRelax() {
   }
   // her own rituals
   const own = S.myRituals || [];
-  h += `<div class="sec-title">Deine Rituale</div><div class="card">${own.length ? `<ul class="list-plain rx-own">${own.map(x => `<li><span><b>${esc(x.icon)} ${esc(x.title)}</b><small>${sizeOf(x.size)[1]} ${sizeOf(x.size)[2]}${(x.steps || []).length ? ' · ' + x.steps.length + ' Schritte' : ''}</small></span>
-      <span class="rx-own-b"><button class="mini-btn" data-a="rxstart" data-id="${esc(x.id)}" aria-label="Jetzt machen">▶</button><button class="mini-btn" data-a="rxown" data-id="${esc(x.id)}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="rxowndel" data-id="${esc(x.id)}" aria-label="Löschen">✕</button></span></li>`).join('')}</ul>`
+  h += `<div class="sec-title">Deine Rituale</div><div class="card">${own.length ? `<ul class="list-plain rx-own">${own.map(x => `<li><span><b>${esc(x.icon)} ${esc(x.title)}</b><small>${sizeOf(x.size)[1]} ${sizeOf(x.size)[2]}${(x.steps || []).length ? ' · ' + x.steps.length + ' Schritte' : ''}</small>${dueTag(x)}</span>
+      <span class="rx-own-b">${dueBtns(x, 'ritual')}<button class="mini-btn" data-a="rxstart" data-id="${esc(x.id)}" aria-label="Jetzt machen">▶</button><button class="mini-btn" data-a="rxown" data-id="${esc(x.id)}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="rxowndel" data-id="${esc(x.id)}" aria-label="Löschen">✕</button></span></li>`).join('')}</ul>`
       : '<p class="muted" style="margin-top:0">Was tut dir gut? Trag deine eigenen Entspannungsrituale ein – sie kommen dann öfter dran als meine.</p>'}
     <button class="btn wide" data-a="rxown">+ Eigenes Ritual</button></div>`;
   // preparations for days with energy (they make the rituals cost almost nothing later)
@@ -83,6 +84,7 @@ export function ownRitualForm(id) {
     <div class="field"><span>Wie lange?</span><div class="chips">${E.SIZES.map(([k, ic, l]) => `<button class="chip ${k === x.size ? 'on' : ''}" data-a="rxfs" data-v="${k}">${ic} ${l}</button>`).join('')}</div></div>
     <div class="field"><span>Passt, wenn ich … bin (mehrere gehen)</span><div class="chips">${E.ENERGY.map(([k, ic, l]) => `<button class="chip ${x.en.includes(k) ? 'on' : ''}" data-a="rxfe" data-v="${k}">${ic} ${l}</button>`).join('')}</div></div>
     <label class="field"><span>Schritte (optional, einer pro Zeile)</span><textarea id="rx-steps" rows="4" placeholder="Wanne einlassen&#10;Hörbuch an&#10;Kerze an">${esc((x.steps || []).join('\n'))}</textarea></label>
+    <label class="field"><span>Fällig am (optional)</span><input type="date" id="rx-due" class="due-in big" value="${x.due || ''}"></label>
     <div class="row"><button class="btn" data-a="rxownsave">Speichern</button><button class="btn soft" data-a="close">Abbrechen</button></div>`);
 }
 export function rateRitual(id) {
