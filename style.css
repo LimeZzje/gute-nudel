@@ -1157,3 +1157,9 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .due-card .due-line.late b { color: var(--danger); }
 .due-card .due-line.soon b { color: var(--accent); }
 .due-hint { margin: 2px 0 8px; }
+
+/* G15: Home flowers – one growth step per task done today, static, behind everything */
+.gn-flowers { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .42; }
+.gn-flowers svg { display: block; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gn-flowers { opacity: .3; } }
+:root[data-theme="dark"] .gn-flowers { opacity: .3; }

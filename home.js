@@ -18,6 +18,7 @@ import { fixRec, flavor, isBake, isCodex, isHerb, kidStars, loveTag, pregLater, 
 import { carAll, carDay, carDayLabel, carTime, forMe, isCar, shared } from './termine.js';
 import { PLAN_N, dayStart, planNow, viewPlan, viewSwipe } from './wochenplan.js';
 import { babyLive, gbLive, hnUnwrapped, pastEvents, viewBaby, viewEvents, viewHello, viewKuchen } from './events.js';
+import { flowerGarden } from './flowers.js';
 import { render } from './app.js';
 import { dueCard } from './faellig.js';
 
@@ -203,7 +204,7 @@ export function viewHome() {
   if (ui.sub === 'swipe') return viewSwipe();
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
-  let h = `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
+  let h = flowerGarden(done.length, t) + `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
   h += bubbles() + incomingCard() + giftCards() + dueCard();   // (the events live in the bubbles now, user 2026-10-18)
   h += newspaper();   // above the to-dos (user 2026-10-20)
   // today: the ring + the next few things, ticked right here

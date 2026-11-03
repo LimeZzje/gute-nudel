@@ -9,7 +9,7 @@ import { myStats } from './home.js';
 import { render } from './app.js';
 import { dueTag } from './faellig.js';
 
-export const VERSION = '2026-11-04.3';
+export const VERSION = '2026-11-04.4';
 
 export const $ = s => document.querySelector(s);
 export const tags = i => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '') + dueTag(i);
