@@ -7,9 +7,9 @@ import { postObj, shopStamp } from './sync.js';
 import { checkPromotion } from './rank.js';
 import { myStats } from './home.js';
 import { render } from './app.js';
-import { dueTag } from './faellig.js';
+import { dueTag, pushSync } from './faellig.js';
 
-export const VERSION = '2026-11-04.6';
+export const VERSION = '2026-11-04.7';
 
 export const $ = s => document.querySelector(s);
 export const tags = i => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '') + dueTag(i);
@@ -47,6 +47,7 @@ export function commit(post = false) {
   S.updatedAt = Date.now();
   D.saveLocal(S);
   D.scheduleBackup(S);
+  pushSync();   // G16: changed due dates go to the push worker (debounced, only if she said yes)
   const stats = JSON.stringify(myStats());
   if (post || S.postedName !== S.name || S.postedStats !== stats) { S.postedName = S.name; S.postedStats = stats; D.schedulePost(postObj()); }
   render();

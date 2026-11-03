@@ -548,7 +548,7 @@ Object.assign(A, {
     const f = ui.rxForm, title = $('#rx-title').value.trim();
     if (!title) { $('#rx-title').focus(); return; }
     const steps = $('#rx-steps').value.split('\n').map(t => t.trim()).filter(Boolean);
-    const x = { id: f.id || 'my-' + uid(), icon: f.icon, title, size: f.size, en: f.en || 'pof', steps, ...(/^\d{4}-\d\d-\d\d$/.test($('#rx-due').value) ? { due: $('#rx-due').value } : {}) };
+    const x = { id: f.id || 'my-' + uid(), icon: f.icon, title, size: f.size, en: f.en || 'pof', steps };
     S.myRituals = (S.myRituals || []).filter(r => r.id !== x.id).concat(x);
     closeModal(); commit(); toast(f.id ? 'Geändert 💛' : 'Gespeichert – kommt jetzt öfter dran 💛');
   },

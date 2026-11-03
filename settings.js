@@ -5,6 +5,7 @@ import { S, setS } from './state.js';
 import { pn, shopSnapNow } from './sync.js';
 import { rollover } from './chores.js';
 import { render, renderTop } from './app.js';
+import { VAPID_PUBLIC, pushCan, pushLabel } from './faellig.js';
 
 // ---------- settings ----------
 export function ago(t) {
@@ -21,6 +22,7 @@ export function settings() {
     <label class="field"><span>Wie soll dich die App nennen?</span><input id="s-name" value="${esc(S.name)}" placeholder="Dein Name (optional)"></label>
     <label class="field"><span>Wie heißt dein Partner hier? (Spitzname)</span><input id="s-nick" value="${esc(pn() === 'Partner' ? '' : pn())}" placeholder="${esc(S.partnerName || 'Name')}"></label>
     <label class="field"><span>Feierabend ab (dann heißt es „Tag geschafft!“)</span><input id="s-end" type="time" value="${esc(endTime())}"></label>
+    ${pushCan() ? `<div class="row"><button class="btn soft" data-a="pushtoggle" id="s-push">${pushLabel()}</button></div>` : (VAPID_PUBLIC || localStorage.getItem('gn_push_key')) ? `<p class="muted">🔕 Erinnerungen am Tag vorher kann dieses Handy nicht (iPhone: erst „Zum Home-Bildschirm“).</p>` : ''}
     <h3 style="margin:18px 0 4px">☁ Sicherung</h3>
     <div class="status"><span class="dot ${dot}"></span>${esc(txt)}</div>
     ${days !== null && days < 21 ? `<div class="warn">Der Sicherungs-Schlüssel läuft in ${days} Tagen ab. Bitte einen neuen eintragen.</div>` : ''}

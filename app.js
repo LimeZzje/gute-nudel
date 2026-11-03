@@ -21,7 +21,7 @@ import { deck, game, viewHome, wireDeck } from './home.js';
 import { planNow } from './wochenplan.js';
 import { babyParty, babyReconcile, gbParty, gbReconcile, hnDeckClose } from './events.js';
 import { mergeStates } from './merge.js';
-import './faellig.js';   // due dates: fills A with duepick / snooze ...
+import { pushSync } from './faellig.js';   // due dates: fills A with duepick / snooze / push* ...
 import './actions.js';   // fills the action table A (exports nothing)
 
 // ---------- header ----------
@@ -224,6 +224,7 @@ export async function start() {
   D.setRemoteHandler(takeRemote);
   bind();
   render();
+  pushSync();   // G16: a due list that did not reach the push worker last time (offline) goes now
   await D.saveLocal(S);
   if ('serviceWorker' in navigator && !localStorage.getItem('gn_nosw')) {
     // look for a new version on start, when the app comes back to the front and every 30 min; when one takes over, reload once

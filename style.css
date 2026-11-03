@@ -1171,6 +1171,8 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .due-card .due-line.late b { color: var(--danger); }
 .due-card .due-line.soon b { color: var(--accent); }
 .due-hint { margin: 2px 0 8px; }
+.push-optin .push-q { font-size: 26px; line-height: 1.15; margin: 0 0 4px; color: var(--accent); }
+.push-optin .muted { margin: 0 0 6px; }
 
 /* G15: Home flowers – one growth step per task done today, static, behind everything */
 .gn-flowers { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .42; }
