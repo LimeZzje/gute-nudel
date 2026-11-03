@@ -2,7 +2,10 @@
 export const CAP = 10;          // tasks per day that earn stars; after that: "Genug für heute!"
 export const PAGE_COST = 10;    // stars per photo book page …
 export const pageCost = pages => (pages === 0 ? 1 : PAGE_COST); // … except the first: 1 star, so she sees right away what it is about
-export const STAGE_COST = 10;   // stars per plant stage
+export const STAGE_COST = 10;   // stars per plant unlock = one week of growth (Plant v2)
+export const FLIP_FROM = 4;     // 12/12 (start flowering) possible from this veg week on
+export const BLOOM_WEEKS = 9;   // flowering weeks after 12/12, then harvest
+export const GRAMS_PER_WEEK = 10; // harvest in grams = this × veg weeks (the size reached)
 export const REST_STARS = 3;    // a finished rest quest: 1 like a task + 2 bonus ("8 instead of 10")
 export const BOOK_PAGES = 30;
 
@@ -144,7 +147,23 @@ export const REWARDS = {
 };
 export const REWARD_SIZES = [['klein', 'Klein · 5–15 Min.'], ['mittel', 'Mittel · ein Abend'], ['gross', 'Groß · was Besonderes']];
 
-export const STAGES = ['Samenkorn', 'Keimling', 'Sämling', 'Wächst', 'Kleiner Busch', 'Vorblüte', 'Blüte', 'Erntereif'];
+export const STAGES = ['Samenkorn', 'Keimling', 'Sämling', 'Wächst', 'Kleiner Busch', 'Vorblüte', 'Blüte', 'Erntereif'];   // the old 8-stage plant (log texts before 2026-11-04.5)
+// Plant v2: the name tag on the picture
+export function plantLabel(p) {
+  if (p.flip) return p.b >= BLOOM_WEEKS ? 'Erntereif' : p.b ? 'Blüte · Woche ' + p.b : '12/12 · Blüte startet';
+  return p.v === 0 ? 'Samenkorn' : p.v === 1 ? 'Keimling' : p.v < 4 ? 'Sämling · Woche ' + p.v : 'Woche ' + p.v;
+}
+// 🎄 December: one piece per day 1–24 (advent calendar); she can take any of them off again. Drawn in plant.js.
+export const ADVENT = [
+  { d: 1, id: 'red', n: 'Rote Kugeln', ic: '🔴' }, { d: 2, id: 'gold', n: 'Goldene Kugeln', ic: '🟡' }, { d: 3, id: 'lametta', n: 'Lametta', ic: '✨' },
+  { d: 4, id: 'straw', n: 'Strohsterne', ic: '⭐' }, { d: 5, id: 'cane', n: 'Zuckerstangen', ic: '🍭' }, { d: 6, id: 'boot', n: 'Nikolausstiefel', ic: '👢' },
+  { d: 7, id: 'lights', n: 'Lichterkette', ic: '💡' }, { d: 8, id: 'blue', n: 'Blaue Kugeln', ic: '🔵' }, { d: 9, id: 'bell', n: 'Glöckchen', ic: '🔔' },
+  { d: 10, id: 'flake', n: 'Schneeflocken', ic: '❄️' }, { d: 11, id: 'heart', n: 'Lebkuchenherzen', ic: '🤎' }, { d: 12, id: 'bow', n: 'Schleifen', ic: '🎀' },
+  { d: 13, id: 'silver', n: 'Silberne Kugeln', ic: '⚪' }, { d: 14, id: 'icicle', n: 'Eiszapfen', ic: '🧊' }, { d: 15, id: 'beads', n: 'Perlenkette', ic: '📿' },
+  { d: 16, id: 'lila', n: 'Lila Kugeln', ic: '🟣' }, { d: 17, id: 'man', n: 'Lebkuchenmännchen', ic: '🍪' }, { d: 18, id: 'lights2', n: 'Bunte Lichter', ic: '🌈' },
+  { d: 19, id: 'cone', n: 'Tannenzapfen', ic: '🌰' }, { d: 20, id: 'candle', n: 'Kerzen', ic: '🕯️' }, { d: 21, id: 'snow', n: 'Schnee', ic: '☃️' },
+  { d: 22, id: 'rosa', n: 'Rosa Kugeln', ic: '🩷' }, { d: 23, id: 'gifts', n: 'Geschenke', ic: '🎁' }, { d: 24, id: 'star', n: 'Der Stern', ic: '🌟' },
+];
 
 const S1 = ['Couch', 'Feierabend', 'Sofa', 'Gute Nudel', 'Kuscheldecken', 'Tee-Time', 'Pausen', 'Sonntags', 'Leseecken', 'Nickerchen', 'Wolkenguck', 'Badewannen', 'Liegenlass', 'Fensterplatz'];
 const S2 = ['Kush', 'Haze', 'Skunk', 'OG', 'Diesel', 'Dream', 'Purple', 'Cookies', 'Gelato', 'Lemon', 'Cheese', 'Widow'];

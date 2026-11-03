@@ -30,7 +30,8 @@ export function freshState() {
     log: [],               // {id, text, kind: task|extra|rest|setup|prep|reward|unlock, day, ts, stars, iid?}
     today: { day: '', planned: false, capShown: false, closed: false },
     book: { pages: 0 },
-    plant: { stage: 0, harvests: [] },
+    plant: { stage: 0, v: 0, b: 0, flip: false, sc: 0, harvests: [] },   // Plant v2 (plant.js plantNorm): v veg weeks, b bloom weeks after flip (12/12), sc = stage last written for old app versions; harvests {name, day, g?, w?}
+    deco: { open: [], off: [], u: 0 },   // 🎄 December: open = advent doors opened ('YYYY-D'), off = piece ids she took off (kept across years), u = last edit
     recipe: null,          // old Gemütlich recipe in progress (replaced by ritual)
     ritual: null,          // 🛋️ ritual in progress: {id, mini, done: [bool]}
     myRituals: [],         // her own rituals: {id, icon, title, size: kurz|abend|besonders, en: 'pof', steps[], due? ('YYYY-MM-DD', optional)}

@@ -1,8 +1,8 @@
 // SCHÄTZE: wishes, the photo book, photo hydration.
 import * as C from './content.js';
 import * as D from './data.js';
-import { plantSVG } from './plant.js';
-import { esc, shortDate } from './core.js';
+import { plantGrams, plantNorm, plantRipe, plantSVG } from './plant.js';
+import { esc, shortDate, today } from './core.js';
 import { S, ui } from './state.js';
 
 // ---------- SCHÄTZE ----------
@@ -17,13 +17,16 @@ export function viewSchaetze() {
     <div class="row" style="margin-top:10px">${full ? '' : `<button class="btn" data-a="unlockpage" ${S.stars < C.pageCost(pages) ? 'disabled' : ''}>Seite freischalten · ${C.pageCost(pages)} ⭐</button>`}${pages ? '<button class="btn soft" data-a="openbook">Ansehen</button>' : ''}</div>
     ${!full && S.stars < C.pageCost(pages) ? `<p class="hint">Noch ${C.pageCost(pages) - S.stars} ⭐ bis zur nächsten Seite.</p>` : ''}</div>`;
 
-  const st = S.plant.stage, ripe = st >= C.STAGES.length - 1;
-  h += `<div class="card"><h3>🌿 Deine Pflanze${S.plant.harvests.length ? ' · Ernte Nr. ' + (S.plant.harvests.length + 1) : ''}</h3>
-    <div class="plantbox"><div class="stagename">${C.STAGES[st]}</div>${plantSVG(st)}</div>
-    ${ripe ? `<button class="btn green wide" data-a="harvest">Ernten! 🌿</button>`
-      : `<button class="btn wide" data-a="grow" ${S.stars < C.STAGE_COST ? 'disabled' : ''}>Wachsen lassen · ${C.STAGE_COST} ⭐</button>
-         <p class="hint">Stufe ${st + 1} von ${C.STAGES.length}. ${S.stars < C.STAGE_COST ? 'Noch ' + (C.STAGE_COST - S.stars) + ' ⭐.' : ''}</p>`}
-    ${S.plant.harvests.length ? `<p class="muted" style="margin-top:12px;font-weight:800">Erntejournal</p><div class="shelf">${S.plant.harvests.map(x => `<span class="jar">🫙 ${esc(x.name)} <span class="muted">· ${shortDate(x.day)}</span></span>`).join('')}</div>` : ''}</div>`;
+  const p = plantNorm(S.plant), ripe = plantRipe(p), nh = p.harvests.length, aday = adventDay(), short = S.stars < C.STAGE_COST;
+  h += `<div class="card"><h3>🌿 Deine Pflanze${nh ? ' · Ernte Nr. ' + (nh + 1) : ''}</h3>
+    <div class="plantbox"><div class="stagename">${esc(C.plantLabel(p))}</div>${plantSVG(p, nh, decoNow())}</div>
+    ${aday ? adventBox(aday) : ''}
+    ${ripe ? `<button class="btn green wide" data-a="harvest">Ernten! 🌿 · ca. ${plantGrams(p)} g</button>`
+      : `<button class="btn wide" data-a="grow" ${short ? 'disabled' : ''}>${p.flip ? 'Eine Woche blühen lassen' : 'Eine Woche wachsen lassen'} · ${C.STAGE_COST} ⭐</button>
+         <p class="hint">${p.flip ? 'Noch ' + (C.BLOOM_WEEKS - p.b) + (C.BLOOM_WEEKS - p.b === 1 ? ' Blütewoche' : ' Blütewochen') + ' bis zur Ernte (ca. ' + plantGrams(p) + ' g).' : p.v < C.FLIP_FROM ? 'Woche ' + p.v + '. Ab Woche ' + C.FLIP_FROM + ' darfst du sie blühen lassen.' : 'Woche ' + p.v + '. Sie wächst, solange du willst.'} ${short ? 'Noch ' + (C.STAGE_COST - S.stars) + ' ⭐.' : ''}</p>`}
+    ${!p.flip && p.v >= C.FLIP_FROM ? `<button class="btn soft wide" data-a="flip">💡 Auf 12/12 umstellen – Blüte starten</button>
+         <p class="hint">Dann blüht sie ${C.BLOOM_WEEKS} Wochen und wird geerntet – jetzt wären das ca. ${plantGrams(p)} g. <span class="psst">Psst: die ganz Großen wachsen ~50 Wochen.</span></p>` : ''}
+    ${nh ? `<p class="muted" style="margin-top:12px;font-weight:800">Erntejournal</p><div class="shelf">${p.harvests.map(x => `<span class="jar">🫙 ${esc(x.name)} <span class="muted">· ${x.g ? x.g + ' g · ' : ''}${shortDate(x.day)}</span></span>`).join('')}</div>` : ''}</div>`;
 
 
   return h;
@@ -44,4 +47,19 @@ export async function hydratePhotos(root = document) {
     const u = await D.photoURL(+img.dataset.photo);
     if (u) img.src = u; else img.replaceWith(Object.assign(document.createElement('span'), { className: 'muted', textContent: '📷 lädt online' }));
   }
+}
+
+// 🎄 December: day of the month (0 outside December) and the pieces hanging today
+export function adventDay() { const k = today(); return k.slice(5, 7) === '12' ? +k.slice(8) : 0; }
+export function decoNow() {
+  const day = adventDay(); if (!day) return [];
+  const y = today().slice(0, 4), dc = S.deco || {}, open = new Set(dc.open || []), off = new Set(dc.off || []);
+  return C.ADVENT.filter(x => x.d <= day && open.has(y + '-' + x.d) && !off.has(x.id)).map(x => x.id);
+}
+function adventBox(day) {
+  const y = today().slice(0, 4), dc = S.deco || {}, open = new Set(dc.open || []), off = new Set(dc.off || []);
+  const doors = C.ADVENT.map(x => x.d > day ? `<span class="adv-door lock">${x.d}</span>`
+    : !open.has(y + '-' + x.d) ? `<button class="adv-door new" data-a="advent" data-d="${x.d}" aria-label="Türchen ${x.d} öffnen">${x.d}</button>`
+    : `<button class="adv-door${off.has(x.id) ? ' off' : ''}" data-a="decotog" data-id="${x.id}" aria-label="${esc(x.n)}${off.has(x.id) ? ' aufhängen' : ' abnehmen'}" title="${esc(x.n)}">${x.ic}</button>`).join('');
+  return `<div class="advent"><div class="adv-h">🎄 Adventskalender</div><div class="adv-grid">${doors}</div><p class="hint">Jeden Tag ein Türchen. Antippen = aufhängen oder abnehmen.</p></div>`;
 }

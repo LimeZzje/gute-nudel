@@ -15,6 +15,7 @@ import { tick } from './heute.js';
 import { inQ } from './daheim.js';
 import { ownRitualForm, rateRitual, ritualById, rxP } from './relax.js';
 import { hydratePhotos } from './schaetze.js';
+import { plantGrams, plantNorm, plantRipe } from './plant.js';
 import { story, weekLogModal, weekStats } from './woche.js';
 import { applyRestore, exportFile, saveCfgAndTest, settings } from './settings.js';
 import { PIC_MAX, cookModal, phoneTimer, pic, picDelivModal, picFail, picLS, picModal, picN, picSearchAll, picSend, picSum, picWorry, picnicAppLink, shopAgain, shopModal, shopOrder } from './einkauf.js';
@@ -589,17 +590,45 @@ Object.assign(A, {
     const o = modal(`<h2>Das ganze Buch!</h2><p>Alle ${C.BOOK_PAGES} Seiten – jede einzelne hast du dir verdient.</p><div class="collage">${Array.from({ length: C.BOOK_PAGES }, (_, i) => `<img data-photo="${i + 1}" alt="">`).join('')}</div><div class="row"><button class="btn" data-a="close">💛</button></div>`);
     confetti(80); hydratePhotos(o);
   },
+  // 🌿 Plant v2: 10 ⭐ = one week (growing without limit, or one bloom week after 12/12)
   grow() {
-    if (S.stars < C.STAGE_COST) return;
-    S.stars -= C.STAGE_COST; S.plant.stage++;
-    S.log.push({ id: uid(), text: 'Pflanze: ' + C.STAGES[S.plant.stage], kind: 'unlock', what: 'stage', day: today(), ts: Date.now(), stars: -C.STAGE_COST });
-    commit(); toast('🌱 ' + C.STAGES[S.plant.stage] + '!');
-    if (S.plant.stage === C.STAGES.length - 1) confetti(50);
+    const p = plantNorm(S.plant);
+    if (S.stars < C.STAGE_COST || plantRipe(p)) return;
+    S.stars -= C.STAGE_COST;
+    if (p.flip) p.b++; else p.v++;
+    plantNorm(p);
+    const what = p.flip ? 'Blüte Woche ' + p.b : 'Woche ' + p.v;
+    S.log.push({ id: uid(), text: 'Pflanze: ' + what, kind: 'unlock', what: 'stage', day: today(), ts: Date.now(), stars: -C.STAGE_COST });
+    commit(); toast(plantRipe(p) ? '🌿 Erntereif!' : '🌱 ' + what + '!');
+    if (plantRipe(p)) confetti(50);
+  },
+  flip(el) { // switch to 12/12 = start flowering (her choice, from week C.FLIP_FROM on; can't be undone)
+    const p = plantNorm(S.plant);
+    if (p.flip || p.v < C.FLIP_FROM) return;
+    if (el && el.dataset.sure !== '1') { el.dataset.sure = '1'; el.textContent = 'Sicher? Danach wächst sie nicht mehr – nur noch Blüte'; setTimeout(() => { if (el.isConnected && el.dataset.sure === '1') render(); }, 4000); return; }
+    p.flip = true; p.b = 0; plantNorm(p);
+    commit(); toast('💡 12/12 – jetzt darf sie blühen!');
   },
   harvest() {
-    const name = C.strainName(S.plant.harvests.length);
-    S.plant.harvests.push({ name, day: today() }); S.plant.stage = 0; commit(); confetti(100);
-    modal(`<h2>Ernte! 🌿</h2><p>Deine Sorte heißt:</p><p class="hand" style="font-size:44px;color:var(--green);margin:6px 0">${esc(name)}</p><p class="muted">Sie steht jetzt im Erntejournal. Ein neues Samenkorn liegt schon in der Erde.</p><div class="row"><button class="btn" data-a="close">Hihi</button></div>`);
+    const p = plantNorm(S.plant);
+    if (!plantRipe(p)) return;
+    const name = C.strainName(p.harvests.length), g = plantGrams(p);
+    p.harvests.push({ name, day: today(), g, w: p.v });
+    p.v = 0; p.b = 0; p.flip = false; plantNorm(p); commit(); confetti(100);
+    modal(`<h2>Ernte! 🌿</h2><p>Deine Sorte heißt:</p><p class="hand" style="font-size:44px;color:var(--green);margin:6px 0">${esc(name)}</p><p class="hand" style="font-size:30px;margin:0 0 8px">${g} g</p><p class="muted">Sie steht jetzt im Erntejournal. Ein neues Samenkorn liegt schon in der Erde.</p><div class="row"><button class="btn" data-a="close">Hihi</button></div>`);
+  },
+  advent(el) { // 🎄 open a door of the advent calendar: its piece hangs on the plant right away
+    const d = +el.dataset.d, k = today(), x = C.ADVENT.find(a => a.d === d);
+    if (!x || k.slice(5, 7) !== '12' || d > +k.slice(8)) return;
+    const dc = S.deco = Object.assign({ open: [], off: [], u: 0 }, S.deco), id = k.slice(0, 4) + '-' + d;
+    if (!dc.open.includes(id)) dc.open.push(id);
+    dc.off = dc.off.filter(o => o !== x.id); dc.u = Date.now();
+    commit(); confetti(40); toast(x.ic + ' Türchen ' + d + ': ' + x.n);
+  },
+  decotog(el) { // take a piece off / hang it up again (remembered for next December too)
+    const dc = S.deco = Object.assign({ open: [], off: [], u: 0 }, S.deco), id = el.dataset.id;
+    dc.off = dc.off.includes(id) ? dc.off.filter(o => o !== id) : dc.off.concat(id); dc.u = Date.now();
+    commit();
   },
   rsize(el) { ui.rsize = el.dataset.v; ui.ridea = null; render(); },
   roll() {

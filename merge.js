@@ -1,6 +1,7 @@
 // Several devices of one person: mergeStates(local, remote, base).
 import * as D from './data.js';
 import * as B from './baby.js';
+import { plantProgress } from './plant.js';
 
 // ---------- several devices of one person: merge two versions of the same save ----------
 // base = the version both devices last agreed on (null if unknown). With it, the merge knows what was DELETED:
@@ -55,6 +56,10 @@ export function mergeStates(local, remote, base = null) {
   for (const [k, v] of Object.entries(gA.levels || {})) lv[k] = Math.max(v, lv[k] || 0);
   m.game = { levels: lv, endless: Math.max(gA.endless || 0, gB.endless || 0) };
   m.book = { pages: Math.max((newer.book || {}).pages || 0, (older.book || {}).pages || 0) };
+  // 🌿 the plant: the copy with more progress wins (more harvests, then more weeks) – a grow on the other device is not undone
+  m.plant = plantProgress(older.plant) > plantProgress(newer.plant) ? older.plant : newer.plant;
+  { const a = newer.deco || {}, b = older.deco || {}, last = (b.u || 0) > (a.u || 0) ? b : a;   // 🎄 doors opened anywhere stay open; on/off: the last edit wins
+    m.deco = { open: [...new Set([].concat(a.open || [], b.open || []))], off: (last.off || []).slice(), u: Math.max(a.u || 0, b.u || 0) }; }
   m.updatedAt = Math.max(local.updatedAt || 0, remote.updatedAt || 0) + 1;
   return m;
 }
