@@ -14,7 +14,7 @@ import { dayIndex, inQ } from './daheim.js';
 import { pic } from './einkauf.js';
 import { dishPicsOf, loadDishPics, loadRecPhotos } from './recipes.js';
 import { nopes } from './home.js';
-import { planBanner, planCard, planDayName, planLive } from './wochenplan.js';
+import { planBanner, planCard, planDayName, planLive, planPickSlot } from './wochenplan.js';
 import { render } from './app.js';
 
 // ---------- the cookbook (cookbook.js): suggestions that learn, the plate check, cooking mode ----------
@@ -305,7 +305,7 @@ export function recipePage(r) {
     <p class="bp-meta">${theme === 'kid' ? kidStars(r, true) : ''}${r.min ? (him ? '⧗ ' : '⏱ ') + r.min + ' Min. · ' : ''}${!him ? 'für ' + esc(r.serves || 2) : /^\s*\d+([–-]\d+)?\s*$/.test(String(r.serves || 2)) ? 'für ' + esc(r.serves || 2) + ' Seelen' : 'beschwört ' + esc(r.serves)}${r.vr && loveTag(r) ? ' · ' + loveTag(r) : ''}${c ? ' · ' + c.n + '× gekocht ' + tasteOf(r) : ''}${seasonTag(r)}</p>${nutriLine(r)}${flavor(r) ? `<p class="bp-flavor">${flavor(r)}</p>` : ''}
     ${home ? `<span class="bp-tape">${him ? '✠ alles in der Speisekammer' : '🧊 alles daheim'}</span>` : ''}
     ${r.src ? `<p class="muted" style="margin:2px 0">📚 ${esc(r.src)}</p>` : ''}${pregLater(r) ? `<p class="preglater" style="margin:4px 0">🤰 Erst ab Februar – flüssiges Ei oder kalter Räucherlachs</p>` : ''}${r.note ? `<p class="bp-note">${esc(r.note)}</p>` : ''}
-    ${ui.planPick != null ? `<button class="btn green wide" style="clear:both;margin:6px 0" data-a="planset" data-id="${r.id}" data-i="${ui.planPick}">🗓️ Für ${esc(planDayName(planLive().start, ui.planPick))} nehmen</button>` : ''}
+    ${ui.planPick != null ? `<button class="btn green wide" style="clear:both;margin:6px 0" data-a="planset" data-id="${r.id}" data-i="${ui.planPick}">🗓️ Für ${esc(planDayName(planLive().start, ui.planPick))} nehmen${planPickSlot() ? ' · ' + planPickSlot() : ''}</button>` : ''}
     <div class="row" style="justify-content:flex-start;margin:6px 0 10px;clear:none"><button class="btn soft" data-a="redit" data-id="${r.id}">✎ Ändern</button><button class="btn soft" data-a="planask" data-id="${r.id}">🗓️ Planen</button><label class="btn soft">📷 Foto<input type="file" accept="image/*" data-ch="dishadd" data-id="${esc(r.id)}" hidden></label>${r.pages && r.pages.length ? `<button class="btn soft" data-a="rpages" data-id="${r.id}">📷 Original-Seite</button>` : ''}</div>
     ${dp.length > 1 ? `<div class="dishstrip">${dp.slice(1).map(x => `<button class="dishthumb" data-a="dishview" data-id="${esc(x.id)}"><img class="dishpic" data-dish="${esc(x.id)}" alt=""><span>${esc(shortDate(x.day))}</span></button>`).join('')}</div>` : ''}`;
   if (r.plate) {

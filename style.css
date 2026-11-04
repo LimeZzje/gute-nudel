@@ -1141,6 +1141,9 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .plan-pick { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 12px; border-radius: 14px; background: var(--card); border: 2px dashed var(--accent); font-weight: 700; }
 .plan-pick > span { flex: 1; }
 .plan-gap { visibility: hidden; }
+.plan-sugg { margin: -4px 4px 10px; font-size: 14px; }   /* G18: cookable Vorrat recipes under the empty Rest / Vorrat slot */
+.plan-sugg .chips { margin: 4px 0 0; }
+.plan-sugg .chip { font-size: 14px; padding: 6px 12px; min-height: 36px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pw-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 0 0 12px; }
 .pw-day { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0 4px; border: 2px solid transparent; border-radius: 12px; background: var(--card); color: var(--ink); font: inherit; font-size: 11px; cursor: pointer; min-width: 0; }
 .pw-day b { font-size: 15px; } .pw-day .pw-ic { font-size: 18px; min-height: 22px; } .pw-day .pw-ok { font-size: 10px; min-height: 12px; }
