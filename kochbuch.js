@@ -7,7 +7,7 @@ import * as D from './data.js';
 import * as G from './geburtstag.js';
 import * as Bk from './book.js';
 import { esc, key, shortDate, tags, today, uid } from './core.js';
-import { S, ui } from './state.js';
+import { A, S, ui } from './state.js';
 import { fmtQty, groupQty, itemName, itemQty, parseQty, qtyOk, vorrat, vorratGroups } from './sync.js';
 import { daysBetween } from './chores.js';
 import { dayIndex, inQ } from './daheim.js';
@@ -82,7 +82,7 @@ function cookSuggest(n) { // weighted, no repeats; ui.sugSeed changes with "ande
 // (salt/oil/spices: marked "Vorrat?" so she can tick them when they're empty). Nothing is remembered — things run out.
 export const ingKey = t => Sh.norm(t);
 const onListItem = t => S.shop.find(x => !x.done && Sh.norm(itemName(x)) === ingKey(t));
-const onList = t => !!onListItem(t);
+export const onList = t => !!onListItem(t);
 const canAddUp = (t, q) => { const x = onListItem(t), a = parseQty(q); return !!(x && a && qtyOk(itemQty(x), a)); };   // already on the list, amounts add up
 export function addToShop(name, qty, raw, from) {
   const x = onListItem(name);
@@ -281,10 +281,36 @@ export function viewDaheim() {
   for (const [k, ic, l] of PLACES) {
     const xs = V.filter(x => placeOf(x) === k).sort((a, b) => a.name.localeCompare(b.name, 'de'));
     if (!xs.length) continue;
-    h += `<div class="card vplace"><h3>${ic} ${l} <span class="muted">(${xs.length})</span></h3>${xs.map(x => use ? `<div class="shoprow"><button class="pick ${use.has(x.id) ? 'on' : ''}" data-a="vusetick" data-id="${esc(x.id)}"><span class="box">${use.has(x.id) ? '✓' : ''}</span><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button></div>` : `<div class="shoprow"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button><button class="mini-btn" data-a="vorratdel" data-id="${esc(x.id)}" aria-label="Ist aufgebraucht">✕</button></div>`).join('')}</div>`;
+    h += `<div class="card vplace"><h3>${ic} ${l} <span class="muted">(${xs.length})</span></h3>${xs.map(x => use ? `<div class="shoprow"><button class="pick ${use.has(x.id) ? 'on' : ''}" data-a="vusetick" data-id="${esc(x.id)}"><span class="box">${use.has(x.id) ? '✓' : ''}</span><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button></div>` : `<div class="vswipe"><span class="vs-bg" aria-hidden="true">Ist alle! 🧊</span><div class="shoprow vrow" data-id="${esc(x.id)}"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button><button class="mini-btn vcart${onList(x.name) ? ' on' : ''}" data-a="vcart" data-id="${esc(x.id)}" aria-label="${onList(x.name) ? 'Steht schon auf der Einkaufsliste' : 'Auf die Einkaufsliste'}">🛒</button></div></div>`).join('')}</div>`;
   }
   if (use) return h + `<div class="row"><button class="btn soft" data-a="vuse">Abbrechen</button><button class="btn green" data-a="vusedone"${use.size ? '' : ' disabled'}>Fertig${use.size ? ' (' + use.size + ')' : ''}</button></div><p class="hint">Antippen, was du gebraucht hast – „Fertig“ nimmt es aus dem Vorrat. Gibt keine Sterne.</p>`;
-  return h + `<div class="row"><button class="btn soft" data-a="vuse">🍳 Ich hab gebraucht…</button></div><p class="hint">Tippen = Menge ändern oder umräumen · ✕ = aufgebraucht. „Jetzt kochen“ nimmt raus, was ein Rezept braucht.</p>`;
+  return h + `<div class="row"><button class="btn soft" data-a="vuse">🍳 Ich hab gebraucht…</button></div><p class="hint">Tippen = Menge ändern oder umräumen · 🛒 = auf die Einkaufsliste · zur Seite wischen = ist alle. „Jetzt kochen“ nimmt raus, was ein Rezept braucht.</p>`;
+}
+// 🧊 swipe a Daheim row sideways = "Ist alle!" (user 2026-11-06; undo in the toast). Vertical drags stay scrolling.
+export function wireVSwipe() {
+  let r = null, x0 = 0, y0 = 0, dx = 0, dir = 0, eat = false;
+  document.addEventListener('pointerdown', e => {
+    eat = false; const k = e.target.closest('.vrow'); if (!k || e.button || ui.vuse) return;
+    r = k; x0 = e.clientX; y0 = e.clientY; dx = 0; dir = 0; r.style.transition = 'none';
+  });
+  document.addEventListener('pointermove', e => {
+    if (!r) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!dir) { if (Math.abs(mx) < 10 && Math.abs(my) < 10) return; dir = Math.abs(mx) > Math.abs(my) ? 1 : -1; if (dir < 0) { r.style.transition = ''; r = null; return; } }
+    dx = mx; r.style.transform = 'translateX(' + dx + 'px)';
+    r.parentNode.classList.toggle('arm', Math.abs(dx) > r.offsetWidth * 0.35);
+  });
+  const up = () => {
+    if (!r) return;
+    const k = r, id = k.dataset.id, w = k.offsetWidth; r = null; k.style.transition = '';
+    if (dir > 0) eat = true;   // the click after a drag must not open the amount popup
+    if (dir > 0 && Math.abs(dx) > w * 0.35) {
+      k.style.transform = 'translateX(' + (dx > 0 ? w : -w) + 'px)'; k.parentNode.classList.add('gone');
+      setTimeout(() => A.vswipe({ dataset: { id } }), 180);
+    } else { k.style.transform = ''; k.parentNode.classList.remove('arm'); }
+  };
+  document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  document.addEventListener('click', e => { if (eat) { eat = false; if (e.target.closest('.vrow')) { e.stopPropagation(); e.preventDefault(); } } }, true);
 }
 // 🔢 Nährwerte (2026-10-30, user): estimated from the ingredients (naehr.js), only on the recipe page; a guessed piece count says so
 const PLURAL = { Portion: 'Portionen', Stück: 'Stück', Glas: 'Gläser' };

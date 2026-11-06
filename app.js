@@ -15,7 +15,7 @@ import { hydratePhotos, viewSchaetze } from './schaetze.js';
 import { viewWoche } from './woche.js';
 import { applyRestore, settings } from './settings.js';
 import { picCheer, picDeliveries, picQueries } from './einkauf.js';
-import { bookApi, endCookMode, isHerb, kidLevel, recipeById, searchHtml, seasonOf, vMatch, vrNew } from './kochbuch.js';
+import { bookApi, endCookMode, isHerb, kidLevel, recipeById, searchHtml, seasonOf, vMatch, vrNew, wireVSwipe } from './kochbuch.js';
 import { FORMS, backToList, loadDishPics, loadRecPhotos } from './recipes.js';
 import { deck, game, viewHome, wireDeck } from './home.js';
 import { planNow } from './wochenplan.js';
@@ -120,7 +120,7 @@ function bind() {
   });
   $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.tab === 'heute') ui.htab = 'heute'; ui.tab = b.dataset.tab; ui.sub = null; tabChip(); render(); scrollTo(0, 0); });
   $('#cloud').addEventListener('click', settings);
-  wireDeck();
+  wireDeck(); wireVSwipe();
   $('#refresh').addEventListener('click', refreshAll);
   $('#stars').addEventListener('click', A.stars);
   $('#rankbtn').addEventListener('click', rankModal);

@@ -19,7 +19,7 @@ import { plantGrams, plantNorm, plantRipe } from './plant.js';
 import { story, weekLogModal, weekStats } from './woche.js';
 import { applyRestore, exportFile, saveCfgAndTest, settings } from './settings.js';
 import { PIC_MAX, cookModal, phoneTimer, pic, picDelivModal, picFail, picLS, picModal, picN, picSearchAll, picSend, picSum, picWorry, picnicAppLink, shopAgain, shopModal, shopOrder } from './einkauf.js';
-import { KTABS, PLACES, addToShop, cookSteps, endCookMode, ingKey, ingWanted, kpage, ksec, placeOf, recipeById, sidesOf, vorratRecipes, vrSeenAdd } from './kochbuch.js';
+import { KTABS, PLACES, addToShop, onList,cookSteps, endCookMode, ingKey, ingWanted, kpage, ksec, placeOf, recipeById, sidesOf, vorratRecipes, vrSeenAdd } from './kochbuch.js';
 import { allDishPics, backToList, loadDishPics } from './recipes.js';
 import { NEWS, ZETTEL, deck, newsAll, newsRead, swipeSet } from './home.js';
 import { planNow } from './wochenplan.js';
@@ -266,6 +266,25 @@ Object.assign(A, {
     toast('🧊 ' + got.length + (got.length === 1 ? ' Sache' : ' Sachen') + ' im Vorrat');
   },
   vorratdel(el) { useGroup(el.dataset.id); commit(true); },
+  // 🧊 Daheim row swiped away = "Ist alle!" (user 2026-11-06), undo in the toast
+  vswipe(el) {
+    const g = vGroup(el.dataset.id); if (!g) { render(); return; }
+    const n0 = (S.vorratUsed || []).length; useGroup(g.id); const recs = new Set(S.vorratUsed.slice(n0).map(u => u.id));
+    commit(true);
+    undoToast(`🧊 ${g.name} ist alle!`, () => {
+      S.vorratUsed = (S.vorratUsed || []).filter(u => !recs.has(u.id));
+      commit(true); toast('↩ ' + g.name + ' ist wieder im Vorrat');
+    });
+  },
+  // 🛒 on a Daheim row: onto the shopping list without an amount (bought on its own, no recipe behind it); stays in the Vorrat
+  vcart(el) {
+    const g = vGroup(el.dataset.id); if (!g) return;
+    if (onList(g.name)) { toast('🛒 ' + g.name + ' steht schon auf der Liste'); return; }
+    const had = new Set(S.shop.map(x => x.id)); addToShop(g.name, null, '', null);
+    const added = new Set(S.shop.filter(x => !had.has(x.id)).map(x => x.id));
+    commit();
+    undoToast(`🛒 ${g.name} steht auf der Liste`, () => { S.shop = S.shop.filter(x => !added.has(x.id)); commit(); });
+  },
   vuse() { ui.vuse = ui.vuse ? null : new Set(); render(); },   // 🍳 "Ich hab gebraucht…": tick mode on the Daheim list
   vusetick(el) { const id = el.dataset.id; if (ui.vuse.has(id)) ui.vuse.delete(id); else ui.vuse.add(id); render(); },
   vusedone() {   // books the ticked things off like "Ist alle" (same use records → the partner's phone merges them); no stars
