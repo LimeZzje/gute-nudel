@@ -5,6 +5,7 @@ import * as Sh from './shop.js';
 import * as Nw from './naehr.js';
 import * as D from './data.js';
 import * as G from './geburtstag.js';
+import * as SN from './snacks.js';
 import * as Bk from './book.js';
 import { esc, key, shortDate, tags, today, uid } from './core.js';
 import { A, S, ui } from './state.js';
@@ -41,8 +42,11 @@ export const fixRec = r => ({ tags: [], ing: [], steps: [], icon: '🍽️', min
 function allRecipes() {
   const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set([...(S.hiddenRecipes || []), ...nopes()]), free = r => !ids.has(r.id) && !hidden.has(r.id);
   return K.RECIPES.filter(free).concat(bookRecipes().filter(free).map(r => fixRec({ ...r, book: true })), mine.filter(r => !hidden.has(r.id)).map(r => fixRec({ ...r, own: true })),
-    vorratRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true })), archRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true, arch: true })));
+    vorratRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true })), archRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true, arch: true })),
+    snBook() ? SN.RECIPES.filter(free).map(r => fixRec({ ...r })) : []);
 }
+// 🥜 the Snack-Labor's nine move into the book (chip 🥜 Snacks) once the event is done or its time ran out (user 2026-11-07)
+const snBook = () => Date.now() >= SN.END || (S.events || []).some(e => e.id === SN.ID);
 // the original a changed recipe came from (built-in, photographed book or Claude's Vorrat), if any
 export const origOf = id => K.RECIPES.find(r => r.id === id) || bookRecipes().find(r => r.id === id) || vorratRecipes().find(r => r.id === id) || archRecipes().find(r => r.id === id) || null;
 // pregnancy: recipes with runny egg / cold smoked salmon get a note until the baby is here (gone by itself from February 2027)
@@ -54,7 +58,8 @@ const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['J
 // a redundant Claude recipe (dupOf = the one we keep, set by `rezepte.py doppelt`, user 2026-10-12) is in no list,
 // but the diary and old ratings still find it
 export const recipeById = id => allRecipes().find(r => r.id === id) || (r => r && fixRec({ ...r, vr: true }))(vorratRecipes().concat(archRecipes()).find(r => r.id === id))
-  || (r => r && fixRec({ ...r, gb: true }))(G.CAKES.find(r => r.id === id));   // (🎂 the birthday cakes: only in their event)
+  || (r => r && fixRec({ ...r, gb: true }))(G.CAKES.find(r => r.id === id))   // (🎂 the birthday cakes: only in their event)
+  || (r => r && fixRec({ ...r }))(SN.RECIPES.find(r => r.id === id));   // (🥜 the snacks: in their event until it is done)
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
 // how much she'd want it: her favourites and what she rated well count more (and their kind), what she just had less,
 // and what she didn't like never comes up again
@@ -169,7 +174,7 @@ function sectionPage(k) {
 const ctxOf = html => [...new Set([...html.matchAll(/data-a="recipe" data-id="([^"]+)"/g)].map(m => m[1]))].join(',');
 const withCtx = html => `<div data-ctx="${esc(ctxOf(html))}">${html}</div>`;
 const stampRow = (r, html) => recipeRow({ ...r, badge: html });
-const CAT_SHORT = { haupt: '🍽️ Haupt', fruehstueck: '🍳 Frühstück', protein: '💪 Protein', salat: '🥗 Salat', dessert: '🍨 Dessert', backen: '🧁 Backen', drink: '🍹 Drinks' };   // one row of chips in the book
+const CAT_SHORT = { haupt: '🍽️ Haupt', fruehstueck: '🍳 Frühstück', protein: '💪 Protein', salat: '🥗 Salat', dessert: '🍨 Dessert', backen: '🧁 Backen', snack: '🥜 Snacks', drink: '🍹 Drinks' };   // one row of chips in the book
 // 💪 High Protein (Julia 2026-10-30): a TAG on any category ('protein' in r.tags), but its own chip in the book, after Frühstück
 const BOOK_CATS = K.CATS.slice(0, 2).concat([['protein', '💪 High Protein']], K.CATS.slice(2));
 // .5 (user): calculated from the Nährwerte (Nw.highProtein: ≥ 25 g and ≥ 20 % of the kcal); the hand-set tag still counts on top

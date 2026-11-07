@@ -1174,7 +1174,16 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .viewer .vdel { margin-top: 14px; background: rgba(255, 255, 255, .1); color: #ffb4b4; border: 0; border-radius: 12px; min-height: 44px; padding: 0 18px; font: 800 15px Nunito, sans-serif; }
 
 /* due dates (G13, 2026-11-04.2) */
-.add .due-in { flex: 0 0 auto; width: 8.6em; font-size: 14px; padding: 6px 4px; color: var(--ink2); }
+.due-pick { position: relative; flex: none; display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: 10px; font-size: 20px; color: var(--ink2); }
+.due-pick.set { padding: 0 8px; font-size: 13px; font-weight: 800; color: var(--accent); background: var(--accent2); align-self: center; min-height: 34px; border-radius: 99px; }
+.due-pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; margin: 0; }
+.tag.due[data-a] { cursor: pointer; }
+/* narrow phones (Julia's): rows keep room for the text */
+@media (max-width: 400px) {
+  .item { gap: 8px; }
+  .item .mini-btn { min-width: 34px; padding: 6px 4px; }
+  .add { gap: 6px; }
+}
 .due-in.big { width: 100%; font-size: 20px; padding: 10px 6px; margin: 6px 0 12px; border: 0; border-bottom: 2px solid var(--line); background: transparent; color: var(--ink); }
 .tag.due { background: var(--accent2); border-radius: 99px; padding: 1px 8px; }
 .tag.due.soon { color: var(--accent); }
@@ -1191,3 +1200,29 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .gn-flowers svg { display: block; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gn-flowers { opacity: .3; } }
 :root[data-theme="dark"] .gn-flowers { opacity: .3; }
+/* 🥜 Snack-Labor (2026-11-07): warm pantry colours, a mason jar that fills one layer per snack */
+:root { --sn1: #fdf3e2; --sn2: #f4ead8; --snink: #4a3626; --snbrown: #a8642e; --sngreen: #6f8f4e; --sntile: rgba(255, 255, 255, .7); --snglass: #8fb3c2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --sn1: #33281f; --sn2: #2b2a22; --snink: #f5e6d3; --snbrown: #e6a066; --sngreen: #a9c98a; --sntile: rgba(255, 255, 255, .08); --snglass: #7fa3b3; } }
+:root[data-theme="dark"] { --sn1: #33281f; --sn2: #2b2a22; --snink: #f5e6d3; --snbrown: #e6a066; --sngreen: #a9c98a; --sntile: rgba(255, 255, 255, .08); --snglass: #7fa3b3; }
+.sncard { display: grid; justify-items: center; text-align: center; width: 100%; border: 0; color: var(--snink); font: inherit; position: relative; overflow: hidden; padding: 12px 16px 18px;
+  background: radial-gradient(circle at 15% 25%, rgba(168, 100, 46, .12) 0 2px, transparent 3px) 0 0 / 30px 30px, linear-gradient(160deg, var(--sn1), var(--sn2)); }
+.snjar { width: 120px; height: auto; }
+.sncard.hero .snjar { width: 140px; }
+.sj-lid { fill: var(--snbrown); } .sj-glass { fill: var(--sntile); stroke: var(--snglass); stroke-width: 3; }
+.sj-l { opacity: .92; animation: snfill .6s ease-out both; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes snfill { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.sj-dot { fill: rgba(255, 255, 255, .35); } .sj-shine { stroke: #fff; stroke-width: 3; stroke-linecap: round; opacity: .5; }
+.sj-label { fill: #fffaf0; stroke: var(--snbrown); stroke-width: 1.2; } .sj-t { font: 800 12px Nunito, sans-serif; fill: #4a3626; text-anchor: middle; }
+.sn-eye { display: block; font: 700 21px/1.1 Caveat, cursive; color: var(--sngreen); }
+.sn-t { display: block; font: 700 30px/1.15 Caveat, cursive; color: var(--snbrown); margin: 2px 0 8px; text-wrap: balance; }
+.sncard.hero .sn-t { font-size: 36px; }
+.sn-info { display: block; font-size: 14.5px; line-height: 1.45; max-width: 34em; opacity: .92; }
+.sn-made { display: block; margin-top: 10px; font-size: 14px; font-weight: 700; color: var(--sngreen); }
+.snmix { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; border: 2px dashed var(--snbrown); color: inherit; font: inherit; margin-top: 12px; }
+.snmix .snm-ic { font-size: 34px; } .snmix .snm-t { flex: 1; display: grid; gap: 2px; }
+.gbcake.sn-done { box-shadow: 0 0 0 2px var(--sngreen), var(--shadow); }
+.gbcake.sn-done .gbk-rib { background: var(--sngreen); color: #fff; }
+.mx-jar { margin: 10px 0 4px; } .mx-h { display: block; font-weight: 800; font-size: 15px; margin-bottom: 6px; }
+.mx-jar .chips { flex-wrap: wrap; overflow: visible; }
+.mx-name { width: 100%; font: 700 24px Caveat, cursive; border: 0; border-bottom: 2px solid var(--line); background: transparent; color: var(--ink); padding: 6px 2px; margin-bottom: 4px; }
+.snparty .snjar { width: 130px; display: block; margin: 0 auto; }

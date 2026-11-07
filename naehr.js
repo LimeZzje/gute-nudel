@@ -143,8 +143,14 @@ const FOOD = [
   ['beere|beeren|himbeere|himbeeren|erdbeere|erdbeeren|johannisbeere|johannisbeeren|heidelbeere|heidelbeeren|blaubeeren|sauerkirsche|sauerkirschen|kirschen', 45, 0.4, 9, 1, { hand: 60, pck: 300, glas: 350, becher: 250 }],
   ['rhabarber', 20, 0.1, 4, 0.9, { stk: 150, stange: 150 }],
   ['rosine|rosinen', 300, 0.5, 79, 3, { el: 12, hand: 30 }],
+  // 🥜 Snack-Labor (2026-11-07): dried fruit, crunchy bits
+  ['dattel|datteln|softdatteln|trockenaprikose|trockenaprikosen|trockenfeige|trockenfeigen|trockenkirsche|trockenkirschen|cranberry|cranberrys|cranberries', 290, 0.5, 68, 2.5, { el: 12, hand: 30, stk: 8 }],
+  ['apfelchips|bananenchips', 350, 2, 80, 2, { hand: 15 }],
+  ['kokoschips|kokosraspel|kokosraspeln|kokosflocken', 660, 62, 7, 7, { el: 6, hand: 20 }],
+  ['popcornmais|popcorn', 375, 4.5, 64, 12, { hand: 10 }],
+  ['salzbrezel|salzbrezeln|brezeln|reiswaffel|reiswaffeln', 380, 3, 78, 9, { hand: 25, stk: 8 }],
   // --- nuts, seeds ---
-  ['nuss|nusse|walnuss|walnusse|haselnuss|haselnusse|mandel|mandeln|mandelblattchen|erdnusse|cashews|pinienkerne', 640, 58, 8, 18, { el: 10, hand: 30, stk: 4 }],
+  ['nuss|nusse|walnuss|walnusse|haselnuss|haselnusse|mandel|mandeln|mandelblattchen|erdnusse|cashews|pinienkerne|kerne|cashewkerne|pistazie|pistazien|pekannuss|pekannusse', 640, 58, 8, 18, { el: 10, hand: 30, stk: 4 }],
   ['sesam|sesamsamen|chiasamen|leinsamen|mohn|gemahlener mohn', 550, 45, 10, 20, { el: 10, tl: 3 }],
   // --- drinks ---
   ['saft|apfelsaft|orangensaft|ananassaft|traubensaft|nektar|johannisbeer nektar', 46, 0.1, 11, 0.4, { glas: 200 }],

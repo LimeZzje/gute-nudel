@@ -17,22 +17,30 @@ export function dueWord(k) {
   const n = dueDays(k);
   return n < -1 ? 'überfällig seit ' + shortDate(k) : n === -1 ? 'seit gestern überfällig' : n === 0 ? 'heute fällig' : n === 1 ? 'morgen fällig' : 'fällig ' + shortDate(k);
 }
-// the date chip (a plain span: it also sits inside the builder's pick buttons)
-export const dueTag = x => x && x.due ? `<span class="tag due ${dueDays(x.due) < 0 ? 'late' : dueDays(x.due) <= 1 ? 'soon' : ''}">📅 ${esc(dueWord(x.due))}</span>` : '';
-// small buttons next to a row: 📅 set/change the date, 💤 a week later (only when it is due soon or overdue)
-export const dueBtns = x => `<button class="mini-btn" data-a="duepick" data-id="${x.id}" aria-label="Fällig am" title="Fällig am">📅</button>`
-  + (x.due && dueDays(x.due) <= 1 ? `<button class="mini-btn" data-a="snooze" data-id="${x.id}" aria-label="Eine Woche später" title="Eine Woche später">💤</button>` : '');
+// the date chip (a plain span: it also sits inside the builder's pick buttons). tap = on a list row: the chip itself
+// opens the date sheet (💤 / change / Kein Datum live there) — 2026-11-07: the extra 📅 + 💤 buttons squeezed the rows
+// on Julia's narrow phone
+export const dueTag = (x, tap) => x && x.due ? `<span class="tag due ${dueDays(x.due) < 0 ? 'late' : dueDays(x.due) <= 1 ? 'soon' : ''}"${tap && x.id ? ` data-a="duepick" data-id="${x.id}" role="button" tabindex="0"` : ''}>📅 ${esc(dueWord(x.due))}</span>` : '';
+// the small 📅 button next to a row — only while it has no date (a dated row's chip is the button)
+export const dueBtns = x => x.due ? '' : `<button class="mini-btn" data-a="duepick" data-id="${x.id}" aria-label="Fällig am" title="Fällig am">📅</button>`;
 // the builder's order: due soon / overdue first (earliest first), everything else keeps its order — a suggestion, never a rule
 export const dueSort = list => {
   const hot = x => x.due && dueDays(x.due) <= SOON;
   return list.filter(hot).sort((a, b) => a.due.localeCompare(b.due)).concat(list.filter(x => !hot(x)));
 };
-// the date input next to an add field; read it (and clear it) on submit
-export const dueField = () => `<input type="date" name="due" class="due-in" aria-label="Fällig am (optional)" title="Fällig am (optional)">`;
+// the date next to an add field: a small 📅 with the real date input invisibly on top (tap = the phone's own picker);
+// once picked it shows the short date. 2026-11-07: was a full tt.mm.jjjj field that pushed the + off narrow phones
+export const dueField = () => `<label class="due-pick" title="Fällig am (optional)"><span class="dp-t">📅</span><input type="date" name="due" data-ch="duefield" aria-label="Fällig am (optional)"></label>`;
+const dueShow = f => {
+  const l = f.closest('.due-pick'); if (!l) return;
+  const on = ISO.test(f.value || ''); l.classList.toggle('set', on); l.querySelector('.dp-t').textContent = on ? shortDate(f.value) : '📅';
+};
 export function readDue(form) {
   const f = form && form.elements && form.elements.due; if (!f) return undefined;
-  const v = ISO.test(f.value) ? f.value : undefined; f.value = ''; return v;
+  const v = ISO.test(f.value) ? f.value : undefined; f.value = ''; dueShow(f); return v;
 }
+// desktop Chrome only opens the picker on its own icon: open it on any tap (phones do this anyway)
+document.addEventListener('click', e => { const f = e.target.closest && e.target.closest('.due-pick input'); if (f && f.showPicker) try { f.showPicker(); } catch (er) {} });
 const find = el => S.items.find(x => x.id === el.dataset.id);
 // every dated task (chores never carry one): text + date, the only thing the push worker gets
 export const dueList = () => S.items.filter(i => i.due && !i.chore && ISO.test(i.due)).map(i => ({ t: String(i.text || '').slice(0, 80), k: i.due })).sort((a, b) => a.k.localeCompare(b.k));
@@ -58,6 +66,7 @@ Object.assign(A, {
     if (ISO.test(v || '')) x.due = v; else delete x.due;
     commit();
   },
+  duefield(el) { dueShow(el); },
   dueclear(el) { const x = find(el); closeModal(); if (x) { delete x.due; commit(); } },
   // one tap: due + 7 days (an overdue one counts from today, so it does not stay overdue)
   snooze(el) {

@@ -23,7 +23,8 @@ import { KTABS, PLACES, addToShop, onList,cookSteps, endCookMode, ingKey, ingWan
 import { allDishPics, backToList, loadDishPics } from './recipes.js';
 import { NEWS, ZETTEL, deck, newsAll, newsRead, swipeSet } from './home.js';
 import { planNow } from './wochenplan.js';
-import { babyLive, gbParty, gbReconcile } from './events.js';
+import { babyLive, gbParty, gbReconcile, snParty, snReconcile } from './events.js';
+import * as SN from './snacks.js';
 import { render, tabChip } from './app.js';
 
 // ---------- actions ----------
@@ -347,16 +348,17 @@ Object.assign(A, {
     S.cook[r.id] = { n: c.n + 1, last: today(), taste: v };
     (S.cookLog = S.cookLog || []).push({ id: uid(), rid: r.id, title: r.title, icon: r.icon, day: today(), ts: Date.now(), taste: v });
     if (G.isCake(r.id)) gbReconcile();   // 🎂 the first cake ends the event: +5 ⭐ each
+    if (SN.counts(r.id)) snReconcile();   // 🥜 the third different snack ends the Snack-Labor: +5 ⭐ each
     let qc = null;   // ✅ "Schon gekocht": what it used leaves the Vorrat now (cooking mode did that at its start)
     if (ui.quick) { ui.quick = false; S.dishes = (S.dishes || []).filter(x => x.id !== r.id); qc = consumeFor(r); }
     endCookMode(); closeModal();
     // the "Kochen" chore on today's page counts as done
     const k = S.items.find(i => i.where === 'heute' && i.chore && ((S.chores.find(x => x.id === i.chore) || {}).tools || []).includes('recipes'));
     ui.rid = null; ui.sides = [];
-    if (k) tick(k.id, null); else commit();
+    if (k) tick(k.id, null); else commit(SN.counts(r.id));   // (a 🥜 snack goes to the partner's phone at once: the Snack-Labor counts together)
     const pl = planNow(), planned = pl && today() <= pl.end && pl.days.includes(r.id) ? ' · 🗓️ im Wochenplan abgehakt' : '';
     toast((v === 3 ? 'Notiert: Lieblingsessen 😍 – kommt öfter dran' : v === 1 ? 'Notiert 😕 – das schlage ich nicht mehr vor' : 'Notiert 🙂') + planned);
-    gbParty();
+    gbParty(); snParty();
     if (qc) {
       if (qc.taken.length || qc.ask.length) commit(true);
       if (qc.taken.length) setTimeout(() => toast('🧊 Aus dem Vorrat: ' + qc.taken.join(', ')), 2700);

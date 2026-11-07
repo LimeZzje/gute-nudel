@@ -1,10 +1,11 @@
-// Events: 🍼 Babyerstausstattung, 🎂 Julias Geburtstagskuchen, 🎁 Hello Nudel (gift + slide deck), the events page.
+// Events: 🍼 Babyerstausstattung, 🎂 Julias Geburtstagskuchen, 🎁 Hello Nudel (gift + slide deck), 🥜 Snack-Labor, the events page.
 import * as D from './data.js';
 import * as B from './baby.js';
 import * as G from './geburtstag.js';
 import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
-import { $, closeModal, commit, confetti, esc, floatStar, key, lockScroll, longDate, modal, today, unlockScroll } from './core.js';
+import * as SN from './snacks.js';
+import { $, closeModal, commit, confetti, esc, floatStar, key, lockScroll, longDate, modal, toast, today, uid, unlockScroll } from './core.js';
 import { A, S, ui } from './state.js';
 import { earn, pn, vorrat } from './sync.js';
 import { endCookMode, haveFor, recipeById, recipePage, styleOf, viewCookMode } from './kochbuch.js';
@@ -100,6 +101,7 @@ export function pastEvents() {
       ...(dl ? [['🚚', dl === 1 ? 'Schon eine Picnic-Lieferung bis in den Vorrat.' : `Schon ${dl} Picnic-Lieferungen bis in den Vorrat.`]] : []),
       ['🧺', 'Hello Nudel bleibt – unten im Tab 🧺 Hello Nudel.']] });
   }
+  if (!has(SN.ID) && now >= SN.END) { const m = snMade(); out.push({ id: SN.ID, icon: '🥜', title: SN.TITLE, done: SN.END, ended: true, lines: [...(m.length ? [['🥜', `${m.length === 1 ? 'Ein Snack' : m.length + ' Snacks'} zusammen gemacht.`]] : []), ['📖', 'Alle Snacks stehen jetzt im Kochbuch unter 🥜 Snacks.']] }); }
   if (!has(B.ID) && now >= B.END) {
     const n = B.ITEMS.filter(it => babyOn(it.id)).length;
     out.push({ id: B.ID, icon: '🍼', title: B.TITLE, done: B.END, ended: true, lines: [['🍼', `${n} von ${B.ITEMS.length} Sachen zusammen vorbereitet.`], ['⭐', `${n} Sterne für jeden von euch.`]] });
@@ -111,7 +113,7 @@ export function viewEvents() {
   for (const e of pastEvents()) {
     h += `<div class="card evcard">${e.id === B.ID ? BSKY : ''}<h3>${esc(e.icon + ' ' + e.title)}</h3><p class="muted">${e.ended ? 'Vorbei seit' : 'Abgeschlossen am'} ${esc(longDate(key(new Date(e.done))))}</p>
       <ul class="evlines">${e.lines.map(([ic, t]) => `<li><span>${esc(ic)}</span><span>${esc(t)}</span></li>`).join('')}</ul>
-      ${e.go ? `<button class="btn soft wide" data-a="${e.go}" style="margin-top:10px">${esc(e.btn)}</button>` : ''}</div>`;
+      ${e.go ? `<button class="btn soft wide" data-a="${e.go}" style="margin-top:10px">${esc(e.btn)}</button>` : e.id === SN.ID ? `<button class="btn soft wide" data-a="snbook" style="margin-top:10px">🥜 Zu den Snacks im Kochbuch</button>` : ''}</div>`;
   }
   return h;
 }
@@ -245,3 +247,103 @@ A.hntab = () => { closeModal(); ui.tab = 'hello'; ui.sub = null; tabChip(); rend
 A.hello = () => { closeModal(); ui.subBack = ui.sub === 'events' ? 'events' : null; if (ui.tab !== 'hello') ui.tab = 'home'; ui.sub = 'hello'; render(); scrollTo(0, 0); };
 A.hnopen = () => { S.hnOpen = Date.now(); commit(); render(); scrollTo(0, 0); confetti(160); };
 A.hnshop = () => { ui.sub = null; ui.tab = 'ruhe'; ui.qtab = 'einkauf'; render(); scrollTo(0, 0); };
+
+// ---------- 🥜 EVENT: Nudels Snack-Labor (2026-11-07, snacks.js) ----------
+// Nine snacks in four drawers + the 🧪 Mischpult (own mix → S.myRecipes 'mix-…'). Each one rated in cooking mode on either
+// phone (partner's via post.cooked) is a stamp in the jar; GOAL different ones finish it: +5 ⭐ each (log 'sn-<event>',
+// kind 'event', outside the daily cap), a party, a card under "Vergangene Events", the recipes move into the Kochbuch.
+const snDone = () => (S.events || []).some(e => e.id === SN.ID);
+export const snLive = () => !snDone() && Date.now() >= SN.START && Date.now() < SN.END;
+// the different snacks made so far, both phones together (team count, never per person)
+export function snMade() {
+  const seen = new Set(), out = [];
+  for (const x of [...(S.cookLog || []), ...(S.partnerCooked || [])].filter(x => x && SN.counts(x.rid) && (x.ts || 0) >= SN.START).sort((a, b) => a.ts - b.ts))
+    if (!seen.has(x.rid)) { seen.add(x.rid); out.push(x); }
+  return out;
+}
+export function snReconcile() {   // → true when the event ended just now (stars granted)
+  if (!S || snDone() || Date.now() < SN.START) return false;
+  const m = snMade(); if (m.length < SN.GOAL) return false;
+  const lid = 'sn-' + SN.ID;
+  if (!S.log.some(e => e.id === lid)) { S.log.push({ id: lid, text: '🥜 Snack-Labor geschafft', kind: 'event', day: today(), ts: Date.now(), stars: SN.STARS }); earn(SN.STARS); }
+  (S.events = S.events || []).push(SN.record(m.slice(0, 8)));
+  ui.snParty = true; if (ui.sub === 'snack') { ui.sub = null; ui.rid = null; }
+  return true;
+}
+export function snParty() {
+  if (!ui.snParty) return;
+  ui.snParty = false; render(); confetti(160);
+  modal(`<div class="snparty">${snJar(SN.GOAL)}</div><h2>Snack-Labor geschafft! 🥜</h2><p>${SN.GOAL} eigene Snacks – zusammen gemacht. 💛</p>
+    <p><b>+${SN.STARS} ⭐</b> für dich und für ${esc(pn())}.</p><p class="muted">Alle Rezepte stehen ab jetzt im Kochbuch unter <b>🥜 Snacks</b>.</p>
+    <div class="row"><button class="btn" data-a="snbook">Zu den Snacks</button><button class="btn soft" data-a="close">Jetzt wird geknabbert</button></div>`);
+}
+// a mason jar that fills with one layer per snack made (nuts, cherries, chocolate …)
+const LAYERS = ['#c98a4b', '#b8463c', '#5b3a29', '#e3b04b', '#7a9a52'];
+function snJar(n) {
+  const k = Math.min(n, SN.GOAL), h = 58 / SN.GOAL;
+  return `<svg class="snjar" viewBox="0 0 120 120" aria-hidden="true">
+    <rect x="34" y="10" width="52" height="12" rx="3" class="sj-lid"/><path class="sj-glass" d="M30 26h60q6 0 6 8v62q0 14-14 14H38q-14 0-14-14V34q0-8 6-8z"/>
+    ${Array.from({ length: k }, (_, i) => `<path class="sj-l" fill="${LAYERS[i % LAYERS.length]}" d="M27 ${104 - (i + 1) * h}h66v${h}H27z" style="animation-delay:${i * .15}s"/>`).join('')}
+    ${Array.from({ length: k * 4 }, (_, i) => `<circle class="sj-dot" cx="${34 + (i * 17) % 52}" cy="${104 - h * (Math.floor(i / 4) + .5)}" r="2.6"/>`).join('')}
+    <path class="sj-shine" d="M34 36v52"/><rect x="40" y="56" width="40" height="20" rx="3" class="sj-label"/><text x="60" y="70" class="sj-t">${k}/${SN.GOAL}</text></svg>`;
+}
+export function viewSnacks() {
+  if (!snLive()) { ui.sub = null; ui.rid = null; return viewHome(); }
+  const r = ui.rid ? recipeById(ui.rid) : null;
+  if (r && ui.cstep != null) return viewCookMode();
+  if (r) {   // the snack's page, as in the cookbook (its own paper: crayon / warm / Culinarius)
+    return `<button class="btn soft" data-a="snlist" style="margin:4px 0 12px">← Zum Snack-Labor</button>
+      <div class="cbook cb-top gb-cbook"><div class="cb-body"><div class="bk-stage"><div class="bk-page cur bp-${styleOf(r)}" data-key="r-${esc(r.id)}"><div class="bp">${recipePage(r)}</div></div></div></div></div>`;
+  }
+  const V = vorrat(), made = snMade(), done = new Set(made.map(x => x.rid));
+  let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button>`;
+  h += `<div class="card sncard hero">${snJar(made.length)}<span class="sn-eye">Gute-Nudel-Event</span><span class="sn-t">🥜 ${esc(SN.TITLE)}</span>
+    <span class="sn-info">Schluss mit Chips aus der Tüte: eure eigenen Abend-Snacks – Nussmischungen mit Pfiff, Riegel, Fruchtiges und eine Salami, die gar keine ist. Jeder Snack, den ihr macht und bewertet, kommt ins Glas. Bei <b>${SN.GOAL} verschiedenen</b> gibt’s <b>+${SN.STARS} ⭐ für dich und für ${esc(pn())}</b>, und alle Rezepte ziehen ins Kochbuch unter 🥜 Snacks.</span>
+    ${made.length ? `<span class="sn-made">Schon im Glas: ${made.map(x => esc((x.icon || '🥜') + ' ' + x.title)).join(' · ')}</span>` : ''}</div>`;
+  h += `<button class="card snmix" data-a="snmix"><span class="snm-ic">🧪</span><span class="snm-t"><b>Mischpult: eure eigene Mischung</b><span class="muted">Nüsse, Frucht, Knusper, Kick – zusammenklicken, Namen geben, fertig ist euer Rezept.</span></span><span class="hc-go">›</span></button>`;
+  const mine = (S.myRecipes || []).filter(x => !x.del && /^mix-/.test(x.id)).map(x => recipeById(x.id)).filter(Boolean);
+  if (mine.length) h += `<div class="sec-title">🧪 Eure Mischungen</div>` + mine.map(c => snRow(c, V, done)).join('');
+  for (const [dk, ic, lbl] of SN.DRAWERS) {
+    h += `<div class="sec-title">${ic} ${esc(lbl)}</div>`;
+    h += SN.RECIPES.filter(x => x.drawer === dk).map(x => recipeById(x.id)).filter(Boolean).map(c => snRow(c, V, done)).join('');
+  }
+  return h;
+}
+function snRow(c, V, done) {
+  const miss = V.length ? haveFor(c, V).missing : [], lv = c.level === 'einfach' ? '🖍️ Kinderleicht' : c.level === 'fancy' ? '✠ Culinarius' : /^mix-/.test(c.id) ? '🧪 Eigene Mischung' : '🍯 Mittel';
+  return `<button class="card gbcake t-${styleOf(c)}${done.has(c.id) ? ' sn-done' : ''}" data-a="snopen" data-id="${esc(c.id)}">${done.has(c.id) ? '<span class="gbk-rib">✓ im Glas</span>' : ''}<span class="gbk-lv">${lv}</span>
+    <span class="gbk-t">${esc(c.icon + ' ' + c.title)}</span><span class="gbk-m">⏱ ${c.min} Min. · ${esc(c.serves)}${c.taste ? ' · ' + c.taste.map(esc).join(', ') : ''}</span>
+    <span class="gbk-v">${!V.length ? '' : miss.length ? '🛒 fehlt: ' + esc(miss.slice(0, 5).join(', ')) + (miss.length > 5 ? ' …' : '') : '🧊 alles daheim'}</span><span class="gbk-go">Machen ›</span></button>`;
+}
+// 🧪 the Mischpult: chips per jar (max picks each), a name, save → own recipe, opens its page
+function mixModal() {
+  const p = ui.mix || (ui.mix = { nut: [], fruit: [], crunch: [], sweet: [], kick: [], name: SN.nameIdea() });
+  const jar = ([k, lbl, max, items]) => `<div class="mx-jar"><div class="mx-h">${esc(lbl)} <span class="muted">· ${max === 1 ? 'eins' : 'bis ' + max}</span></div><div class="chips">${items.map(([id, name, ic]) => `<button class="chip ${p[k].includes(id) ? 'on' : ''}" data-a="snmixpick" data-k="${k}" data-v="${id}">${ic === '–' ? '' : ic + ' '}${esc(name.replace(/ \(.*\)/, ''))}</button>`).join('')}</div></div>`;
+  const ok = p.nut.length && p.kick.length;
+  modal(`<h2>🧪 Mischpult</h2><p class="muted" style="margin-top:-6px">Klickt eure Mischung zusammen – die Mengen rechnet die App aus (ca. 8 Handvoll).</p>
+    ${SN.JARS.map(jar).join('')}
+    <label class="mx-h" for="mxName">Name</label><input id="mxName" class="mx-name" maxlength="50" value="${esc(p.name)}" autocomplete="off">
+    <p class="muted" id="mx-msg">${ok ? '' : 'Mindestens eine Nuss und einen Kick aussuchen.'}</p>
+    <div class="row"><button class="btn green" data-a="snmixsave" ${ok ? '' : 'disabled'}>Mischung speichern</button><button class="btn soft" data-a="close">Zu</button></div>`);
+}
+A.snack = () => { closeModal(); ui.tab = 'home'; ui.sub = 'snack'; ui.rid = null; ui.cstep = null; render(); scrollTo(0, 0); };
+A.snopen = el => { ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; render(); scrollTo(0, 0); };
+A.snlist = () => { endCookMode(); ui.rid = null; ui.sides = []; render(); scrollTo(0, 0); };
+A.snmix = () => { ui.mix = null; mixModal(); };
+A.snmixpick = el => {
+  const k = el.dataset.k, v = el.dataset.v, max = SN.JARS.find(j => j[0] === k)[2], p = ui.mix, n = $('#mxName');
+  if (!p) return;
+  if (n) p.name = n.value;
+  p[k] = p[k].includes(v) ? p[k].filter(x => x !== v) : (max === 1 ? [v] : p[k].concat(v).slice(-max));
+  mixModal();
+};
+A.snmixsave = () => {
+  const p = ui.mix; if (!p || !p.nut.length || !p.kick.length) return;
+  const n = $('#mxName'); if (n) p.name = n.value;
+  const r = { ...SN.buildMix(p, p.name, uid()), by: D.me(), ts: Date.now() };
+  S.myRecipes = (S.myRecipes || []).concat([r]);
+  ui.mix = null; closeModal(); ui.tab = 'home'; ui.sub = 'snack'; ui.rid = r.id; ui.sides = []; ui.cstep = null; commit(); scrollTo(0, 0);
+  toast('🧪 ' + r.title + ' ist euer Rezept – jetzt machen!');
+};
+// into the Kochbuch: Stöbern, chip 🥜 Snacks
+A.snbook = () => { closeModal(); ui.tab = 'hello'; ui.sub = null; ui.qtab = 'kochbuch'; ui.lastQ.hello = 'kochbuch'; ui.rid = null; ui.ktab = 'next'; ui.ccat = 'snack'; ui.kcat = 'snack'; ui.rq = ''; render(); scrollTo(0, 0); };

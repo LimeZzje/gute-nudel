@@ -19,7 +19,7 @@ import { bookApi, endCookMode, isHerb, kidLevel, recipeById, searchHtml, seasonO
 import { FORMS, backToList, loadDishPics, loadRecPhotos } from './recipes.js';
 import { deck, game, viewHome, wireDeck } from './home.js';
 import { planNow } from './wochenplan.js';
-import { babyParty, babyReconcile, gbParty, gbReconcile, hnDeckClose } from './events.js';
+import { babyParty, babyReconcile, gbParty, gbReconcile, hnDeckClose, snParty, snReconcile } from './events.js';
 import { mergeStates } from './merge.js';
 import { pushSync } from './faellig.js';   // due dates: fills A with duepick / snooze / push* ...
 import './actions.js';   // fills the action table A (exports nothing)
@@ -88,7 +88,7 @@ function goBack() {
     if (ui.cstep != null) { endCookMode(); render(); return; }
     backToList(); return;
   }
-  if (ui.sub === 'kuchen' && ui.rid) { if (ui.cstep != null) endCookMode(); else { ui.rid = null; ui.sides = []; } render(); scrollTo(0, 0); return; }
+  if ((ui.sub === 'kuchen' || ui.sub === 'snack') && ui.rid) { if (ui.cstep != null) endCookMode(); else { ui.rid = null; ui.sides = []; } render(); scrollTo(0, 0); return; }
   if (ui.sub) { A.babyback(); return; }
   if (inQ('relax') && !S.ritual && ui.rx.size) { A.rxback(); return; }
   if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
@@ -150,11 +150,11 @@ A.welcomego = () => { const n = $('#w-name').value.trim(); S.name = n; S.welcome
 
 function takeRemote(remote, adopt, base) {
   setS(adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote, base)); shopSnapNow();
-  const br = babyReconcile(); if (br.add + br.sub | gbReconcile()) S.updatedAt = Date.now();
+  const br = babyReconcile(); if (br.add + br.sub | gbReconcile() | snReconcile()) S.updatedAt = Date.now();
   D.saveLocal(S);
   rollover(); scheduleChores(); render();
   toast(adopt ? '🔄 Auf dem neuesten Stand' : '🔄 Mit dem anderen Gerät zusammengeführt');
-  babyParty(); gbParty();
+  babyParty(); gbParty(); snParty();
   return S;
 }
 async function syncDevices() { await D.pull(S); }
@@ -219,7 +219,7 @@ export async function start() {
   shopSnapNow();   // from here on, what leaves the shopping list was deleted on this phone
   rollover();
   scheduleChores();
-  babyReconcile(); gbReconcile();
+  babyReconcile(); gbReconcile(); snReconcile();
   if (applyFixes()) { S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); }
   D.setRemoteHandler(takeRemote);
   bind();

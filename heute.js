@@ -48,7 +48,7 @@ export function viewHeute() {
   }
 
   if (heute.length === 0 && done.length === 0) h += `<p class="sub">Nichts geplant. Genieß es – oder hol dir etwas aus der Liste.</p>`;
-  h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i)}</div>${i.chore ? '' : dueBtns(i)}${i.chore ? `<button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht – morgen wieder">⏭</button>` : `<button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button>`}</div>`).join('');
+  h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i, true)}</div>${i.chore ? '' : dueBtns(i)}${i.chore ? `<button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht – morgen wieder">⏭</button>` : `<button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button>`}</div>`).join('');
   if (!finished) {
     h += `<form class="add" data-f="addtoday"><input name="t" placeholder="Noch etwas für heute…" autocomplete="off" enterkeyhint="done">${dueField()}<button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
     h += `<div class="row" style="margin-top:12px">${liste.length ? '<button class="btn soft" data-a="fromlist">Aus der Liste holen</button>' : ''}${heute.length || early ? '<button class="btn soft" data-a="closeday">Für heute Schluss</button>' : ''}</div>`;
@@ -141,7 +141,7 @@ export function checkEvening() {
 export function viewListe() {
   const l = dueSort(S.items.filter(i => i.where === 'liste'));
   let h = `<section class="pad"><h2>Alles, was irgendwann dran ist</h2><p class="sub">Hier darf alles stehen. Nichts davon muss heute passieren.</p>`;
-  h += l.map(i => `<div class="item"><button class="chk" data-a="toheute" data-id="${i.id}" aria-label="Für heute einplanen" title="Für heute">☀</button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i)}</div>${dueBtns(i)}<button class="mini-btn" data-a="del" data-id="${i.id}" aria-label="Löschen">✕</button></div>`).join('');
+  h += l.map(i => `<div class="item"><button class="chk" data-a="toheute" data-id="${i.id}" aria-label="Für heute einplanen" title="Für heute">☀</button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i, true)}</div>${dueBtns(i)}<button class="mini-btn" data-a="del" data-id="${i.id}" aria-label="Löschen">✕</button></div>`).join('');
   if (!l.length) h += `<p class="muted">Die Liste ist leer. Wie schön.</p>`;
   h += `<form class="add" data-f="addlist"><input name="t" placeholder="Neue Aufgabe…" autocomplete="off" enterkeyhint="done">${dueField()}<button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
   if (D.canPost() && S.items.length) h += `<button class="btn soft wide" data-a="delegate" style="margin-top:12px">🤝 An ${esc(pn())} abgeben</button>`;

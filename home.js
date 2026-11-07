@@ -17,7 +17,8 @@ import { picNow } from './einkauf.js';
 import { fixRec, flavor, isBake, isCodex, isHerb, kidStars, loveTag, pregLater, recipeById, seasonTag, vorratRecipes, vrNew, vrSeenAdd } from './kochbuch.js';
 import { carAll, carDay, carDayLabel, carTime, forMe, isCar, shared } from './termine.js';
 import { PLAN_N, dayStart, planNow, viewPlan, viewSwipe } from './wochenplan.js';
-import { babyLive, gbLive, hnUnwrapped, pastEvents, viewBaby, viewEvents, viewHello, viewKuchen } from './events.js';
+import { babyLive, gbLive, hnUnwrapped, pastEvents, snLive, viewBaby, viewEvents, viewHello, viewKuchen, viewSnacks } from './events.js';
+import * as SN from './snacks.js';
 import { flowerGarden } from './flowers.js';
 import { render } from './app.js';
 import { dueCard } from './faellig.js';
@@ -91,6 +92,7 @@ function bubbles() {
   if (n) b.push({ a: 'swipe', ic: '🍽️', l: 'Rezepte', n, on: true });
   if (Date.now() < HN.END) b.push(hnUnwrapped() ? { a: 'hello', ic: '🕊️', l: 'Hello Nudel', t0: HN.START, t1: HN.END } : { a: 'hello', ic: '🎁', l: 'Geschenk!', on: true, t0: HN.START, t1: HN.END });
   if (gbLive()) b.push({ a: 'kuchen', ic: '🎂', l: 'Geburtstag', on: true, t0: G.START, t1: G.END });
+  if (snLive()) b.push({ a: 'snack', ic: '🥜', l: 'Snack-Labor', on: true, t0: SN.START, t1: SN.END });
   if (picNow()) { const t = new Date(picNow().start); b.push({ a: 'picdeliv', ic: '🚚', l: 'Picnic', n: t.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + t.getHours(), on: true }); }
   if (babyLive()) b.push({ a: 'baby', ic: '👶', l: 'Baby', on: true, t0: B.START, t1: B.END });
   const pl = planNow();   // 🗓️ the running week as a story ring; a finished one asks for the next week for 3 days
@@ -115,6 +117,8 @@ function storyLeft(t0, t1) {
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
 export const ZETTEL = ['buch-bitch-lasagna', 'buch-kimchi-eintopf', 'buch-thai-garnelen-curry', 'buch-chili', 'buch-chili-cheese-nupels', 'buch-ofenkartoffeln-eier-dip', 'buch-sushi-reis', 'buch-eingelegter-ingwer', 'buch-kaiserschmarrn', 'buch-mexikanische-apfeltorte', 'buch-vanillekipferl'];   // Julia's sticky notes, 2026-10-26
 export const NEWS = [
+  { id: 'n-snack', d: '2026-11-07', ic: '🥜', t: 'Neues Event: Nudels Snack-Labor – die Chipstüte hat Konkurrenz bekommen', x: 'Es ist 21 Uhr, der Film läuft, und irgendwas zum Knabbern muss her. Ab heute gibt es dafür ein eigenes Labor: neun Abend-Snacks, die man selbst macht – Rosmarin-Honig-Nüsse, Knusper-Kichererbsen, Popcorn auf zwei Arten, Riegel ohne Backen, Apfel-Nachos und eine Salami, die in Wahrheit aus Feigen ist. Wer lieber selbst erfindet, klickt sich am Mischpult seine eigene Nussmischung zusammen.',
+    how: ['Home: oben die Blase „🥜 Snack-Labor“', 'Einen Snack antippen → die Kochbuch-Seite → „Jetzt kochen“ → am Ende bewerten = er kommt ins Glas', '🧪 Mischpult: Nüsse, Frucht, Knusper, Süß und einen Kick wählen, Namen geben – die App rechnet die Mengen aus', 'Drei verschiedene Snacks zusammen = +5 ⭐ für jeden von euch', 'Danach stehen alle Rezepte im Kochbuch unter dem neuen Chip „🥜 Snacks“'] },
   { id: 'n-iq', d: '2026-11-07', ic: '🧠', t: 'Neu ganz unten auf Home: IQ MaXxing – der Highscore ist dein IQ', x: 'Zehn Rätsel, 40 Sekunden pro Stück, am Ende steht da eine Zahl. Diese Zahl ist dein IQ. Jedes Handy hat seinen eigenen Kopf: Was du spielst, bleibt auf deinem Handy, nichts wird geteilt.',
     how: ['Ganz unten auf Home: „🧠 Kopf trainieren? IQ MaXxing“', 'Beim ersten Mal gibt es eine Erstmessung und dazu einen Ausweis', 'Danach jeden Tag ein Set Matrizen, dazu 🌀 Denksport mit Figuren, Würfeln und Logik', 'Oben rechts „← Gute Nudel“ bringt dich zurück in die App', 'Keine Sterne, keine Aufgabe – nur ein Spiel für zwischendurch'], go: 'iq', btn: 'Zum Spiel' },
   { id: 'n-naehr', d: '2026-10-30', ic: '🔢', t: 'Das Kochbuch hat nachgerechnet – jedes Rezept kennt jetzt seine Kalorien', x: 'Wie viel steckt eigentlich in einer Portion Köttbullar? Bisher wusste das nur die Waage im Bad, mit Verspätung. Jetzt rechnet die App es selbst aus: Zutat für Zutat, Gramm für Gramm, geteilt durch die Portionen. Das Ergebnis steht bei jedem Rezept, ganz ohne Abtippen.',
@@ -200,6 +204,7 @@ function vrNewCard() {
 export function viewHome() {
   if (ui.sub === 'baby') return viewBaby();
   if (ui.sub === 'kuchen') return viewKuchen();
+  if (ui.sub === 'snack') return viewSnacks();
   if (ui.sub === 'events') return viewEvents();
   if (ui.sub === 'plan') return viewPlan();
   if (ui.sub === 'hello') return viewHello();
