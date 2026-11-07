@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<title>IQ MaXxing</title>
+<style>
+:root{--bg:#0b0b0c;--card:#17171a;--line:#2a2a2f;--ink:#f2f2f2;--dim:#9a9aa3;--acc:#c6ff3d;--red:#ff4d5e;--grn:#49e07a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{touch-action:manipulation}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+#app{max-width:480px;margin:0 auto;min-height:100vh;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 86px)}
+h1{font-size:22px;letter-spacing:.02em;margin:0 0 14px;font-weight:900}
+h1 b{color:var(--acc)}
+.gnback{float:right;color:var(--dim);text-decoration:none;font-size:14px;font-weight:700;padding:4px 2px 8px 12px}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:22px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px}
+.hero{text-align:center;padding:22px 16px}
+.big{font-size:88px;font-weight:900;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.tier{display:inline-block;margin-top:8px;padding:4px 12px;border-radius:99px;background:var(--acc);color:#111;font-weight:800;font-size:14px}
+.sub{color:var(--dim);font-size:14px}
+.delta{margin-top:10px;font-weight:800;font-size:17px}
+.up{color:var(--grn)}.down{color:var(--red)}
+.btn{display:block;width:100%;padding:17px;border-radius:14px;background:var(--acc);color:#111;font-weight:900;font-size:18px;margin-top:12px}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink);font-weight:700;font-size:16px}
+.btn.small{padding:11px;font-size:15px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.metric{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center}
+.metric .v{font-size:28px;font-weight:900;font-variant-numeric:tabular-nums}
+.metric .l{font-size:12px;color:var(--dim);line-height:1.2}
+.metric .l b{display:block;color:var(--ink);font-size:12.5px}
+.mail{background:#1d1a10;border-color:#5c4d17}
+nav{position:fixed;left:0;right:0;bottom:0;background:rgba(14,14,16,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;max-width:120px;background:none;padding:10px 0 12px;font-size:12px;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button span{font-size:22px;line-height:1}
+nav button.on{color:var(--acc)}
+/* test */
+#test{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 12px);user-select:none;-webkit-user-select:none;overflow:auto}
+.thead{width:100%;max-width:460px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:15px}
+.thead .x{background:none;color:var(--dim);font-size:22px;padding:4px 8px}
+.bar{width:100%;max-width:460px;height:6px;background:var(--line);border-radius:6px;margin:8px 0 12px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc);width:100%}
+.bar i.late{background:var(--red)}
+/* one cell size for grid AND answers, so shape sizes compare 1:1; fits 4 across + 5 rows tall on a phone */
+#test{--cell:min(calc((100vw - 66px) / 4),calc((100vh - 200px) / 5),112px)}
+@supports (height:100dvh){#test{--cell:min(calc((100vw - 66px) / 4),calc((100dvh - 200px) / 5),112px)}}
+.matrix{display:grid;grid-template-columns:repeat(3,var(--cell));grid-auto-rows:var(--cell);gap:4px;background:#bdbdbd;border:4px solid #bdbdbd;border-radius:10px}
+.matrix svg,.opts svg{display:block;width:100%;height:100%;background:#fff}
+.matrix .q{background:#fff;display:flex;align-items:center;justify-content:center;font-size:calc(var(--cell) * .4);font-weight:900;color:#888}
+.opts{display:grid;grid-template-columns:repeat(4,calc(var(--cell) + 6px));grid-auto-rows:calc(var(--cell) + 6px);gap:6px;margin-top:12px}
+.opts button{padding:0;border-radius:9px;overflow:hidden;border:3px solid #444;background:#fff}
+.opts button.ok{border-color:var(--grn);box-shadow:0 0 0 3px var(--grn)}
+.opts button.no{border-color:var(--red);box-shadow:0 0 0 3px var(--red)}
+.seq{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:26px 0 8px;max-width:440px}
+.seq b{min-width:54px;padding:14px 10px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-size:24px;text-align:center;font-variant-numeric:tabular-nums}
+.seq b.q{color:var(--acc);border-color:var(--acc)}
+.sopts{width:min(96vw,440px);display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}
+.sopts button{padding:20px 0;border-radius:14px;background:var(--card);border:2px solid var(--line);font-size:24px;font-weight:800}
+.sopts button.ok{border-color:var(--grn);color:var(--grn)}
+.sopts button.no{border-color:var(--red);color:var(--red)}
+.hint{color:var(--dim);font-size:13px;margin-top:12px;text-align:center}
+.rtarget{width:min(62vw,240px);aspect-ratio:1;background:#fff;border-radius:12px;padding:14px;margin-top:6px}
+.rtarget svg,.ropts svg{display:block;width:100%;height:100%}
+.ropts{width:min(96vw,440px);display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.ropts button{aspect-ratio:1.25;background:#fff;border-radius:12px;border:3px solid #444;padding:12px}
+/* in-test sizes capped by screen height so rotation / cube items fit without scrolling */
+#test{--vh:1vh}@supports (height:100dvh){#test{--vh:1dvh}}
+#test .rtarget.rot{width:min(46vw,180px,calc(var(--vh) * 24));padding:10px}
+#test .ropts.rot button{aspect-ratio:auto;height:min(38vw,160px,calc(var(--vh) * 19));padding:6px}
+#test .rtarget.net{width:min(80vw,300px,calc(var(--vh) * 33));aspect-ratio:auto;padding:8px}
+#test .ropts.cube{width:min(96vw,440px,calc(var(--vh) * 46))}
+#test .ropts.cube button{aspect-ratio:1;padding:6px}
+#test .ropts{margin-top:10px}#test .hint{margin-top:6px}
+.ropts button.ok{border-color:var(--grn);box-shadow:0 0 0 3px var(--grn)}.ropts button.no{border-color:var(--red);box-shadow:0 0 0 3px var(--red)}
+.tq{width:min(96vw,440px);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:10px;font-size:19px;line-height:1.5}
+.tquest{width:min(96vw,440px);font-size:19px;font-weight:800;margin:16px 0 4px;text-align:center}
+.topts{width:min(96vw,440px);display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.topts button{padding:18px 6px;border-radius:14px;background:var(--card);border:2px solid var(--line);font-size:18px;font-weight:800}
+.topts.wide{grid-template-columns:1fr}.topts.wide button{font-size:16px;padding:14px 10px;font-weight:700}
+.topts button.ok{border-color:var(--grn);color:var(--grn)}.topts button.no{border-color:var(--red);color:var(--red)}
+/* id card */
+.idwrap{perspective:800px;padding:6px 2px 14px}
+.idcard{position:relative;border-radius:14px;padding:12px 14px 10px;color:#3b3220;transform:rotate(-1.6deg);box-shadow:0 10px 26px rgba(0,0,0,.6);
+ background:radial-gradient(circle at 80% 30%,rgba(140,100,30,.25),transparent 30%),radial-gradient(circle at 15% 85%,rgba(120,80,20,.22),transparent 28%),radial-gradient(circle at 60% 90%,rgba(90,70,30,.15),transparent 18%),linear-gradient(160deg,#efe2b4,#d6c58a 60%,#c9b673);font-family:"Courier New",monospace}
+.idcard .top{font-size:10.5px;font-weight:700;letter-spacing:.12em;display:flex;justify-content:space-between;border-bottom:1px solid rgba(60,50,30,.4);padding-bottom:5px}
+.idcard .body{display:flex;gap:12px;margin-top:9px}
+.idcard .photo{width:108px;flex:none;border:1px solid rgba(60,50,30,.5);background:#bdb39a}
+.idcard .photo svg{display:block;width:100%}
+.idcard .f{font-size:10px;text-transform:uppercase;opacity:.7;margin-top:4px}
+.idcard .v{font-size:15px;font-weight:700;line-height:1.15}
+.idcard .v.iq{font-size:34px}
+.idcard .mrz{margin-top:9px;font-size:11px;letter-spacing:.06em;opacity:.75;word-break:break-all;border-top:1px solid rgba(60,50,30,.4);padding-top:5px}
+.idcard .stamp{position:absolute;right:8px;bottom:42px;transform:rotate(-14deg);border:3px solid rgba(190,30,30,.75);color:rgba(190,30,30,.8);font-weight:900;font-size:13px;padding:2px 8px;letter-spacing:.08em;border-radius:4px;font-family:system-ui,sans-serif}
+.cmp{display:flex;justify-content:space-around;text-align:center;margin-top:6px}
+.cmp .v{font-size:40px;font-weight:900}
+/* awards */
+.aw{display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.aw:last-child{border:0}
+.aw .ic{font-size:30px;width:44px;text-align:center}
+.aw.off{opacity:.35}
+.aw .n{font-weight:800}
+.chip{display:inline-block;margin:4px 3px;padding:6px 12px;border-radius:99px;background:#26300f;color:var(--acc);font-weight:800;font-size:14px}
+.row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.row:last-child{border:0}
+input,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f11;color:var(--ink);font:inherit}
+textarea{height:90px;font-size:12px}
+.chart svg{display:block;width:100%}
+.msg{font-size:19px;font-weight:800;margin-top:14px;line-height:1.3}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<nav id="nav"></nav>
+
+<script id="gen">
+/* ---------- puzzle generators (pure; tested in node) ---------- */
+const R = n => Math.floor(Math.random() * n);
+const pick = a => a[R(a.length)];
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = R(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const RANGE = { type: [0, 4], num: [1, 6], size: [0, 2], color: [0, 2], itype: [0, 4], isize: [0, 2], icolor: [0, 2] };
+const NEST_ATTRS = ['type', 'itype', 'isize', 'icolor'];
+const ATTRS = ['type', 'num', 'size', 'color'];
+const NLINES = 6;
+const bits = m => { let c = 0; for (let i = 0; i < NLINES; i++) if (m >> i & 1) c++; return c; };
+const rndMask = (lo, hi) => { let m; do { m = R(1 << NLINES); } while (bits(m) < lo || bits(m) > hi); return m; };
+
+function attrGrid(a, kind) {
+  const [lo, hi] = RANGE[a], g = [];
+  if (kind === 'const') {
+    const v = a === 'num' ? 1 + R(4) : lo + R(hi - lo + 1);
+    for (let r = 0; r < 3; r++) g.push([v, v, v]);
+  } else if (kind === 'prog') {
+    const d = pick([1, -1]);
+    for (let r = 0; r < 3; r++) {
+      const s = d > 0 ? lo + R(hi - lo - 1) : lo + 2 + R(hi - lo - 1);
+      g.push([s, s + d, s + 2 * d]);
+    }
+  } else if (kind === 'dist3') {
+    const vals = shuffle(Array.from({ length: hi - lo + 1 }, (_, i) => lo + i)).slice(0, 3);
+    const sh = pick([1, 2]);
+    for (let r = 0; r < 3; r++) g.push([0, 1, 2].map(c => vals[(c + r * sh) % 3]));
+  } else if (kind === 'arith') { // num only: col3 = col1 + col2 or col1 - col2
+    const add = Math.random() < .5;
+    for (let r = 0; r < 3; r++) {
+      if (add) { const x = 1 + R(4), y = 1 + R(5 - x); g.push([x, y, x + y]); }
+      else { const x = 3 + R(4), y = 1 + R(x - 2); g.push([x, y, x - y]); }
+    }
+  }
+  return g;
+}
+
+function linesGrid(kind) {
+  const g = [];
+  for (let r = 0; r < 3; r++) {
+    if (kind === 'none') { g.push([0, 0, 0]); continue; }
+    if (kind === 'const') { const m = r === 0 ? rndMask(1, 2) : g[0][0]; g.push([m, m, m]); continue; }
+    let a, b, c;
+    for (;;) {
+      a = rndMask(1, 3); b = rndMask(1, 3);
+      if (a === b) continue;
+      if (kind === 'or') { c = a | b; if (c === a || c === b) continue; }
+      if (kind === 'xor') { c = a ^ b; if (!c) continue; }
+      if (kind === 'sub') { c = a & ~b; if (!(a & b) || !c) continue; }
+      break;
+    }
+    g.push([a, b, c]);
+  }
+  return g;
+}
+
+const LEVEL_VAR = [0, 1, 1, 2, 2, 3, 3, 3, 4];
+const MAX_LEVEL = 8;
+// "shape inside a shape": white outer shape (form follows a rule) holding an inner shape with its own form / size / fill rules
+function genNested(L) {
+  const varying = shuffle(NEST_ATTRS.slice()).slice(0, Math.max(2, LEVEL_VAR[L]));
+  const rules = {}, G = {};
+  for (const a of NEST_ATTRS) { rules[a] = varying.includes(a) ? pick(['prog', 'dist3']) : 'const'; G[a] = attrGrid(a, rules[a]); }
+  rules.lines = 'none';
+  const panels = [0, 1, 2].map(r => [0, 1, 2].map(c => { const p = { nest: 1, num: 1, size: 2, color: 0, lines: 0 }; for (const a of NEST_ATTRS) p[a] = G[a][r][c]; return p; }));
+  const answer = panels[2][2];
+  const touch = shuffle(varying.slice()).concat(shuffle(NEST_ATTRS.filter(a => !varying.includes(a)))).slice(0, 3);
+  const alts = touch.map(a => altValue(a, answer[a]));
+  const options = [];
+  for (let m = 0; m < 8; m++) { const o = { ...answer }; touch.forEach((a, i) => { if (m >> i & 1) o[a] = alts[i]; }); options.push({ p: o, ok: m === 0 }); }
+  shuffle(options);
+  return { kind: 'matrix', nest: true, level: L, rules, panels, options: options.map(o => o.p), answer: options.findIndex(o => o.ok) };
+}
+function genMatrix(L) {
+  if (L >= 5 && Math.random() < .4) return genNested(L);
+  const pool = shuffle(L === 1 ? ['type', 'size', 'color'] : ['type', 'num', 'size', 'color']);
+  const varying = pool.slice(0, LEVEL_VAR[L]);
+  const rules = {};
+  for (const a of ATTRS) {
+    if (!varying.includes(a)) { rules[a] = 'const'; continue; }
+    const kinds = L === 1 ? ['prog'] : ['prog', 'dist3'];
+    if (a === 'num' && L >= 4) kinds.push('arith');
+    rules[a] = pick(kinds);
+  }
+  rules.lines = L <= 3 ? 'none' : L === 4 ? pick(['none', 'or', 'xor']) : L === 5 ? pick(['none', 'const', 'or', 'xor', 'sub']) : L === 8 ? pick(['const', 'or', 'xor', 'sub']) : pick(['or', 'xor', 'sub']);
+  const G = {};
+  for (const a of ATTRS) G[a] = attrGrid(a, rules[a]);
+  G.lines = linesGrid(rules.lines);
+  const panels = [0, 1, 2].map(r => [0, 1, 2].map(c => {
+    const p = {}; for (const a of [...ATTRS, 'lines']) p[a] = G[a][r][c]; return p;
+  }));
+  const answer = panels[2][2];
+  // I-RAVEN style answer set: 3 attributes x (right|wrong) = 8 options,
+  // every value of each touched attribute appears in exactly 4 of 8 -> no "majority" trick.
+  const moving = varying.concat(rules.lines !== 'none' ? ['lines'] : []);
+  const still = [...ATTRS, 'lines'].filter(a => !moving.includes(a));
+  const touch = shuffle(moving).concat(shuffle(still)).slice(0, 3);
+  const alts = touch.map(a => altValue(a, answer[a]));
+  const options = [];
+  for (let m = 0; m < 8; m++) {
+    const o = { ...answer };
+    touch.forEach((a, i) => { if (m >> i & 1) o[a] = alts[i]; });
+    options.push({ p: o, ok: m === 0 });
+  }
+  shuffle(options);
+  return { kind: 'matrix', level: L, rules, panels, options: options.map(o => o.p), answer: options.findIndex(o => o.ok) };
+}
+
+function altValue(a, v) {
+  if (a === 'lines') return v ^ (1 << R(NLINES));
+  const [lo, hi] = RANGE[a];
+  const near = [v - 1, v + 1].filter(x => x >= lo && x <= hi);
+  if ((a === 'type' || a === 'num' || a === 'itype') && Math.random() < .7) return pick(near);
+  let x; do { x = lo + R(hi - lo + 1); } while (x === v);
+  return x;
+}
+
+/* number / letter series (the Audit's "untrained format") */
+function genSeries() {
+  const kinds = ['arith', 'geo', 'inter', 'grow', 'fib', 'sq', 'alt', 'letters'];
+  const k = pick(kinds);
+  let s = [], ans, near = [];
+  if (k === 'arith') { const a = 2 + R(30), d = pick([3, 4, 6, 7, 8, 9, 11, 12, -3, -4, -7]); const a0 = d < 0 ? a + 60 : a; for (let i = 0; i < 6; i++) s.push(a0 + i * d); near = [d]; }
+  else if (k === 'geo') { const a = 1 + R(4), f = pick([2, 3]); for (let i = 0; i < 6; i++) s.push(a * f ** i); near = [a * f ** 4]; }
+  else if (k === 'inter') { const a = 1 + R(9), b = 20 + R(20), d1 = 2 + R(4), d2 = -(1 + R(3)); for (let i = 0; i < 7; i++) s.push(i % 2 ? b + (i >> 1) * d2 : a + (i >> 1) * d1); near = [d1, d2]; }
+  else if (k === 'grow') { let x = 1 + R(10), d = 1 + R(3), inc = 1 + R(2); for (let i = 0; i < 6; i++) { s.push(x); x += d; d += inc; } near = [inc, d]; }
+  else if (k === 'fib') { let a = 1 + R(4), b = a + R(4); for (let i = 0; i < 7; i++) { s.push(a); [a, b] = [b, a + b]; } near = [s[5]]; }
+  else if (k === 'sq') { const st = 1 + R(5), c = R(5) - 1; for (let i = 0; i < 6; i++) s.push((st + i) ** 2 + c); near = [2, st + 5]; }
+  else if (k === 'alt') { let x = 1 + R(6); const p = 2 + R(5); for (let i = 0; i < 7; i++) { s.push(x); x = i % 2 ? x * 2 : x + p; } near = [p, s[5]]; }
+  else if (k === 'letters') {
+    const st = R(6), d = 2 + R(3);
+    for (let i = 0; i < 6; i++) s.push(String.fromCharCode(65 + st + i * d));
+    ans = s.pop();
+    const c = ans.charCodeAt(0), opts = new Set([ans]);
+    for (const o of [c - 1, c + 1, c - d, c + d, c + 2, c - 2]) if (o >= 65 && o <= 90 && opts.size < 6) opts.add(String.fromCharCode(o));
+    while (opts.size < 6) opts.add(String.fromCharCode(65 + R(26)));
+    const options = shuffle([...opts]);
+    return { kind: 'series', shown: s, options, answer: options.indexOf(ans) };
+  }
+  ans = s.pop();
+  const opts = new Set([ans]);
+  const cands = [ans + 1, ans - 1, ans + 2, ans - 2, ...near.flatMap(n => [ans + n, ans - n]), ans + 10, ans - 10, Math.round(ans * 1.5)];
+  for (const c of shuffle(cands)) if (opts.size < 6 && c !== ans && c >= 0) opts.add(c);
+  while (opts.size < 6) opts.add(ans + 3 + R(20));
+  const options = shuffle([...opts]);
+  return { kind: 'series', shown: s, options, answer: options.indexOf(ans) };
+}
+
+const SET_LEVELS = [1, 2, 2, 3, 3, 4, 4, 5, 5, 6];
+const ITEM_SEC = 40;
+// Score -> IQ. 10/10 at a relaxed pace lands around 135-140.
+function iqFrom(res) {
+  let k = 0, bonus = 0;
+  for (const r of res) if (r.ok) { k++; bonus += Math.max(0, (ITEM_SEC - r.t) / ITEM_SEC) * 0.7; }
+  return Math.round(68 + 6.6 * k + bonus);
+}
+/* ---------- reasoning track: mental rotation, ordering, syllogisms ---------- */
+const norm = cs => { const mx = Math.min(...cs.map(c => c[0])), my = Math.min(...cs.map(c => c[1])); return cs.map(([x, y]) => [x - mx, y - my]).sort((a, b) => a[0] - b[0] || a[1] - b[1]); };
+const keyOf = cs => norm(cs).map(c => c.join(',')).join(';');
+const rot90 = cs => cs.map(([x, y]) => [y, -x]);
+const mirror = cs => cs.map(([x, y]) => [-x, y]);
+const rotN = (cs, n) => { let s = cs; for (let i = 0; i < n; i++) s = rot90(s); return norm(s); };
+const rotKeys = cs => [0, 1, 2, 3].map(n => keyOf(rotN(cs, n)));
+const NB = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function connected(cs) {
+  const set = new Set(cs.map(c => c.join(','))), seen = new Set([cs[0].join(',')]), st = [cs[0]];
+  while (st.length) { const [x, y] = st.pop(); for (const [dx, dy] of NB) { const k = (x + dx) + ',' + (y + dy); if (set.has(k) && !seen.has(k)) { seen.add(k); st.push([x + dx, y + dy]); } } }
+  return seen.size === cs.length;
+}
+function goodPoly(cs) { // 4 distinct rotations, and no rotation equals the mirror image
+  const rk = rotKeys(cs); if (new Set(rk).size !== 4) return false;
+  const mk = rotKeys(mirror(cs)); return !mk.some(k => rk.includes(k));
+}
+function growPoly(n) {
+  for (;;) {
+    const cs = [[0, 0]], has = new Set(['0,0']);
+    while (cs.length < n) { const [x, y] = pick(cs), [dx, dy] = pick(NB), k = (x + dx) + ',' + (y + dy); if (!has.has(k)) { has.add(k); cs.push([x + dx, y + dy]); } }
+    if (goodPoly(cs)) return norm(cs);
+  }
+}
+function genRotation(lvl) {
+  const n = 6 + lvl, orig = growPoly(n), family = new Set([...rotKeys(orig), ...rotKeys(mirror(orig))]);
+  let vari;
+  for (let tries = 0; tries < 500 && !vari; tries++) { // move one cell -> a near-identical, different shape
+    const i = R(n), rest = orig.filter((_, j) => j !== i);
+    if (!connected(rest)) continue;
+    const has = new Set(rest.map(c => c.join(',')));
+    const free = []; for (const [x, y] of rest) for (const [dx, dy] of NB) { const k = (x + dx) + ',' + (y + dy); if (!has.has(k) && k !== orig[i].join(',')) free.push([x + dx, y + dy]); }
+    const cand = norm([...rest, pick(free)]);
+    if (goodPoly(cand) && !family.has(keyOf(cand))) vari = cand;
+  }
+  if (!vari) return genRotation(lvl);
+  // options come in two mirror pairs (orig/mirror, variant/mirror) -> no odd-one-out shortcut
+  const opts = shuffle([{ c: rotN(orig, 1 + R(3)), ok: true }, { c: rotN(mirror(orig), R(4)) }, { c: rotN(vari, R(4)) }, { c: rotN(mirror(vari), R(4)) }]);
+  return { kind: 'rot', target: orig, options: opts.map(o => o.c), answer: opts.findIndex(o => o.ok) };
+}
+
+const NAMES = ['Anna', 'Ben', 'Clara', 'David', 'Emil', 'Frida', 'Greta', 'Hugo', 'Ida', 'Jonas', 'Lena', 'Moritz', 'Nele', 'Oskar'];
+const RELS = [['größer', 'kleiner', 'am größten', 'am kleinsten', 'am zweitgrößten', 'am zweitkleinsten'], ['schneller', 'langsamer', 'am schnellsten', 'am langsamsten', 'am zweitschnellsten', 'am zweitlangsamsten'], ['älter', 'jünger', 'am ältesten', 'am jüngsten', 'am zweitältesten', 'am zweitjüngsten']];
+function genOrder(n) {
+  const order = shuffle(NAMES.slice()).slice(0, n), rel = pick(RELS);
+  const say = (i, j) => Math.random() < .5 ? `${order[i]} ist ${rel[0]} als ${order[j]}.` : `${order[j]} ist ${rel[1]} als ${order[i]}.`;
+  const st = order.slice(0, -1).map((_, i) => say(i, i + 1));
+  if (n >= 5) { const i = R(n - 2); st.push(say(i, i + 2 + R(n - i - 2))); } // one true but redundant statement
+  const qs = [[2, 0], [3, n - 1], [4, 1], [5, n - 2]];
+  const [qi, pos] = pick(qs);
+  const options = shuffle([order[pos], ...shuffle(order.filter((_, i) => i !== pos)).slice(0, 3)]);
+  return { kind: 'text', lines: shuffle(st), q: `Wer ist ${rel[qi]}?`, options, answer: options.indexOf(order[pos]) };
+}
+
+const WORDS = ['Blorks', 'Zimpel', 'Quaxe', 'Flunen', 'Dromps', 'Wibbel', 'Schnarps', 'Globen'];
+// Syllogisms checked by brute force over all Venn models (regions of A/B/C, every term non-empty):
+// a conclusion "follows" iff it is true in every model where both premises are true.
+const SA = 1, SB = 2, SC = 4;
+const MODELS = []; for (let m = 1; m < 128; m++) { const has = t => { for (let r = 1; r < 8; r++) if (m >> (r - 1) & 1 && r & t) return true; return false; }; if (has(SA) && has(SB) && has(SC)) MODELS.push(m); }
+function holds(m, [f, x, y]) {
+  let ex = pr => { for (let r = 1; r < 8; r++) if (m >> (r - 1) & 1 && pr(r)) return true; return false; };
+  if (f === 'all') return !ex(r => r & x && !(r & y));
+  if (f === 'no') return !ex(r => r & x && r & y);
+  if (f === 'some') return ex(r => r & x && r & y);
+  return ex(r => r & x && !(r & y)); // somenot
+}
+const sayS = ([f, x, y], w) => ({ all: `Alle ${w[x]} sind ${w[y]}`, no: `Keine ${w[x]} sind ${w[y]}`, some: `Einige ${w[x]} sind ${w[y]}`, somenot: `Einige ${w[x]} sind keine ${w[y]}` })[f];
+const FORMS = ['all', 'no', 'some', 'somenot'];
+function genSyll() {
+  for (;;) {
+    const p1 = Math.random() < .5 ? [pick(FORMS), SA, SB] : [pick(FORMS), SB, SA];
+    const p2 = Math.random() < .5 ? [pick(FORMS), SB, SC] : [pick(FORMS), SC, SB];
+    const ms = MODELS.filter(m => holds(m, p1) && holds(m, p2));
+    if (!ms.length) continue;
+    const cands = [['all', SA, SC], ['all', SC, SA], ['somenot', SA, SC], ['somenot', SC, SA], ['no', SA, SC], ['some', SA, SC]];
+    const fol = cands.filter(c => ms.every(m => holds(m, c))), not = cands.filter(c => !fol.includes(c));
+    if (!fol.length || not.length < 3) continue;
+    const w = shuffle(WORDS.slice()), names = { [SA]: w[0], [SB]: w[1], [SC]: w[2] };
+    const ok = pick(fol), opts = shuffle([ok, ...shuffle(not).slice(0, 3)]);
+    return { kind: 'text', wide: true, lines: [sayS(p1, names) + '.', sayS(p2, names) + '.'], q: 'Was folgt daraus zwingend?', options: opts.map(c => sayS(c, names)), answer: opts.indexOf(ok), _p: [p1, p2], _c: opts };
+  }
+}
+/* ---------- cube nets: "which cube folds from this net?" ---------- */
+// The paper lies on top of the cube, printed side up (= outside). Rolling the cube under the paper:
+// the face that touches the paper (up) gets that cell's symbol. Screen right = east, screen up = north.
+const ROLL = {
+  E: o => ({ ...o, up: o.east, east: o.down, down: o.west, west: o.up }),
+  W: o => ({ ...o, up: o.west, west: o.down, down: o.east, east: o.up }),
+  N: o => ({ ...o, up: o.north, north: o.down, down: o.south, south: o.up }),
+  S: o => ({ ...o, up: o.south, south: o.down, down: o.north, north: o.up })
+};
+const YAW = o => ({ ...o, north: o.west, east: o.north, south: o.east, west: o.south });
+const O0 = { up: 0, down: 1, north: 2, south: 3, east: 4, west: 5 };
+const ALL_ORIENT = (() => { const seen = new Map(), q = [O0]; while (q.length) { const o = q.pop(), k = JSON.stringify(o); if (seen.has(k)) continue; seen.set(k, o); q.push(ROLL.E(o), ROLL.N(o), YAW(o)); } return [...seen.values()]; })();
+const NETS = [[[1, 0], [0, 1], [1, 1], [2, 1], [1, 2], [1, 3]], [[0, 0], [0, 1], [1, 1], [2, 1], [3, 1], [3, 2]], [[1, 0], [0, 1], [1, 1], [2, 1], [3, 1], [2, 2]],
+  [[0, 0], [0, 1], [1, 1], [2, 1], [3, 1], [1, 2]], [[0, 0], [0, 1], [1, 1], [2, 1], [3, 1], [2, 2]], [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [3, 2]],
+  [[0, 0], [1, 0], [1, 1], [2, 1], [2, 2], [3, 2]], [[0, 0], [1, 0], [2, 0], [2, 1], [3, 1], [4, 1]], [[1, 0], [0, 1], [1, 1], [2, 1], [3, 1], [1, 2]]];
+function foldNet(cells) { // -> face id per cell (0..5), or null if it doesn't fold
+  const key = c => c.join(','), at = new Map(cells.map((c, i) => [key(c), i])), face = Array(cells.length).fill(-1), st = [[0, O0]];
+  face[0] = O0.up;
+  const seen = new Set([0]);
+  while (st.length) {
+    const [i, o] = st.pop(), [x, y] = cells[i];
+    for (const [d, dx, dy] of [['E', 1, 0], ['W', -1, 0], ['N', 0, -1], ['S', 0, 1]]) {
+      const j = at.get(key([x + dx, y + dy])); if (j === undefined || seen.has(j)) continue;
+      const no = ROLL[d](o); seen.add(j); face[j] = no.up; st.push([j, no]);
+    }
+  }
+  return new Set(face).size === 6 ? face : null;
+}
+const OPP = { 0: 1, 1: 0, 2: 3, 3: 2, 4: 5, 5: 4 };
+function genCube(lvl = 0) {
+  let cells = pick(NETS);
+  const tf = R(8); // random rotation / mirror of the net drawing
+  cells = cells.map(([x, y]) => { let p = [x, y]; if (tf & 4) p = [-p[0], p[1]]; for (let k = 0; k < (tf & 3); k++) p = [p[1], -p[0]]; return p; });
+  const mx = Math.min(...cells.map(c => c[0])), my = Math.min(...cells.map(c => c[1]));
+  cells = cells.map(([x, y]) => [x - mx, y - my]);
+  const face = foldNet(cells);
+  const sym = shuffle([0, 1, 2, 3, 4, 5]); // symbol per face id
+  const net = cells.map((c, i) => ({ c, s: sym[face[i]] }));
+  const valid = new Set(ALL_ORIENT.map(o => [o.up, o.south, o.east].join()));
+  const views = shuffle(ALL_ORIENT.slice());
+  const right = views[0], ok = [right.up, right.south, right.east];
+  const opts = [ok], has = t => opts.some(x => x.join() === t.join());
+  const nMirror = lvl >= 2 ? 3 : 2;
+  for (const o of views.slice(1)) { if (opts.length > nMirror) break; const t = [o.up, o.east, o.south]; if (!valid.has(t.join()) && !has(t)) opts.push(t); }
+  while (opts.length < 4) { const a = R(6), b = OPP[a], c = pick([0, 1, 2, 3, 4, 5].filter(x => x !== a && x !== b)); const t = shuffle([a, b, c]); if (!has(t)) opts.push(t); }
+  const order = shuffle([0, 1, 2, 3]);
+  return { kind: 'cube', net, options: order.map(i => opts[i].map(f => sym[f])), answer: order.indexOf(0), _faces: order.map(i => opts[i]) };
+}
+// st = Stufe 0..4: bigger figures, longer orderings
+const reasonSet = (st = 0) => [() => genRotation(0 + st), () => genOrder(Math.min(8, 5 + st)), genSyll, () => genCube(st), () => genRotation(1 + st), genSyll, () => genOrder(Math.min(8, 6 + st)), () => genCube(st + 1), genSyll, () => genRotation(2 + st)].map(f => f());
+const matrixSet = (st = 0) => SET_LEVELS.map(L => genMatrix(Math.min(MAX_LEVEL, L + st)));
+const MAX_STUFE = 4, STUFE_IQ = 4;
+const REASON_SET = reasonSet;
+
+if (typeof module !== 'undefined') module.exports = { genCube, foldNet, ALL_ORIENT, matrixSet, reasonSet, MAX_LEVEL, genMatrix, genSeries, iqFrom, SET_LEVELS, RANGE, NLINES, genRotation, genOrder, genSyll, holds, MODELS, SA, SB, SC, rotKeys, mirror, keyOf, REASON_SET };
+</script>
+
+<script>
+/* ---------- rendering of matrix panels ---------- */
+const FILL = ['#ffffff', '#959595', '#111111'];
+const LINES = [[0, 50, 100, 50], [50, 0, 50, 100], [0, 0, 100, 100], [100, 0, 0, 100], [0, 18, 100, 18], [82, 0, 82, 100]];
+const POS = { 1: [[50, 50]], 2: [[30, 30], [70, 70]], 3: [[50, 27], [27, 71], [73, 71]], 4: [[29, 29], [71, 29], [29, 71], [71, 71]],
+  5: [[26, 26], [74, 26], [50, 50], [26, 74], [74, 74]], 6: [[22, 31], [50, 31], [78, 31], [22, 69], [50, 69], [78, 69]] };
+const BASE_R = { 1: 38, 2: 23, 3: 20, 4: 19, 5: 15, 6: 13 };
+function shapeSVG(type, cx, cy, r, fill) {
+  const st = `fill="${fill}" stroke="#111" stroke-width="2.2" stroke-linejoin="round"`;
+  if (type === 4) return `<circle cx="${cx}" cy="${cy}" r="${r * .92}" ${st}/>`;
+  const k = [3, 4, 5, 6][type], a0 = type === 1 ? -Math.PI / 4 : -Math.PI / 2;
+  const rr = type === 0 ? r * 1.08 : r;
+  const pts = Array.from({ length: k }, (_, i) => { const a = a0 + i * 2 * Math.PI / k; return (cx + rr * Math.cos(a)).toFixed(1) + ',' + (cy + rr * Math.sin(a) + (type === 0 ? r * .18 : 0)).toFixed(1); });
+  return `<polygon points="${pts.join(' ')}" ${st}/>`;
+}
+function panelSVG(p) {
+  let s = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">';
+  LINES.forEach((l, i) => { if (p.lines >> i & 1) s += `<line x1="${l[0]}" y1="${l[1]}" x2="${l[2]}" y2="${l[3]}" stroke="#555" stroke-width="2.4"/>`; });
+  if (p.nest) return s + shapeSVG(p.type, 50, 50, 44, '#ffffff') + shapeSVG(p.itype, 50, p.type === 0 ? 60 : 52, 44 * [0.24, 0.36, 0.48][p.isize] * (p.type === 0 ? .78 : 1), FILL[p.icolor]) + '</svg>';
+  const r = BASE_R[p.num] * [0.45, 0.72, 1][p.size];
+  for (const [x, y] of POS[p.num]) s += shapeSVG(p.type, x, y, r, FILL[p.color]);
+  return s + '</svg>';
+}
+
+const CUBE_SYM = [
+  '<circle cx=".5" cy=".5" r=".27" fill="#111"/>',
+  '<circle cx=".5" cy=".5" r=".25" fill="none" stroke="#111" stroke-width=".1"/>',
+  '<path d="M.5 .2V.8M.2 .5H.8" stroke="#111" stroke-width=".13"/>',
+  '<rect x=".27" y=".27" width=".46" height=".46" fill="#111"/>',
+  '<path d="M.26 .26L.74 .74M.74 .26L.26 .74" stroke="#111" stroke-width=".12"/>',
+  '<g fill="#111"><circle cx=".3" cy=".3" r=".09"/><circle cx=".7" cy=".3" r=".09"/><circle cx=".3" cy=".7" r=".09"/><circle cx=".7" cy=".7" r=".09"/></g>'];
+function netSVG(net) {
+  const w = Math.max(...net.map(n => n.c[0])) + 1, h = Math.max(...net.map(n => n.c[1])) + 1;
+  return `<svg viewBox="-0.08 -0.08 ${w + 0.16} ${h + 0.16}" xmlns="http://www.w3.org/2000/svg">` + net.map(({ c: [x, y], s }) => `<g transform="translate(${x} ${y})"><rect width="1" height="1" fill="#fafafa" stroke="#111" stroke-width=".04"/>${CUBE_SYM[s]}</g>`).join('') + '</svg>';
+}
+function cubeSVG([t, l, r]) {
+  const face = (sym, P0, P1, P3, fill) => `<g transform="matrix(${P1[0] - P0[0]} ${P1[1] - P0[1]} ${P3[0] - P0[0]} ${P3[1] - P0[1]} ${P0[0]} ${P0[1]})"><rect width="1" height="1" fill="${fill}" stroke="#111" stroke-width=".035"/>${CUBE_SYM[sym]}</g>`;
+  return '<svg viewBox="8 4 84 92" xmlns="http://www.w3.org/2000/svg">' + face(t, [15, 30], [50, 10], [50, 50], '#ffffff') + face(l, [15, 30], [50, 50], [15, 70], '#e6e6e6') + face(r, [50, 50], [85, 30], [50, 90], '#cfcfcf') + '</svg>';
+}
+const polySpan = cs => Math.max(...cs.map(c => c[0]), ...cs.map(c => c[1])) + 1;
+function polySVG(cs, span) {
+  const w = Math.max(...cs.map(c => c[0])) + 1, h = Math.max(...cs.map(c => c[1])) + 1, n = span || Math.max(w, h);
+  const ox = (n - w) / 2, oy = (n - h) / 2;
+  return `<svg viewBox="-0.15 -0.15 ${n + 0.3} ${n + 0.3}" xmlns="http://www.w3.org/2000/svg">` + cs.map(([x, y]) => `<rect x="${x + ox + .04}" y="${y + oy + .04}" width=".92" height=".92" rx=".08" fill="#1c1c1c"/>`).join('') + '</svg>';
+}
+
+/* ---------- store ---------- */
+const KEY = 'iqm:v1';
+// hosted inside Gute Nudel (gute-nudel/iq/): show a way back, the installed app has no back button
+const FROM_GN = /\/gute-nudel\/iq\//.test(location.pathname) || /[?&]gn\b/.test(location.search);
+const fresh = () => ({ name: '', cold: null, sets: [], awards: {}, created: Date.now() });
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const dayOf = t => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const today = () => dayOf(Date.now());
+const monthOf = t => dayOf(t).slice(0, 7);
+const fmtDay = d => { const [y, m, dd] = d.split('-'); return `${+dd}.${+m}.${y}`; };
+
+const TIERS = [[0, 'Smoothbrain', '🫠'], [85, 'NPC', '🧍'], [100, 'Midwit', '🙂'], [115, 'Bigbrain', '🧠'], [125, 'Gigabrain', '🧠⚡'], [135, 'Galaxybrain', '🌌']];
+const tierOf = iq => { let t = TIERS[0]; for (const x of TIERS) if (iq >= x[0]) t = x; return t; };
+const TIER_LINE = {
+  Smoothbrain: 'Viel Platz nach oben. Das Gehirn ist bereit.',
+  NPC: 'Solide. Die Grundlage steht.',
+  Midwit: 'Überdurchschnittlich. Offiziell gemessen.',
+  Bigbrain: 'Das ist ein großes Gehirn.',
+  Gigabrain: 'Mensa würde dich nehmen. Sofort.',
+  Galaxybrain: 'Galaxybrain. Top 1 %. Mindestens.'
+};
+
+const AWARDS = [
+  { id: 'giga', ic: '⚡', n: 'Gigabrain', d: 'Ein Set im Gigabrain-Bereich (125–134).' },
+  { id: 'galaxy', ic: '🌌', n: 'Galaxybrain', d: 'Ein Set mit 135 oder mehr.' },
+  { id: 'iq125', ic: '🎖️', n: '125 IQ', d: 'Die 125 geknackt. Für immer.' },
+  { id: 'speed', ic: '⏱️', n: 'Speedrun', d: '10 von 10 in unter 3:20 Minuten.' },
+  { id: 'choke', ic: '😵', n: 'Choke', d: '20 Punkte an einem Tag verloren. Gehört dazu.' },
+  { id: 'audit', ic: '🧾', n: 'Steuerehrlich', d: 'Erste Prüfung vom Finanzamt für IQ abgeschlossen.' },
+  { id: 'perfect', ic: '💯', n: 'Fehlerfrei', d: 'Ein Set mit 10 von 10.' },
+  { id: 'double', ic: '🧠', n: 'Doppelhirn', d: 'Matrizen und Denksport am selben Tag.' },
+  { id: 'top_daily', ic: '🏔️', n: 'Matrizen-Endgegner', d: 'Matrizen Stufe 4 erreicht.' },
+  { id: 'top_reason', ic: '🌀', n: 'Denksport-Endgegner', d: 'Denksport Stufe 4 erreicht.' }
+];
+
+const training = () => S.sets.filter(s => s.kind !== 'audit');
+function dailyBest() { // [{day, iq}] sorted
+  const m = {};
+  for (const s of training()) m[s.day] = Math.max(m[s.day] || 0, s.iq);
+  return Object.keys(m).sort().map(d => ({ day: d, iq: m[d] }));
+}
+function stats() {
+  const db = dailyBest(), t = today();
+  const td = db.find(x => x.day === t);
+  const prev = db.filter(x => x.day < t).pop();
+  const weekAgo = dayOf(Date.now() - 6 * 864e5);
+  const wk = db.filter(x => x.day >= weekAgo);
+  const peak = training().reduce((m, s) => Math.max(m, s.iq), 0);
+  return { today: td && td.iq, prev, delta: td && prev ? td.iq - prev.iq : null,
+    avg7: wk.length ? Math.round(wk.reduce((a, x) => a + x.iq, 0) / wk.length) : null,
+    peak: peak || null, sessions: training().length, doneToday: !!td };
+}
+const auditDue = () => S.cold && !S.sets.some(s => s.kind === 'audit' && monthOf(s.t) === monthOf(Date.now())) && S.cold.day !== today();
+
+/* ---------- views ---------- */
+const $ = s => document.querySelector(s);
+let tab = 'home';
+function nav() {
+  const tabs = [['home', '🧠', 'Heute'], ['hist', '📈', 'Verlauf'], ['id', '🪪', 'Ausweis'], ['more', '🏆', 'Trophäen']];
+  $('#nav').innerHTML = tabs.map(([k, i, l]) => `<button class="${k === tab ? 'on' : ''}" onclick="go('${k}')"><span>${i}</span>${l}</button>`).join('');
+}
+function go(k) { tab = k; render(); window.scrollTo(0, 0); }
+
+function render() {
+  nav();
+  const v = { home: vHome, hist: vHist, id: vId, more: vMore }[tab]();
+  $('#app').innerHTML = (FROM_GN ? `<a class="gnback" href="../">← Gute Nudel</a>` : '') + `<h1>IQ <b>MaXxing</b></h1>` + v;
+}
+
+function vHome() {
+  if (!S.cold) return `
+    <div class="card hero">
+      <div style="font-size:64px">🧠🕸️</div>
+      <div class="msg">Willkommen. Bevor das Training beginnt, brauchen wir eine Erstmessung.</div>
+      <p class="sub">Dein Gehirn ist noch völlig unbehandelt. Wir messen, wo du startest, und stellen dir deinen Ausweis aus.</p>
+      <button class="btn" onclick="startSet('cold')">Erstmessung starten</button>
+    </div>
+    <div class="card"><div class="row"><span>Aufgaben</span><b>10</b></div><div class="row"><span>Zeit pro Aufgabe</span><b>40 Sekunden</b></div><div class="row"><span>Ziel</span><b>Finde das fehlende Feld</b></div></div>`;
+  const st = stats();
+  let h = '';
+  if (auditDue()) h += `<div class="card mail"><b>📬 Post vom Finanzamt für IQ</b><p class="sub" style="margin:6px 0 0">Deine monatliche IQ-Prüfung ist fällig. Anderes Format, gleiche Gründlichkeit. Bitte erscheine pünktlich.</p><button class="btn small" onclick="startSet('audit')">Zur Prüfung</button></div>`;
+  if (st.today) {
+    const t = tierOf(st.today);
+    h += `<div class="card hero"><div class="sub">Dein IQ heute</div><div class="big">${st.today}</div><div class="tier">${t[2]} ${t[1]}</div>
+      ${st.delta === null ? '' : st.delta >= 0 ? `<div class="delta up">▲ +${st.delta} seit ${st.prev.day === dayOf(Date.now() - 864e5) ? 'gestern' : 'dem ' + fmtDay(st.prev.day)}</div>` : `<div class="delta down">▼ −${-st.delta} seit ${st.prev.day === dayOf(Date.now() - 864e5) ? 'gestern' : 'dem ' + fmtDay(st.prev.day)}</div>`}
+      <div class="sub" style="margin-top:8px">✅ Tägliche Dosis erledigt</div>
+      <button class="btn ghost" onclick="startSet('daily')">🧠 Noch ein Matrizen-Set${stufeTag('daily')}</button>
+      <button class="btn ghost" onclick="startSet('reason')">🌀 Denksport · Rotation & Logik${stufeTag('reason')}</button></div>`;
+  } else {
+    h += `<div class="card hero"><div class="sub">Dein IQ heute</div><div class="big" style="color:var(--line)">???</div>
+      <p class="sub">Noch nicht gemessen. Dein Gehirn wartet.</p><button class="btn" onclick="startSet('daily')">Tägliche Dosis · 10 Matrizen${stufeTag('daily')}</button>
+      <button class="btn ghost" onclick="startSet('reason')">🌀 Denksport · Rotation & Logik${stufeTag('reason')}</button></div>`;
+  }
+  if (!auditDue()) h += `<div class="card mail"><b>🧾 Finanzamt für IQ · freiwillige Prüfung</b><p class="sub" style="margin:6px 0 0">Ein echter Test in einem Format, das du nie trainierst. Jederzeit. Das Finanzamt freut sich über Eigeninitiative.</p><button class="btn small ghost" onclick="startSet('audit')">Prüfung jetzt ablegen</button></div>`;
+  h += `<div class="grid3">
+    <div class="metric"><div class="v">${st.avg7 ?? '–'}</div><div class="l"><b>Ø 7 Tage</b></div></div>
+    <div class="metric"><div class="v">${st.peak ?? '–'}</div><div class="l"><b>Höchstwert</b>Dein echter IQ</div></div>
+    <div class="metric"><div class="v">${st.sessions}</div><div class="l"><b>Trainings</b>Einheiten</div></div></div>`;
+  return h;
+}
+
+function chartSVG() {
+  const W = 340, H = 200, x0 = 30, y0 = 10, w = W - x0 - 8, h = H - y0 - 22;
+  const lo = 70, hi = 160, Y = v => y0 + h - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * h;
+  const tr = training(), days = [...new Set(tr.map(x => x.day))].sort().slice(-60);
+  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  const bands = [[70, 85, '#ff4d5e'], [85, 100, '#888'], [100, 115, '#6aa0ff'], [115, 125, '#49e07a'], [125, 135, '#c6ff3d'], [135, 160, '#c77dff']];
+  for (const [a, b, c] of bands) s += `<rect x="${x0}" y="${Y(b)}" width="${w}" height="${Y(a) - Y(b)}" fill="${c}" opacity=".08"/>`;
+  for (const v of [70, 85, 100, 115, 125, 135, 160]) s += `<text x="${x0 - 4}" y="${Y(v) + 4}" fill="#777" font-size="10" text-anchor="end">${v}</text>`;
+  s += `<line x1="${x0}" x2="${x0 + w}" y1="${Y(130)}" y2="${Y(130)}" stroke="#fff" stroke-dasharray="4 4" opacity=".6"/><text x="${x0 + w - 2}" y="${Y(130) - 4}" fill="#ddd" font-size="10" text-anchor="end">Mensa (theoretisch)</text>`;
+  if (days.length) {
+    const X = d => x0 + (days.length === 1 ? w / 2 : days.indexOf(d) / (days.length - 1) * w), rr = days.length > 40 ? 1.8 : 3.2;
+    for (const [kinds, col] of [[['cold', 'daily'], '#c6ff3d'], [['reason'], '#c77dff']]) {
+      const pts = days.map(d => { const v = tr.filter(x => x.day === d && kinds.includes(x.kind)); return v.length ? [X(d), Y(Math.max(...v.map(x => x.iq)))] : null; }).filter(Boolean);
+      if (pts.length > 1) s += `<polyline fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+      pts.forEach(p => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="${rr}" fill="${col}"/>`; });
+    }
+    s += `<text x="${x0}" y="${H - 4}" fill="#777" font-size="10">${fmtDay(days[0])}</text><text x="${x0 + w}" y="${H - 4}" fill="#777" font-size="10" text-anchor="end">${fmtDay(days[days.length - 1])}</text>`;
+  }
+  return s + '</svg>';
+}
+
+function vHist() {
+  const db = dailyBest();
+  let h = `<div class="card chart">${chartSVG()}<div class="sub" style="display:flex;gap:16px;justify-content:center;margin-top:6px"><span><b style="color:#c6ff3d">●</b> Matrizen${stufeTag('daily')}</span><span><b style="color:#c77dff">●</b> Denksport${stufeTag('reason')}</span></div></div>`;
+  if (db.length < 2) h += `<p class="sub">Die Kurve entsteht ab dem zweiten Trainingstag.</p>`;
+  const audits = S.sets.filter(s => s.kind === 'audit');
+  if (audits.length) h += `<h2>Finanzamt für IQ</h2><div class="card">${audits.slice().reverse().map(a => `<div class="row"><span>🧾 ${fmtDay(a.day)}</span><b>${a.iq} · festgesetzt</b></div>`).join('')}</div>`;
+  h += `<h2>Letzte Sets</h2><div class="card">${S.sets.slice(-15).reverse().map(s => `<div class="row"><span>${s.kind === 'cold' ? '🪪' : s.kind === 'audit' ? '🧾' : s.kind === 'reason' ? '🌀' : '🧠'} ${fmtDay(s.day)} · ${s.correct}/10</span><b>${s.iq} ${tierOf(s.iq)[1]}</b></div>`).join('') || '<span class="sub">Noch nichts gemessen.</span>'}</div>`;
+  return h;
+}
+
+function web(cx, cy, sx, sy, R) { // cobweb in a corner, sx/sy = direction
+  let s = '', spokes = 5;
+  const pts = [];
+  for (let i = 0; i < spokes; i++) { const a = i / (spokes - 1) * Math.PI / 2; pts.push([Math.cos(a), Math.sin(a)]); s += `<line x1="${cx}" y1="${cy}" x2="${cx + sx * R * pts[i][0]}" y2="${cy + sy * R * pts[i][1]}"/>`; }
+  for (const f of [.3, .55, .8]) for (let i = 0; i < spokes - 1; i++) {
+    const a = pts[i], b = pts[i + 1], mx = (a[0] + b[0]) / 2 * f * R * .78, my = (a[1] + b[1]) / 2 * f * R * .78;
+    s += `<path d="M${cx + sx * a[0] * f * R} ${cy + sy * a[1] * f * R} Q${cx + sx * mx} ${cy + sy * my} ${cx + sx * b[0] * f * R} ${cy + sy * b[1] * f * R}" fill="none"/>`;
+  }
+  return `<g stroke="#f4f4f4" stroke-width=".7" opacity=".85">${s}</g>`;
+}
+const BRAIN = `<svg viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+  <rect width="120" height="140" fill="#a9a191"/>
+  <rect y="100" width="120" height="40" fill="#8f8775"/>
+  <g transform="translate(-2 14)">
+  <path d="M30 70 C20 60 22 42 36 38 C38 26 54 22 62 28 C70 20 88 24 90 36 C102 38 104 54 98 62 C104 72 96 86 84 84 C80 94 64 96 58 88 C50 96 34 92 34 82 C24 82 22 74 30 70 Z" fill="#8d8d8d" stroke="#4d4d4d" stroke-width="2"/>
+  <g fill="none" stroke="#5a5a5a" stroke-width="1.6" stroke-linecap="round">
+   <path d="M62 28 C58 40 66 50 61 60 C57 70 64 80 59 88"/><path d="M38 50 C46 44 52 54 58 47"/><path d="M68 40 C74 48 82 40 88 49"/>
+   <path d="M33 66 C42 60 48 70 57 64"/><path d="M66 66 C72 72 82 62 94 68"/><path d="M42 80 C46 74 52 80 55 76"/><path d="M70 80 C74 76 80 82 86 77"/>
+  </g>
+  <path d="M74 86 C76 94 74 102 70 108" stroke="#777" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <g fill="#6d6d6d" opacity=".5"><circle cx="50" cy="40" r="1.5"/><circle cx="84" cy="58" r="1.2"/><circle cx="44" cy="72" r="1"/></g>
+  </g>
+  ${web(0, 0, 1, 1, 46)}${web(120, 0, -1, 1, 30)}${web(120, 140, -1, -1, 22)}
+  <g transform="translate(78 30)"><line x1="0" y1="-30" x2="0" y2="0" stroke="#eee" stroke-width=".6"/><circle r="2.6" fill="#222"/><g stroke="#222" stroke-width=".8"><line x1="-6" y1="-3" x2="6" y2="3"/><line x1="-6" y1="3" x2="6" y2="-3"/><line x1="-6" y1="0" x2="6" y2="0"/></g></g>
+</svg>`;
+
+function vId() {
+  if (!S.cold) return `<div class="card"><p>Noch kein Ausweis. Die Erstmessung stellt ihn aus.</p><button class="btn" onclick="go('home');startSet('cold')">Erstmessung starten</button></div>`;
+  const nm = (S.name || 'Unbekannt').toUpperCase();
+  const mrz = esc(('IDD<<' + nm.replace(/[^A-Z]/g, '<') + '<<UNTRAINIERT<<<<<<<<<<<<<<<<<<<<').slice(0, 44)) + '<br>' + esc((S.cold.iq + 'IQ<<' + S.cold.day.replace(/-/g, '') + '<<SMOOTH<<<<<<<<<<<<<<<<<<<<<<<').slice(0, 44));
+  const st = stats();
+  return `<div class="idwrap"><div class="idcard">
+    <div class="top"><span>PERSONALAUSWEIS · GEHIRN</span><span>Nr. ${String(S.created).slice(-6)}</span></div>
+    <div class="body"><div class="photo">${BRAIN}</div>
+    <div style="min-width:0"><div class="f">Name</div><div class="v">${esc(nm)}</div>
+      <div class="f">Ausgestellt</div><div class="v">${fmtDay(S.cold.day)}</div>
+      <div class="f">Zustand</div><div class="v">Vor der Weisheitsinjektion</div>
+      <div class="f">IQ (Erstmessung)</div><div class="v iq">${S.cold.iq}</div></div></div>
+    <div class="stamp">UNTRAINIERT</div>
+    <div class="mrz">${mrz}</div></div></div>
+    <div class="card"><div class="cmp"><div><div class="sub">Damals</div><div class="v" style="color:#c9b673">${S.cold.iq}</div></div><div><div class="sub">Höchstwert</div><div class="v" style="color:var(--acc)">${st.peak}</div></div></div>
+    <p class="sub" style="text-align:center;margin:8px 0 0">Dieses Dokument wird nicht erneuert.</p></div>
+    <button class="btn" onclick="shareCard()">📤 IQ-Karte teilen</button>`;
+}
+
+function vMore() {
+  const got = AWARDS.filter(a => S.awards[a.id]).length;
+  let h = `<h2>Trophäen · ${got}/${AWARDS.length}</h2><div class="card">` + AWARDS.map(a => {
+    const w = S.awards[a.id];
+    return `<div class="aw ${w ? '' : 'off'}"><div class="ic">${a.ic}</div><div><div class="n">${a.n}${w && w.count > 1 ? ` ×${w.count}` : ''}</div><div class="sub">${a.d}${w ? ' · seit ' + fmtDay(w.first) : ''}</div></div></div>`;
+  }).join('') + `</div>`;
+  h += `<h2>Einstellungen</h2><div class="card"><div class="sub" style="margin-bottom:6px">Name (für Ausweis und IQ-Karte)</div>
+    <input id="nm" value="${esc(S.name)}" maxlength="24" onchange="S.name=this.value.trim();save()">
+    <button class="btn ghost small" onclick="exportData()">Daten exportieren</button>
+    <button class="btn ghost small" onclick="$('#imp').style.display='block'">Daten importieren</button>
+    <div id="imp" style="display:none;margin-top:10px"><textarea id="impt" placeholder="Export hier einfügen"></textarea><button class="btn small" onclick="importData()">Importieren</button></div>
+    <button class="btn ghost small" id="rst" onclick="resetData(this)" style="color:var(--red)">Alles löschen</button>
+    <div id="exp" class="sub" style="margin-top:8px;word-break:break-all"></div></div>
+    <h2>Tiers</h2><div class="card">${TIERS.map((t, i) => `<div class="row"><span>${t[2]} ${t[1]}</span><b>${i ? t[0] : '<85'}${TIERS[i + 1] ? '–' + (TIERS[i + 1][0] - 1) : '+'}</b></div>`).join('').replace('<85–84', '&lt;85')}</div>`;
+  return h;
+}
+const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function exportData() {
+  const t = JSON.stringify(S);
+  const done = () => $('#exp').textContent = 'In die Zwischenablage kopiert.';
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(done, () => $('#exp').textContent = t); else $('#exp').textContent = t;
+}
+function importData() {
+  try { const d = JSON.parse($('#impt').value); if (!Array.isArray(d.sets)) throw 0; S = d; save(); go('home'); }
+  catch (e) { $('#exp').textContent = 'Das sieht nicht nach einem Export aus.'; }
+}
+function resetData(b) {
+  if (!b.dataset.arm) { b.dataset.arm = 1; b.textContent = 'Wirklich? Nochmal tippen'; setTimeout(() => { if (b.isConnected) { delete b.dataset.arm; b.textContent = 'Alles löschen'; } }, 4000); return; }
+  S = fresh(); save(); go('home');
+}
+
+/* ---------- test runner ---------- */
+let run = null;
+document.addEventListener('visibilitychange', () => { // phone call / app switch: the clock waits
+  if (!run || run.lock) return;
+  if (document.hidden) run.hid = performance.now();
+  else if (run.hid) { run.t0 += performance.now() - run.hid; run.hid = 0; }
+});
+const stufeOf = kind => (kind === 'daily' || kind === 'reason') ? ((S.stufe || {})[kind] || 0) : 0;
+const stufeTag = kind => stufeOf(kind) ? ` · Stufe ${stufeOf(kind)}` : '';
+function startSet(kind) {
+  const st = stufeOf(kind);
+  const items = kind === 'audit' ? Array.from({ length: 10 }, genSeries) : kind === 'reason' ? reasonSet(st) : matrixSet(st);
+  run = { kind, items, st, i: 0, res: [], t0: 0, raf: 0, lock: false };
+  const d = document.createElement('div'); d.id = 'test'; document.body.appendChild(d);
+  showItem();
+}
+function showItem() {
+  const it = run.items[run.i], el = $('#test');
+  const title = run.kind === 'cold' ? '🪪 Erstmessung' : run.kind === 'audit' ? '🧾 Finanzamt für IQ' : run.kind === 'reason' ? '🌀 Denksport' : '🧠 Training';
+  let h = `<div class="thead"><span>${title}</span><span>${run.st ? 'Stufe ' + run.st + ' · ' : ''}${run.i + 1}/10</span><button class="x" onclick="quitSet()">✕</button></div><div class="bar"><i id="tb"></i></div>`;
+  if (it.kind === 'matrix') {
+    h += `<div class="matrix">${it.panels.flat().map((p, k) => k === 8 ? '<div class="q">?</div>' : panelSVG(p)).join('')}</div>
+      <div class="opts">${it.options.map((p, k) => `<button onclick="answer(${k},this)">${panelSVG(p)}</button>`).join('')}</div>`;
+    if (run.i === 0 && run.kind === 'cold') h += `<div class="hint">Jede Zeile folgt Regeln. Welches Feld gehört unten rechts hin?</div>`;
+  } else if (it.kind === 'cube') {
+    h += `<div class="rtarget net">${netSVG(it.net)}</div><div class="hint">Welcher Würfel lässt sich aus diesem Netz falten?</div>
+      <div class="ropts cube">${it.options.map((c, k) => `<button onclick="answer(${k},this)">${cubeSVG(c)}</button>`).join('')}</div>`;
+  } else if (it.kind === 'rot') {
+    h += `<div class="rtarget rot">${polySVG(it.target)}</div><div class="hint">Welche Figur ist dieselbe, nur gedreht?</div>
+      <div class="ropts rot">${it.options.map((c, k) => `<button onclick="answer(${k},this)">${polySVG(c, Math.max(...it.options.map(polySpan)))}</button>`).join('')}</div>`;
+  } else if (it.kind === 'text') {
+    h += `<div class="tq">${it.lines.join('<br>')}</div><div class="tquest">${it.q}</div>
+      <div class="topts${it.wide ? ' wide' : ''}">${it.options.map((x, k) => `<button onclick="answer(${k},this)">${x}</button>`).join('')}</div>`;
+  } else {
+    h += `<div class="seq">${it.shown.map(x => `<b>${x}</b>`).join('')}<b class="q">?</b></div>
+      <div class="sopts">${it.options.map((x, k) => `<button onclick="answer(${k},this)">${x}</button>`).join('')}</div>`;
+    if (run.i === 0) h += `<div class="hint">Wie geht die Reihe weiter?</div>`;
+  }
+  el.innerHTML = h;
+  run.lock = false; run.t0 = performance.now();
+  cancelAnimationFrame(run.raf);
+  const tick = () => {
+    if (!run) return;
+    const t = (performance.now() - run.t0) / 1000, f = Math.max(0, 1 - t / ITEM_SEC), tb = $('#tb');
+    if (tb) { tb.style.width = (f * 100) + '%'; tb.className = f < .25 ? 'late' : ''; }
+    if (t >= ITEM_SEC) return answer(-1, null);
+    run.raf = requestAnimationFrame(tick);
+  };
+  run.raf = requestAnimationFrame(tick);
+}
+function answer(k, btn) {
+  if (!run || run.lock) return;
+  run.lock = true; cancelAnimationFrame(run.raf);
+  const it = run.items[run.i], ok = k === it.answer, t = Math.min(ITEM_SEC, (performance.now() - run.t0) / 1000);
+  run.res.push({ ok, t, lvl: it.level || 0 });
+  const btns = document.querySelectorAll('#test .opts button, #test .sopts button, #test .ropts button, #test .topts button');
+  if (btn) btn.classList.add(ok ? 'ok' : 'no');
+  if (!ok && btns[it.answer]) btns[it.answer].classList.add('ok');
+  setTimeout(() => { run.i++; run.i < 10 ? showItem() : finish(); }, ok ? 380 : 900);
+}
+function quitSet() {
+  if (!run) return;
+  cancelAnimationFrame(run.raf); run = null; $('#test').remove(); render();
+}
+
+function award(id, day, fresh) {
+  const a = S.awards[id];
+  if (a) a.count++; else S.awards[id] = { first: day, count: 1 };
+  fresh.push(id);
+}
+function finish() {
+  const r = run; run = null;
+  const iq = iqFrom(r.res) + STUFE_IQ * r.st, correct = r.res.filter(x => x.ok).length, time = Math.round(r.res.reduce((a, x) => a + x.t, 0));
+  const now = Date.now(), day = dayOf(now);
+  const prevTraining = training().slice(-1)[0];
+  const peakBefore = training().reduce((m, s) => Math.max(m, s.iq), 0);
+  const firstToday = !training().some(s => s.day === day);
+  const lastDay = dailyBest().filter(x => x.day < day).pop();
+  const set = { t: now, day, kind: r.kind, iq, correct, time, st: r.st };
+  S.sets.push(set);
+  if (r.kind === 'cold') S.cold = { iq, day, correct };
+  const fresh = [];
+  if (r.kind !== 'audit') {
+    if (iq >= 135) award('galaxy', day, fresh); else if (iq >= 125) award('giga', day, fresh);
+    if (iq >= 125 && !S.awards.iq125) award('iq125', day, fresh);
+    if (correct === 10 && time <= 200) award('speed', day, fresh);
+    const sameDayBest = Math.max(0, ...S.sets.filter(s => s !== set && s.kind !== 'audit' && s.day === day).map(s => s.iq));
+    if (sameDayBest && sameDayBest - iq >= 20) award('choke', day, fresh);
+  } else if (!S.awards.audit) award('audit', day, fresh);
+  let stufeMsg = '';
+  if (r.kind === 'daily' || r.kind === 'reason') {
+    S.stufe = S.stufe || {};
+    if (correct >= 9 && r.st < MAX_STUFE) { S.stufe[r.kind] = r.st + 1; stufeMsg = `⬆️ Stufe ${r.st + 1} freigeschaltet. Schwerere Aufgaben, +${STUFE_IQ} IQ pro Stufe. Dein Gehirn ist bereit.`; }
+    else if (correct <= 4 && r.st > 0) { S.stufe[r.kind] = r.st - 1; stufeMsg = `Stufe ${r.st - 1}. Kurz Anlauf nehmen.`; }
+    if (S.stufe[r.kind] === MAX_STUFE && !S.awards['top_' + r.kind]) award('top_' + r.kind, day, fresh);
+    if (correct === 10) award('perfect', day, fresh);
+    const other = r.kind === 'daily' ? 'reason' : 'daily', mine = S.sets.filter(x => x.day === day && x.kind === r.kind).length;
+    if (mine === 1 && S.sets.some(x => x.day === day && x.kind === other)) award('double', day, fresh);
+  }
+  save();
+  const t = tierOf(iq);
+  let msg = '', extra = '';
+  if (r.kind === 'cold') { msg = 'Erstmessung abgeschlossen. Dein Ausweis wurde ausgestellt.'; extra = 'Ab jetzt geht es nur noch nach oben.'; }
+  else if (r.kind === 'audit') {
+    msg = 'Bescheid vom Finanzamt für IQ';
+    extra = `Festgesetzter IQ: ${iq}. Die Prüfung ist abgeschlossen. Dein IQ ist ordnungsgemäß gemeldet.`;
+  } else {
+    const base = firstToday ? lastDay && lastDay.iq : prevTraining && prevTraining.iq;
+    const when = firstToday ? 'heute' : 'seit dem letzten Set';
+    if (base == null) msg = 'Gemessen.';
+    else if (iq > base) msg = `Glückwunsch! Dein IQ ist ${when} um ${iq - base} Punkte gestiegen!`;
+    else if (iq < base) msg = `Dein IQ ist ${when} um ${base - iq} Punkte gesunken. Tagesform. Das holst du dir zurück.`;
+    else msg = 'Dein IQ ist exakt gleich geblieben. Stabil wie ein Fels.';
+    if (peakBefore && iq > peakBefore) extra = 'Neuer Höchstwert! Das ist jetzt offiziell dein IQ.';
+  }
+  const chips = fresh.map(id => { const a = AWARDS.find(x => x.id === id); return `<span class="chip">${a.ic} ${a.n}</span>`; }).join('');
+  $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding-top:6vh">
+    <div class="sub">${correct}/10 richtig · ${Math.floor(time / 60)}:${String(time % 60).padStart(2, '0')} min</div>
+    <div class="big" id="cnt" style="font-size:120px">0</div>
+    <div class="tier">${t[2]} ${t[1]}</div>
+    <div class="msg">${msg}</div>${stufeMsg ? `<div class="chip" style="margin-top:12px;border-radius:14px;padding:10px 14px;display:block">${stufeMsg}</div>` : ''}
+    <p class="sub">${extra || TIER_LINE[t[1]]}</p>
+    ${chips ? `<div style="margin:10px 0">${chips}</div>` : ''}
+    <button class="btn" onclick="closeResult()">${r.kind === 'cold' ? 'Ausweis ansehen' : 'Fertig'}</button>
+    ${correct < 10 ? `<button class="btn ghost" onclick="review()">🔍 Fehler ansehen (${10 - correct})</button>` : ''}
+    ${r.kind === 'daily' || r.kind === 'reason' ? `<button class="btn ghost" onclick="$('#test').remove();startSet('${r.kind}')">Noch ein Set</button>` : ''}
+  </div>`;
+  const c = $('#cnt'), st = performance.now();
+  const anim = () => { const f = Math.min(1, (performance.now() - st) / 1100); c.textContent = Math.round(iq * (1 - Math.pow(1 - f, 3))); if (f < 1) requestAnimationFrame(anim); };
+  requestAnimationFrame(anim);
+  closeResult.kind = r.kind; review.run = r;
+}
+/* ---------- mistake review ---------- */
+const ATTR_DE = { type: 'Form', num: 'Anzahl', size: 'Größe', color: 'Füllung', itype: 'Innere Form', isize: 'Innere Größe', icolor: 'Innere Füllung' };
+function ruleText(it) {
+  const P = it.panels, out = [];
+  for (const a of it.nest ? NEST_ATTRS : ['type', 'num', 'size', 'color']) {
+    const row = P[0].map(p => p[a]), all = P.flat().map(p => p[a]);
+    if (all.every(v => v === all[0])) continue;
+    let t;
+    if (it.rules[a] === 'prog') {
+      const d = row[1] - row[0];
+      t = { type: d > 0 ? 'eine Ecke mehr pro Feld' : 'eine Ecke weniger pro Feld', num: d > 0 ? '+1 pro Feld' : '−1 pro Feld', size: d > 0 ? 'wird pro Feld größer' : 'wird pro Feld kleiner', color: d > 0 ? 'wird pro Feld dunkler' : 'wird pro Feld heller' }[a.replace(/^i(?=type|size|color)/, '')];
+    } else if (it.rules[a] === 'dist3') t = 'drei Varianten, jede Zeile hat jede genau einmal';
+    else if (it.rules[a] === 'arith') t = row[2] === row[0] + row[1] ? 'Feld 3 = Feld 1 + Feld 2' : 'Feld 3 = Feld 1 − Feld 2';
+    else t = 'pro Zeile gleich';
+    out.push(`<b>${it.nest && a === 'type' ? 'Äußere Form' : ATTR_DE[a]}:</b> ${t}`);
+  }
+  const L = { none: '', const: 'bleiben überall gleich', or: 'Feld 3 = alle Linien aus Feld 1 und 2 zusammen', xor: 'Feld 3 = nur Linien, die in genau einem der beiden Felder sind', sub: 'Feld 3 = Linien aus Feld 1 ohne die aus Feld 2' }[it.rules.lines];
+  if (L) out.push(`<b>Linien:</b> ${L}`);
+  if (out.length < 4) out.push('<span class="sub">Alles andere bleibt gleich.</span>');
+  return out.join('<br>');
+}
+function reviewItem(it, i) {
+  let h = `<div class="card" style="text-align:left"><div class="sub" style="margin-bottom:8px">Aufgabe ${i + 1}</div>`;
+  if (it.kind === 'matrix') {
+    h += `<div class="matrix" style="width:min(80vw,300px);margin:0 auto">${it.panels.flat().map((p, k) => k === 8 ? `<div style="outline:3px solid var(--grn);outline-offset:-3px">${panelSVG(p)}</div>` : panelSVG(p)).join('')}</div><p style="margin:12px 0 0;line-height:1.6">${ruleText(it)}</p>`;
+  } else if (it.kind === 'cube') {
+    h += `<div style="display:flex;gap:10px;align-items:center"><div class="rtarget" style="width:58%;margin:0;aspect-ratio:auto">${netSVG(it.net)}</div><div style="font-size:26px">→</div><div class="rtarget" style="width:34%;margin:0;padding:4px;outline:3px solid var(--grn)">${cubeSVG(it.options[it.answer])}</div></div><p class="sub" style="margin:10px 0 0">Gegenüberliegende Seiten sieht man nie zusammen, und die Reihenfolge rund um eine Ecke muss stimmen.</p>`;
+  } else if (it.kind === 'rot') {
+    h += `<div style="display:flex;gap:10px;align-items:center"><div class="rtarget" style="width:44%;margin:0">${polySVG(it.target)}</div><div style="font-size:26px">→</div><div class="rtarget" style="width:44%;margin:0;outline:3px solid var(--grn)">${polySVG(it.options[it.answer])}</div></div><p class="sub" style="margin:10px 0 0">Gleiche Figur, gedreht. Die anderen waren gespiegelt oder hatten einen Block an anderer Stelle.</p>`;
+  } else if (it.kind === 'text') {
+    h += `<div>${it.lines.join('<br>')}</div><div style="font-weight:800;margin-top:8px">${it.q}</div><div style="color:var(--grn);font-weight:800;margin-top:6px">✓ ${it.options[it.answer]}</div>`;
+  } else {
+    h += `<div class="seq" style="margin:0;justify-content:flex-start">${it.shown.map(x => `<b>${x}</b>`).join('')}<b class="q" style="color:var(--grn);border-color:var(--grn)">${it.options[it.answer]}</b></div>`;
+  }
+  return h + '</div>';
+}
+function review() {
+  const r = review.run, missed = r.items.map((it, i) => [it, i]).filter(([, i]) => !r.res[i].ok);
+  $('#test').innerHTML = `<div style="width:100%;max-width:440px"><div class="thead"><span>🔍 Fehleranalyse</span><span></span><button class="x" onclick="closeResult()">✕</button></div>
+    <p class="sub">Jede Analyse macht dein Gehirn messbar stärker.</p>${missed.map(([it, i]) => reviewItem(it, i)).join('')}
+    <button class="btn" onclick="closeResult()">Fertig</button></div>`;
+  $('#test').scrollTop = 0;
+}
+function closeResult() { $('#test').remove(); tab = closeResult.kind === 'cold' ? 'id' : 'home'; render(); }
+
+/* ---------- share card ---------- */
+function shareCard() {
+  const st = stats(), iq = st.peak || S.cold.iq, t = tierOf(iq);
+  const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0b0b0c'; g.fillRect(0, 0, 1080, 1350);
+  g.fillStyle = '#c6ff3d'; g.fillRect(0, 0, 1080, 18); g.fillRect(0, 1332, 1080, 18);
+  g.textAlign = 'center';
+  g.fillStyle = '#f2f2f2'; g.font = '900 64px system-ui,sans-serif'; g.fillText('IQ MaXxing', 540, 150);
+  g.fillStyle = '#9a9aa3'; g.font = '700 46px system-ui,sans-serif'; g.fillText((S.name || 'Anonymes Genie').toUpperCase(), 540, 300);
+  g.fillStyle = '#c6ff3d'; g.font = '900 420px system-ui,sans-serif'; g.fillText(String(iq), 540, 720);
+  g.fillStyle = '#f2f2f2'; g.font = '800 54px system-ui,sans-serif'; g.fillText('IQ · offiziell gemessen', 540, 820);
+  g.fillStyle = '#c6ff3d'; g.beginPath(); g.roundRect ? g.roundRect(290, 900, 500, 110, 55) : g.rect(290, 900, 500, 110); g.fill();
+  g.fillStyle = '#111'; g.font = '900 60px system-ui,sans-serif'; g.fillText(t[1], 540, 976);
+  g.fillStyle = '#9a9aa3'; g.font = '600 38px system-ui,sans-serif'; g.fillText('Stand ' + fmtDay(today()), 540, 1200);
+  // shown as an image (long-press to save): downloads + Web Share are blocked inside the artifact viewer
+  const ov = document.createElement('div'); ov.id = 'test';
+  ov.innerHTML = `<div style="width:100%;max-width:440px;text-align:center"><img src="${c.toDataURL('image/png')}" style="width:100%;border-radius:14px;border:1px solid var(--line)">
+    <p class="sub">Bild lange drücken → speichern oder teilen.</p>
+    <button class="btn" id="shr" style="display:none">Teilen</button><button class="btn ghost" onclick="$('#test').remove()">Schließen</button></div>`;
+  document.body.appendChild(ov);
+  c.toBlob(b => {
+    const f = new File([b], 'iq-' + iq + '.png', { type: 'image/png' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [f] })) {
+        const s = $('#shr'); s.style.display = 'block';
+        s.onclick = () => navigator.share({ files: [f], title: 'Mein IQ: ' + iq }).catch(() => { s.style.display = 'none'; });
+      }
+    } catch (e) {}
+  }, 'image/png');
+}
+
+render();
+</script>
+</body>
+</html>

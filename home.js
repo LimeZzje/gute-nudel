@@ -115,6 +115,8 @@ function storyLeft(t0, t1) {
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
 export const ZETTEL = ['buch-bitch-lasagna', 'buch-kimchi-eintopf', 'buch-thai-garnelen-curry', 'buch-chili', 'buch-chili-cheese-nupels', 'buch-ofenkartoffeln-eier-dip', 'buch-sushi-reis', 'buch-eingelegter-ingwer', 'buch-kaiserschmarrn', 'buch-mexikanische-apfeltorte', 'buch-vanillekipferl'];   // Julia's sticky notes, 2026-10-26
 export const NEWS = [
+  { id: 'n-iq', d: '2026-11-07', ic: '🧠', t: 'Neu ganz unten auf Home: IQ MaXxing – der Highscore ist dein IQ', x: 'Zehn Rätsel, 40 Sekunden pro Stück, am Ende steht da eine Zahl. Diese Zahl ist dein IQ. Jedes Handy hat seinen eigenen Kopf: Was du spielst, bleibt auf deinem Handy, nichts wird geteilt.',
+    how: ['Ganz unten auf Home: „🧠 Kopf trainieren? IQ MaXxing“', 'Beim ersten Mal gibt es eine Erstmessung und dazu einen Ausweis', 'Danach jeden Tag ein Set Matrizen, dazu 🌀 Denksport mit Figuren, Würfeln und Logik', 'Oben rechts „← Gute Nudel“ bringt dich zurück in die App', 'Keine Sterne, keine Aufgabe – nur ein Spiel für zwischendurch'], go: 'iq', btn: 'Zum Spiel' },
   { id: 'n-naehr', d: '2026-10-30', ic: '🔢', t: 'Das Kochbuch hat nachgerechnet – jedes Rezept kennt jetzt seine Kalorien', x: 'Wie viel steckt eigentlich in einer Portion Köttbullar? Bisher wusste das nur die Waage im Bad, mit Verspätung. Jetzt rechnet die App es selbst aus: Zutat für Zutat, Gramm für Gramm, geteilt durch die Portionen. Das Ergebnis steht bei jedem Rezept, ganz ohne Abtippen.',
     how: ['Ein Rezept öffnen: unter dem Titel steht „ca. … kcal · … g Fett · … g KH · … g Eiweiß pro Portion“', 'Es ist eine Schätzung („ca.“) – Salz, Pfeffer und Kräuter zählen nicht, eine Prise schon gar nicht', 'Bei Kuchen und Blechen zählt die App die Stücke selbst, z.B. „pro Stück, bei ca. 12 Stück“', 'Fehlt bei einer Zutat die Menge, steht „ohne …“ dabei. Fehlen zu viele (handgeschriebene Zettel „nach Hunger“), bleibt die Zeile lieber weg', 'Gilt für alle Rezepte: eingebaute, fotografierte, Claudes Vorrat-Rezepte und eure eigenen'], go: 'newsnaehr', btn: 'Köttbullar nachrechnen' },
   { id: 'n-wochenplan', d: '2026-10-30', ic: '🗓️', t: 'Julia plant die Woche – Köttbullar haben ab sofort einen Termin', x: 'Wer jeden Abend „Was essen wir heute?“ fragt, bekommt jetzt eine Antwort, die schon eine Woche alt ist. Der neue Wochenplan nimmt bis zu sieben Gerichte aus dem Kochbuch, jedes an seinen Tag. Dazu zieht ein Frühstück ins Kochbuch ein, und wer Muskeln will, findet sie unter 💪.',
@@ -240,9 +242,12 @@ export function viewHome() {
   // Nudel-Rush: she doesn't play it, but it stays (user) — just a small link at the bottom
   const gl = Object.values((S.game && S.game.levels) || {}), gdone = gl.filter(p => p >= 100).length;
   h += `<button class="gamelink gamecard" data-a="game">🍝 Kleine Pause? <b>Nudel-Rush</b>${gl.length ? ` <span class="muted">· ${gdone}/5</span>` : ''}</button>`;
+  // IQ MaXxing: its own single-file game in iq/ (own save per device, nothing shared or compared; user 2026-11-07)
+  h += `<a class="gamelink iqlink" href="iq/">🧠 Kopf trainieren? <b>IQ MaXxing</b></a>`;
   return h;
 }
 A.splash = () => { pickSplash(); render(); };
+A.iq = () => { location.href = 'iq/'; };
 // Nudel-Rush (spiel.js): no stars, no comparison – just your own record on your own devices
 export let game = null;
 A.game = () => {
