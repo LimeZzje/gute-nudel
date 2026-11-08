@@ -131,8 +131,8 @@ textarea{height:90px;font-size:12px}
 .memo{margin-top:10px;text-align:left;font-family:"Courier New",monospace;background:#e9e2c9;color:#2b2615;border-radius:6px;padding:10px 12px;font-size:14px;transform:rotate(-.6deg)}
 .memo b{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.65;margin-bottom:3px}
 /* ===== clinical theme (11-08): printed patient file of a research institute ===== */
-:root{--bg:#111214;--card:#1b1d20;--line:#34373c;--ink:#e8e4d8;--dim:#959083;--acc:#e8e4d8;--red:#e0574b;--grn:#6fbf7f;--nav:rgba(22,23,26,.97);--gA:#6fbf7f;--gB:#86aee0;--gC:#d1a83a;--gD:#e0574b;--mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,"Courier New",monospace;color-scheme:dark}
-:root[data-theme="light"]{--bg:#e7e2d3;--card:#faf7ee;--line:#bcb39d;--ink:#1d1c19;--dim:#6c6555;--acc:#1d1c19;--red:#a3261d;--grn:#2f6b3a;--nav:rgba(243,239,227,.97);--gA:#2f6b3a;--gB:#24466e;--gC:#8a6a12;--gD:#a3261d;color-scheme:light}
+:root{--bg:#111214;--card:#1b1d20;--line:#34373c;--ink:#e8e4d8;--dim:#959083;--acc:#c6ff3d;--accInk:#101208;--red:#e0574b;--grn:#6fbf7f;--nav:rgba(22,23,26,.97);--gA:#6fbf7f;--gB:#86aee0;--gC:#d1a83a;--gD:#e0574b;--mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,"Courier New",monospace;color-scheme:dark}
+:root[data-theme="light"]{--bg:#e7e2d3;--card:#faf7ee;--line:#bcb39d;--ink:#1d1c19;--dim:#6c6555;--acc:#4f7d00;--accInk:#fbfbf2;--red:#a3261d;--grn:#2f6b3a;--nav:rgba(243,239,227,.97);--gA:#2f6b3a;--gB:#24466e;--gC:#8a6a12;--gD:#a3261d;color-scheme:light}
 html,body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .mast{border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:14px}
 .mast .inst{font:700 10.5px/1.3 var(--mono);letter-spacing:.16em;color:var(--dim)}
@@ -175,11 +175,56 @@ input,textarea{background:var(--bg);color:var(--ink);border-color:var(--line);bo
 .aw .ic{filter:grayscale(1)}.aw .n{font-family:var(--mono);letter-spacing:.02em}
 .idwrap .idcard{box-shadow:0 6px 16px rgba(60,50,30,.35)}
 .btn,.tier,.chip,.sub,.thead,.msg{filter:grayscale(1)}
+/* accent: toxic green highlights */
+.btn{background:var(--acc);color:var(--accInk)}.btn.ghost{background:transparent;color:var(--ink);border-color:var(--ink)}
+.btn:not(.ghost),.tier,.chip{filter:none}
+.tier{color:var(--acc);border-color:var(--acc)}.chip{color:var(--acc);border-color:var(--acc)}
+.mast{border-bottom-color:var(--acc)}.mast .title b{color:var(--acc)}
+nav{border-top-color:var(--acc)}nav button.on{color:var(--acc)}
+.spk{color:var(--acc);border-color:var(--acc)}
+.doc{border-left-color:var(--acc)}.doc .who button{background:var(--acc);color:var(--accInk)}#toast{border-left-color:var(--acc)}
+.fp .ring circle{stroke:var(--acc)}.fp .scan{background:var(--acc);box-shadow:0 0 14px var(--acc)}.fp.ok{color:var(--acc);border-color:var(--acc)}
+.bar i{background:var(--acc)}h2{border-bottom-color:var(--line)}
 .chart svg{color:var(--ink)}
 .spk{float:right;background:none;border:1px solid var(--line);border-radius:3px;width:30px;height:24px;margin:-4px 0 0 8px;padding:0;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;filter:none}
 .spk svg{width:15px;height:15px}h2 .spk{margin-top:-6px}
 #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 78px);transform:translateX(-50%);width:min(92vw,440px);background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:3px;padding:10px 12px;z-index:30;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);transition:opacity .3s}
 #toast .who{font:700 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}#toast .en{font:italic 15px/1.4 Georgia,serif;margin-top:4px}#toast .de{color:var(--dim);font-size:13px;margin-top:3px} /* emojis in ink, like the rest of the file */
+
+/* consent fingerprint */
+.consent{width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center}
+.cform{width:100%;margin-top:10px}.cform p{font-size:14px;line-height:1.5;margin:10px 0 0}
+.fp{--p:0;position:relative;width:min(58vw,220px);aspect-ratio:1;border-radius:50%;border:2px solid var(--line);margin-top:18px;display:flex;align-items:center;justify-content:center;color:var(--dim);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:pointer;background:var(--card)}
+.fp>svg:first-child{width:64%;height:64%;pointer-events:none;transition:color .2s}
+.fp.on{color:var(--ink);border-color:var(--ink)}.fp.ok{color:var(--grn);border-color:var(--grn)}
+.fp .ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);pointer-events:none}
+.fp .ring circle{fill:none;stroke:var(--grn);stroke-width:4;stroke-dasharray:301.6;stroke-dashoffset:calc(301.6 * (1 - var(--p)))}
+.fp .scan{position:absolute;left:10%;right:10%;height:2px;background:var(--grn);box-shadow:0 0 12px var(--grn);top:50%;opacity:0;pointer-events:none}
+.fp.on .scan{opacity:1;animation:fpscan .9s ease-in-out infinite alternate}
+@keyframes fpscan{from{top:14%}to{top:86%}}
+.fpmsg{font:700 12px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:14px;text-align:center}
+/* Tonbandprotokoll */
+.tl{padding:10px 0;border-bottom:1px solid var(--line)}.tl:last-child{border:0}
+.tl .who{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.tl .en{font:italic 15px/1.4 Georgia,serif;margin-top:3px}.tl .de{color:var(--dim);font-size:13px;margin-top:2px}
+.tl .redact{font-family:var(--mono);color:var(--line);margin-top:4px;overflow:hidden;white-space:nowrap}
+/* printable file */
+#printdoc{display:none}
+@media print{
+  @page{size:A4;margin:16mm}
+  html,body{background:#fff!important;color:#000!important}
+  body.printing>*:not(#printdoc){display:none!important}
+  body.printing #printdoc{display:block;position:relative;font:10.5pt/1.45 Georgia,serif;color:#000}
+  #printdoc .pd-head{display:flex;justify-content:space-between;font:700 8pt monospace;letter-spacing:.14em;border-bottom:2px solid #000;padding-bottom:4pt}
+  #printdoc h1{font:800 17pt monospace;margin:10pt 0 4pt}
+  #printdoc h2{font:700 8.5pt monospace;letter-spacing:.16em;text-transform:uppercase;border-bottom:1px solid #999;padding-bottom:2pt;margin:14pt 0 6pt;color:#000}
+  #printdoc table{width:100%;border-collapse:collapse;font-size:9.5pt}
+  #printdoc .kv td{padding:2pt 0}#printdoc .kv td:first-child{width:32%;color:#444}
+  #printdoc .grid th{font:700 7.5pt monospace;letter-spacing:.08em;text-transform:uppercase;text-align:left;border-bottom:1px solid #000;padding:3pt 4pt}
+  #printdoc .grid td{border-bottom:1px solid #ccc;padding:3pt 4pt}
+  #printdoc .pd-stamp{position:absolute;right:6mm;top:18mm;transform:rotate(-12deg);border:3px solid #a3261d;color:#a3261d;font:900 14pt monospace;letter-spacing:.12em;padding:2pt 8pt;border-radius:3pt}
+  #printdoc .pd-sign{margin-top:28pt;font:9pt monospace;letter-spacing:.06em}#printdoc .pd-sign .line{width:60mm;border-bottom:1px solid #000;margin-bottom:3pt;height:18pt}
+}
 </style>
 </head>
 <body>
@@ -507,13 +552,27 @@ function thetaEAP(res) { // res: [{a, b, ok}], prior N(0,1)
   return num / den;
 }
 const realIQ = res => Math.round(REAL_MEAN + REAL_SD * thetaEAP(res));
+function thetaPost(res) { // posterior mean + SD on the same grid
+  let n = 0, m = 0, m2 = 0;
+  for (let t = -4; t <= 4.0001; t += 0.05) {
+    let l = Math.exp(-t * t / 2);
+    for (const r of res) { const q = 1 / (1 + Math.exp(-r.a * (t - r.b))); l *= r.ok ? q : 1 - q; }
+    n += l; m += t * l; m2 += t * t * l;
+  }
+  m /= n; return { m, sd: Math.sqrt(Math.max(0, m2 / n - m * m)) };
+}
+const normCdf = z => { const k = 1 / (1 + .2316419 * Math.abs(z)), d = .3989423 * Math.exp(-z * z / 2), q = d * k * (.3193815 + k * (-.3565638 + k * (1.781478 + k * (-1.821256 + k * 1.330274)))); return z > 0 ? 1 - q : q; };
+function befund(res) { // IQ, 90 % range, percentile vs. the population (mean 100, SD 15)
+  const { m, sd } = thetaPost(res), iq = Math.round(REAL_MEAN + REAL_SD * m);
+  return { iq, lo: Math.round(REAL_MEAN + REAL_SD * (m - 1.645 * sd)), hi: Math.round(REAL_MEAN + REAL_SD * (m + 1.645 * sd)), pct: Math.round(normCdf((iq - 100) / 15) * 1000) / 10 };
+}
 
 /* ---------- training grades (Outlast-Trials style) ---------- */
 const GRADES = [[10, 'A+'], [9, 'A'], [7, 'B'], [5, 'C'], [3, 'D'], [0, 'F']];
 const gradeOf = c => GRADES.find(g => c >= g[0])[1];
 const GRADE_RANK = { 'A+': 5, A: 4, B: 3, C: 2, D: 1, F: 0 };
 
-if (typeof module !== 'undefined') module.exports = { OMIB, realSet, thetaEAP, realIQ, cellBits, gradeOf, genCube, foldNet, ALL_ORIENT, matrixSet, reasonSet, MAX_LEVEL, genMatrix, genSeries, iqFrom, SET_LEVELS, RANGE, NLINES, genRotation, genOrder, genSyll, holds, MODELS, SA, SB, SC, rotKeys, mirror, keyOf, REASON_SET };
+if (typeof module !== 'undefined') module.exports = { befund, thetaPost, OMIB, realSet, thetaEAP, realIQ, cellBits, gradeOf, genCube, foldNet, ALL_ORIENT, matrixSet, reasonSet, MAX_LEVEL, genMatrix, genSeries, iqFrom, SET_LEVELS, RANGE, NLINES, genRotation, genOrder, genSyll, holds, MODELS, SA, SB, SC, rotKeys, mirror, keyOf, REASON_SET };
 </script>
 
 <script>
@@ -701,8 +760,8 @@ function chartSVG() {
   if (rs.length) {
     const X = i => x0 + (rs.length === 1 ? w / 2 : i / (rs.length - 1) * w);
     const pts = rs.map((r, i) => [X(i), Y(r.iq)]);
-    if (pts.length > 1) s += `<polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
-    pts.forEach((p, i) => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="currentColor"/><text x="${p[0]}" y="${p[1] - 9}" fill="currentColor" font-size="11" font-weight="800" text-anchor="middle">${rs[i].iq}</text>`; });
+    if (pts.length > 1) s += `<polyline fill="none" style="stroke:var(--acc)" stroke-width="2.4" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+    pts.forEach((p, i) => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="4" style="fill:var(--acc)"/><text x="${p[0]}" y="${p[1] - 9}" fill="currentColor" font-size="11" font-weight="800" text-anchor="middle">${rs[i].iq}</text>`; });
     s += `<text x="${x0}" y="${H - 4}" fill="currentColor" opacity=".6" font-size="10">${fmtDay(rs[0].day)}</text>${rs.length > 1 ? `<text x="${x0 + w}" y="${H - 4}" fill="currentColor" opacity=".6" font-size="10" text-anchor="end">${fmtDay(rs[rs.length - 1].day)}</text>` : ''}`;
   }
   return s + '</svg>';
@@ -761,7 +820,8 @@ function vId() {
     <div class="mrz">${mrz}</div></div></div>
     <div class="card">${spk('id')}<div class="cmp"><div><div class="sub">Damals</div><div class="v" style="color:#8a6a12">${S.cold.iq}</div></div><div><div class="sub">Echter IQ heute</div><div class="v" style="color:var(--acc)">${st.last ? st.last.iq : S.cold.iq}</div></div></div>
     <p class="sub" style="text-align:center;margin:8px 0 0">Dieses Dokument wird nicht erneuert.</p></div>
-    <button class="btn" onclick="shareCard()">📤 IQ-Karte teilen</button>`;
+    <button class="btn" onclick="shareCard()">📤 IQ-Karte teilen</button>
+    <button class="btn ghost" onclick="printFile()">🖨 Patientenakte drucken</button>`;
 }
 
 function vMore() {
@@ -769,7 +829,7 @@ function vMore() {
   let h = `<h2>Trophäen · ${got}/${AWARDS.length} ${spk('awards')}</h2><div class="card">` + AWARDS.map(a => {
     const w = S.awards[a.id];
     return `<div class="aw ${w ? '' : 'off'}"><div class="ic">${a.ic}</div><div><div class="n">${a.n}${w && w.count > 1 ? ` ×${w.count}` : ''}</div><div class="sub">${a.d}${w ? ' · seit ' + fmtDay(w.first) : ''}</div></div></div>`;
-  }).join('') + `</div>`;
+  }).join('') + `</div>` + tapeView();
   h += `<h2>Einstellungen ${spk('settings')}</h2><div class="card"><div class="sub" style="margin-bottom:6px">Darstellung</div><div style="display:flex;gap:8px;margin-bottom:14px"><button class="btn small${S.theme === 'light' ? ' ghost' : ''}" style="margin:0" onclick="setTheme('dark')">Dunkel</button><button class="btn small${S.theme === 'light' ? '' : ' ghost'}" style="margin:0" onclick="setTheme('light')">Papier</button></div><div class="sub" style="margin-bottom:6px">Name (für Ausweis und IQ-Karte)</div>
     <input id="nm" value="${esc(S.name)}" maxlength="24" onchange="S.name=this.value.trim();save()">
     <button class="btn ghost small" onclick="exportData()">Daten exportieren</button>
@@ -872,6 +932,7 @@ function quitSet() { // a real test keeps its progress in S.pend and can be cont
 
 /* ---------- the real test (OMIB): build the missing cell, no time limit, no feedback ---------- */
 function startReal(kind) {
+  if (kind === 'cold' && !S.consent && !(S.pend && S.pend.kind === 'cold')) return consentScreen();
   if (!S.pend || S.pend.kind !== kind) { S.pend = { kind, ids: realSet(S.seen || {}).map(it => it.id), ans: [], time: 0 }; save(); say(kind === 'cold' ? 'welcome' : 'realStart', true); }
   const byId = new Map(OMIB.map(it => [it[0], it]));
   run = { kind, real: true, items: S.pend.ids.map(id => omibItem(byId.get(id))), i: S.pend.ans.length, st: 0, t0: 0, raf: 0, lock: false, cur: '0'.repeat(20) };
@@ -914,10 +975,12 @@ function finishReal() {
   const r = run; run = null;
   const p = S.pend; delete S.pend;
   const res = r.items.map((it, k) => ({ a: it.a, b: it.b, ok: p.ans[k] === it.cells[8] }));
-  const iq = realIQ(res), correct = res.filter(x => x.ok).length, time = Math.round(p.time), now = Date.now(), day = dayOf(now);
+  const bf = befund(res), iq = bf.iq, correct = res.filter(x => x.ok).length, time = Math.round(p.time), now = Date.now(), day = dayOf(now);
+  const cut = [0, Math.round(res.length * 10 / 28), Math.round(res.length * 19 / 28), res.length]; // items come easy -> hard
+  const bands = [0, 1, 2].map(i => [res.slice(cut[i], cut[i + 1]).filter(x => x.ok).length, cut[i + 1] - cut[i]]);
   S.seen = S.seen || {}; for (const it of r.items) S.seen[it.id] = (S.seen[it.id] || 0) + 1;
   const prev = realSets().slice(-1)[0];
-  S.sets.push({ t: now, day, kind: r.kind, iq, correct, n: res.length, time, st: 0 });
+  S.sets.push({ t: now, day, kind: r.kind, iq, correct, n: res.length, time, st: 0, lo: bf.lo, hi: bf.hi, pct: bf.pct, bands });
   if (r.kind === 'cold') S.cold = { iq, day, correct };
   const fresh = [];
   if (iq >= 135) award('galaxy', day, fresh); else if (iq >= 125) award('giga', day, fresh);
@@ -932,13 +995,20 @@ function finishReal() {
   else { msg = `Dein echter IQ ist um ${prev.iq - iq} Punkte gesunken.`; extra = 'Die Therapie wird intensiviert.'; }
   const ac = awardChips(fresh);
   $('#test').className = '';
-  $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding-top:6vh">
+  $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding:4vh 0 20px">
     <div class="sub">${correct}/${res.length} richtig · ${mmss(time)} min</div>
     <div class="sub" style="margin-top:14px">Dein echter IQ</div>
     <div class="big" id="cnt" style="font-size:120px">0</div>
     <div class="tier">${t[2]} ${t[1]}</div>
     <div class="msg">${msg}</div>
     <p class="sub">${extra}</p>
+    <div class="card" style="text-align:left;margin-top:14px"><div class="sub">Befundbericht · ${fmtDay(day)}</div>
+      <div class="row"><span>Echter IQ</span><b>${iq}</b></div>
+      <div class="row"><span>Messbereich (90 %)</span><b>${bf.lo}–${bf.hi}</b></div>
+      <div class="row"><span>Prozentrang</span><b>${pctTxt(bf.pct)}</b></div>
+      ${bands.map((b, i) => `<div class="row"><span>${['Leichte', 'Mittlere', 'Schwere'][i]} Aufgaben</span><b>${b[0]}/${b[1]}</b></div>`).join('')}
+      <div class="row"><span>Bearbeitungszeit</span><b>${mmss(time)} min</b></div>
+      <p class="sub" style="margin:10px 0 0">Besser als ${pctTxt(bf.pct)} der Bevölkerung.</p></div>
     ${ac ? `<div style="margin:10px 0">${ac}</div>` : ''}
     <button class="btn" onclick="closeResult()">${r.kind === 'cold' ? 'Ausweis ansehen' : 'Fertig'}</button>
     <p class="sub" style="margin-top:14px">Lösungen bleiben unter Verschluss. Echte Aufgaben verrät man nicht.</p>
@@ -1041,7 +1111,7 @@ function voice(f, then) { // the public Gute Nudel copy has no voice files; a mi
     return p;
   } catch (e) { return null; }
 }
-function say(k, quiet) { const l = pick(SAY[k]); if (!quiet) toast(l); return voice(l.f); } // quiet = voice only (test screens)
+function say(k, quiet) { const l = pick(SAY[k]); heard(l.f); if (!quiet) toast(l); return voice(l.f); } // quiet = voice only (test screens)
 
 function finish() {
   const r = run; run = null;
@@ -1075,6 +1145,7 @@ function finish() {
     ${correct < 10 ? `<button class="btn ghost" onclick="review()">🔍 Fehler ansehen (${10 - correct})</button>` : ''}
     <button class="btn ghost" onclick="$('#test').remove();startSet('${r.kind}')">Noch eine Sitzung</button>
   </div>`;
+  heard(d[0]); if (after) heard(after);
   voice(d[0], after);
   closeResult.kind = r.kind; review.run = r;
 }
@@ -1122,6 +1193,73 @@ function review() {
   $('#test').scrollTop = 0;
 }
 function closeResult() { $('#test').remove(); tab = closeResult.kind === 'cold' ? 'id' : 'home'; render(); }
+
+/* ---------- consent: fingerprint scan (hold 2 s) ---------- */
+const aktenNr = () => `${String(S.created).slice(-6, -4)}-${String(S.created).slice(-4)}`;
+const pctTxt = p => (p > 99.9 ? '> 99,9' : p < 0.1 ? '< 0,1' : String(p).replace('.', ',')) + ' %';
+const FP_SVG = (() => { let s = ''; for (let i = 0; i < 10; i++) { const rx = 6 + i * 4.6, ry = 8 + i * 5.6, c = 2 * Math.PI * Math.sqrt((rx * rx + ry * ry) / 2), gap = 6 + (i * 23) % 26; s += `<ellipse cx="50" cy="58" rx="${rx}" ry="${ry}" stroke-dasharray="${(c - gap).toFixed(1)} ${gap}" stroke-dashoffset="${(i * 17) % 40}"/>`; } return `<svg viewBox="0 0 100 110" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">${s}</svg>`; })();
+function consentScreen() {
+  const d = document.createElement('div'); d.id = 'test'; document.body.appendChild(d);
+  d.innerHTML = `<div class="consent"><div class="thead"><span>🪪 Einwilligung</span><span></span><button class="x" onclick="$('#test').remove()">✕</button></div>
+    <div class="card cform"><div class="sub">Einwilligungserklärung · Formular K-7</div>
+      <div class="row"><span>Proband</span><b>${esc((S.name || 'Unbekannt').toUpperCase())}</b></div>
+      <div class="row"><span>Akte</span><b>Nr. ${aktenNr()}</b></div>
+      <div class="row"><span>Datum</span><b>${fmtDay(today())}</b></div>
+      <p>Ich willige ein, dass mein Gehirn gemessen, ausgewertet und archiviert wird. Die Ergebnisse sind endgültig. Ich habe keine Fragen.</p></div>
+    <div class="fp" id="fp">${FP_SVG}<i class="scan"></i><svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48"/></svg></div>
+    <div class="fpmsg" id="fpmsg">Finger auflegen und halten</div></div>`;
+  const fp = $('#fp'), msg = $('#fpmsg'); let t0 = 0, raf = 0;
+  const set = f => fp.style.setProperty('--p', f);
+  const stop = () => { if (!t0) return; cancelAnimationFrame(raf); t0 = 0; fp.classList.remove('on'); set(0); msg.textContent = 'Scan abgebrochen. Finger ruhig halten.'; };
+  const done = () => {
+    t0 = 0; fp.classList.remove('on'); fp.classList.add('ok'); msg.textContent = 'Identität bestätigt. Einwilligung erteilt.';
+    S.consent = { t: Date.now() }; save(); try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+    setTimeout(() => { const e = $('#test'); if (e) e.remove(); startReal('cold'); }, 1000);
+  };
+  fp.onpointerdown = e => {
+    if (fp.classList.contains('ok')) return;
+    e.preventDefault(); try { fp.setPointerCapture(e.pointerId); } catch (x) {}
+    t0 = performance.now(); fp.classList.add('on'); msg.textContent = 'Scanne …';
+    const tick = () => { if (!t0) return; const f = Math.min(1, (performance.now() - t0) / 2000); set(f); if (f >= 1) return done(); raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+  };
+  fp.onpointerup = fp.onpointercancel = stop;
+  fp.oncontextmenu = e => e.preventDefault();
+}
+
+/* ---------- Tonbandprotokoll: every line once heard ---------- */
+const LINES_ALL = (() => { const m = new Map(); for (const g of Object.keys(DOC)) for (const [f, en, de] of DOC[g]) m.set(f, { f, en, de, who: 'Dr. H. J. Westerman' }); for (const k in SAY) for (const l of SAY[k]) if (!m.has(l.f)) m.set(l.f, l); return [...m.values()]; })();
+function heard(f) { S.heard = S.heard || {}; if (f && !S.heard[f]) { S.heard[f] = Date.now(); save(); } }
+function tapeView() {
+  const h = S.heard || {}, n = LINES_ALL.filter(l => h[l.f]).length;
+  return `<h2>Tonbandprotokoll · ${n}/${LINES_ALL.length}</h2><div class="card">${LINES_ALL.map((l, i) => {
+    const no = `Band ${String(i + 1).padStart(2, '0')} · `;
+    return h[l.f] ? `<div class="tl">${FROM_GN ? '' : `<button class="spk" onclick="voice('${l.f}')" aria-label="Abspielen">${SPK_SVG}</button>`}<div class="who">${no}${l.who}</div><div class="en">„${esc(l.en)}“</div><div class="de">${esc(l.de)}</div></div>`
+      : `<div class="tl off"><div class="who">${no}Nicht freigegeben</div><div class="redact">${'█'.repeat(Math.min(26, Math.ceil(l.en.length / 4)))}</div></div>`;
+  }).join('')}</div>`;
+}
+
+/* ---------- printable patient file (A4) ---------- */
+function printFile() {
+  const rs = realSets(), tr = training().slice(-40).reverse(), nm = esc((S.name || 'Unbekannt').toUpperCase());
+  const got = AWARDS.filter(a => S.awards[a.id]);
+  const row = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`;
+  let el = $('#printdoc'); if (!el) { el = document.createElement('div'); el.id = 'printdoc'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="pd-head"><div>INSTITUT FÜR KOGNITIVE OPTIMIERUNG · ABT. III</div><div>VERTRAULICH</div></div>
+    <h1>Patientenakte Nr. ${aktenNr()}</h1>
+    <div class="pd-stamp">VERTRAULICH</div>
+    <h2>Personalien</h2><table class="kv">${row('Proband', nm)}${row('Akte angelegt', fmtDay(dayOf(S.created)))}${row('Einwilligung', S.consent ? 'per Fingerabdruck am ' + fmtDay(dayOf(S.consent.t)) : 'nicht dokumentiert')}${row('Erstmessung', S.cold ? `IQ ${S.cold.iq} am ${fmtDay(S.cold.day)}` : 'ausstehend')}${row('Stand', fmtDay(today()))}</table>
+    <h2>Echte Messungen</h2>${rs.length ? `<table class="grid"><tr><th>Datum</th><th>Art</th><th>Richtig</th><th>IQ</th><th>Bereich (90 %)</th><th>Prozentrang</th></tr>${rs.map(s => `<tr><td>${fmtDay(s.day)}</td><td>${s.kind === 'cold' ? 'Erstmessung' : 'Kontrolle'}</td><td>${s.correct}/${s.n || REAL_N}</td><td><b>${s.iq}</b></td><td>${s.lo ? s.lo + '–' + s.hi : '–'}</td><td>${s.pct != null ? pctTxt(s.pct) : '–'}</td></tr>`).join('')}</table>` : '<p>Keine Messungen.</p>'}
+    <h2>Therapieprotokoll (letzte ${tr.length} Sitzungen)</h2>${tr.length ? `<table class="grid"><tr><th>Datum</th><th>Sitzung</th><th>Richtig</th><th>Note</th><th>Stufe</th></tr>${tr.map(s => `<tr><td>${fmtDay(s.day)}</td><td>${s.kind === 'reason' ? 'Denksport' : s.kind === 'series' ? 'Zahlenreihen' : 'Matrizen'}</td><td>${s.correct}/10</td><td><b>${gradeOfSet(s)}</b></td><td>${s.st || 0}</td></tr>`).join('')}</table>` : '<p>Keine Sitzungen.</p>'}
+    <h2>Auszeichnungen</h2><p>${got.length ? got.map(a => `${a.n} (${fmtDay(S.awards[a.id].first)})`).join(' · ') : 'Keine.'}</p>
+    <h2>Methodik</h2><p>Figurale Matrizen mit freier Antwortkonstruktion, Open Matrices Item Bank (Koch, Spinath, Greiff &amp; Becker, 2022, J. Intell. 10(3):41, GPLv3), 219 validierte Aufgaben, Normstichprobe 2.561 Probanden. Skalierung 2PL-IRT, EAP, IQ = 115 + 15θ. Eine Messung pro Kalendermonat.</p>
+    <div class="pd-sign"><div class="line"></div>Dr. H. J. Westerman · Therapieleitung</div>`;
+  document.body.classList.add('printing');
+  const off = () => document.body.classList.remove('printing');
+  window.addEventListener('afterprint', off, { once: true });
+  try { window.print(); } catch (e) { off(); }
+  setTimeout(off, 60000);
+}
 
 /* ---------- share card ---------- */
 function shareCard() {
