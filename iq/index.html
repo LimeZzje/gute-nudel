@@ -1116,7 +1116,8 @@ function voice(f, then) { // voice/<f>.mp3 next to this page; a missing file jus
   } catch (e) { return null; }
 }
 // his rule: a category plays its unheard lines first (random order, each once), only then random repeats
-const nextOf = (arr, key) => { const h = S.heard || {}, fresh = arr.filter(x => !h[key(x)]); return pick(fresh.length ? fresh : arr); };
+// Westerman (and the lab speaker) go first; Dr. ▇▇▇▇'s lines (X_...) only after those are all heard
+const nextOf = (arr, key) => { const h = S.heard || {}, fresh = arr.filter(x => !h[key(x)]), first = fresh.filter(x => !key(x).startsWith('X_')); return pick(first.length ? first : fresh.length ? fresh : arr); };
 function say(k, quiet) { const l = nextOf(SAY[k], x => x.f); heard(l.f); if (!quiet) toast(l); return voice(l.f); } // quiet = voice only (test screens)
 
 function finish() {
