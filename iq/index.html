@@ -223,8 +223,14 @@ nav{border-top-color:var(--acc)}nav button.on{color:var(--acc)}
   #printdoc .grid th{font:700 7.5pt monospace;letter-spacing:.08em;text-transform:uppercase;text-align:left;border-bottom:1px solid #000;padding:3pt 4pt}
   #printdoc .grid td{border-bottom:1px solid #ccc;padding:3pt 4pt}
   #printdoc .pd-stamp{position:absolute;right:6mm;top:18mm;transform:rotate(-12deg);border:3px solid #a3261d;color:#a3261d;font:900 14pt monospace;letter-spacing:.12em;padding:2pt 8pt;border-radius:3pt}
+  #printdoc .pd-letter{border-left:2px solid #999;padding:2pt 0 2pt 8pt;margin:0 0 10pt;break-inside:avoid}#printdoc .pd-letter p{margin:3pt 0}
   #printdoc .pd-sign{margin-top:28pt;font:9pt monospace;letter-spacing:.06em}#printdoc .pd-sign .line{width:60mm;border-bottom:1px solid #000;margin-bottom:3pt;height:18pt}
 }
+.letter{background:#efe9d6;color:#22201a;border-radius:4px;padding:18px 18px 16px;margin-top:10px;text-align:left;font:14.5px/1.55 var(--mono, "Courier New", monospace);box-shadow:0 6px 24px rgba(0,0,0,.35);transform:rotate(-.4deg)}
+.letter .lh{display:flex;justify-content:space-between;gap:8px;font-size:9.5px;letter-spacing:.14em;border-bottom:2px solid #22201a;padding-bottom:5px;margin-bottom:10px}
+.letter .re{font-size:11px;letter-spacing:.06em;opacity:.7;margin-bottom:12px}.letter p{margin:0 0 10px}
+.letter .sig{font:italic 30px/1 Georgia,serif;margin:4px 0 2px;transform:rotate(-3deg);transform-origin:left}.letter .sub2{font-size:11px;opacity:.7}
+.letter .ps{margin:14px 0 0;font-size:13px;opacity:.85}
 .aw:not(.off){border-left:3px solid var(--acc);padding-left:10px}.aw:not(.off) .n{color:var(--acc)}.aw:not(.off) .ic{filter:none}
 .aw:not(.off) .n::after{content:"ERREICHT";margin-left:8px;font:700 9.5px var(--mono);letter-spacing:.14em;border:1.5px solid var(--acc);border-radius:2px;padding:1px 5px;vertical-align:2px}
 #unlock{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 12px);transform:translateX(-50%);z-index:31;pointer-events:none;display:flex;gap:10px;align-items:center;background:var(--card);border:1.5px solid var(--acc);border-radius:3px;padding:7px 12px;font:700 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--acc);box-shadow:0 6px 18px rgba(0,0,0,.35);white-space:nowrap}
@@ -578,7 +584,72 @@ const GRADES = [[10, 'A+'], [9, 'A'], [7, 'B'], [5, 'C'], [3, 'D'], [0, 'F']];
 const gradeOf = c => GRADES.find(g => c >= g[0])[1];
 const GRADE_RANK = { 'A+': 5, A: 4, B: 3, C: 2, D: 1, F: 0 };
 
-if (typeof module !== 'undefined') module.exports = { befund, thetaPost, OMIB, realSet, thetaEAP, realIQ, cellBits, gradeOf, genCube, foldNet, ALL_ORIENT, matrixSet, reasonSet, MAX_LEVEL, genMatrix, genSeries, iqFrom, SET_LEVELS, RANGE, NLINES, genRotation, genOrder, genSyll, holds, MODELS, SA, SB, SC, rotKeys, mirror, keyOf, REASON_SET };
+/* ---------- Bau-Training: generated items in the real test's format (20 blocks, build the missing cell) ----------
+   The 20 blocks = 5 groups of 4 (corners, diagonals, edge boxes, centre, arrows) = the 5 columns of the block grid.
+   One rule per group, row by row like OMIB: or / xor / and / sub (cell 3 from cells 1 + 2), const (same in the row),
+   dist (three variants, every row has each once). Uniqueness: every per-block rule (rows or columns) and the group's
+   dist rule that also fits the complete rows/columns must predict the same answer, otherwise the item is redrawn. */
+const BOPS = { or: (a, b) => a | b, xor: (a, b) => a ^ b, and: (a, b) => a & b, sub: (a, b) => a & ~b & 15, bus: (a, b) => b & ~a & 15 };
+const B_GROUPS = [1, 1, 2, 2, 3, 3, 4, 4, 5]; // groups per level 0..8
+const B_POOL = L => L < 2 ? ['or', 'dist', 'dist', 'const'] : L < 4 ? ['or', 'xor', 'dist', 'sub', 'and'] : ['or', 'xor', 'xor', 'and', 'sub', 'dist'];
+const BUILD_LEVELS = [0, 1, 1, 2, 2, 3, 4, 4, 5, 6], BUILD_SEC = 60;
+// centre group: a filled square hides everything else, a filled circle hides the circle outline
+const bOk = (g, m) => g !== 3 || ((m & 1) ? m === 1 : (m & 12) !== 12);
+const bRand = (g, act, nz) => { let m; do { m = R(16) & act; } while (!bOk(g, m) || (nz && !m)); return m; };
+function bGroup(g, op, L) {
+  for (let tries = 0; tries < 400; tries++) {
+    let rows;
+    if (op === 'dist') { // one variant per cell: single blocks, from level 4 on also pairs
+      const pool = []; for (let m = 1; m < 16; m++) if (bOk(g, m) && (L >= 4 ? bits(m) <= 2 : bits(m) === 1)) pool.push(m);
+      const v = shuffle(pool.slice()).slice(0, 3), s = pick([1, 2]);
+      rows = [0, 1, 2].map(r => [0, 1, 2].map(k => v[(k + r * s) % 3]));
+    } else {
+      const act = shuffle([1, 2, 4, 8]).slice(0, 2 + R(L >= 3 ? 3 : 2)).reduce((a, b) => a | b, 0);
+      rows = [0, 1, 2].map(() => {
+        if (op === 'const') { const m = bRand(g, act, true); return [m, m, m]; }
+        const a = bRand(g, act, true), b = bRand(g, act, true), c = BOPS[op](a, b);
+        return [a, b, c];
+      });
+      if (op !== 'const' && rows.some(r => !bOk(g, r[2]) || r[0] === r[1])) continue;
+    }
+    if (bUnique(rows)) return rows;
+  }
+  return null;
+}
+function bUnique(rows) { // rows[r][k] = 4-bit mask of one group
+  const truth = rows[2][2], v = rows, preds = []; // one rule for the whole group (as players read it)
+  for (const f of Object.values(BOPS)) {
+    if ([0, 1].every(r => v[r][2] === f(v[r][0], v[r][1]))) preds.push(f(v[2][0], v[2][1]));
+    if ([0, 1].every(k => v[2][k] === f(v[0][k], v[1][k]))) preds.push(f(v[0][2], v[1][2]));
+  }
+  if ([0, 1].every(r => v[r][0] === v[r][1] && v[r][1] === v[r][2]) && v[2][0] === v[2][1]) preds.push(v[2][0]); // same in the row
+  if ([0, 1].every(k => v[0][k] === v[1][k] && v[1][k] === v[2][k]) && v[0][2] === v[1][2]) preds.push(v[0][2]); // same in the column
+  const set = r => [...v[r]].sort().join(); // three variants, each once per row
+  if (new Set(v[0]).size === 3 && set(0) === set(1)) {
+    const left = v[0].filter(m => m !== v[2][0] && m !== v[2][1]);
+    if (left.length === 1) preds.push(left[0]);
+  }
+  return preds.length > 0 && preds.every(p => p === truth);
+}
+function genBuild(L) {
+  for (;;) {
+    const gs = shuffle([0, 1, 2, 3, 4]).slice(0, B_GROUPS[L]), rules = {}, cells = Array.from({ length: 9 }, () => Array(20).fill('0'));
+    let ok = true;
+    for (const g of gs) {
+      const op = pick(B_POOL(L)), rows = bGroup(g, op, L);
+      if (!rows) { ok = false; break; }
+      rules[g] = op;
+      rows.flat().forEach((m, c) => { for (let j = 0; j < 4; j++) if (m >> j & 1) cells[c][g * 4 + j] = '1'; });
+    }
+    if (!ok || gs.every(g => rules[g] === 'const')) continue;
+    const cs = cells.map(c => c.join(''));
+    if (!cs[8].includes('1')) continue; // never an empty answer
+    return { kind: 'build', level: L, cells: cs, rules, answer: cs[8] };
+  }
+}
+const buildSet = (st = 0) => BUILD_LEVELS.map(L => genBuild(Math.min(MAX_LEVEL, L + st)));
+
+if (typeof module !== 'undefined') module.exports = { genBuild, buildSet, bUnique, bOk, BUILD_LEVELS, befund, thetaPost, OMIB, realSet, thetaEAP, realIQ, cellBits, gradeOf, genCube, foldNet, ALL_ORIENT, matrixSet, reasonSet, MAX_LEVEL, genMatrix, genSeries, iqFrom, SET_LEVELS, RANGE, NLINES, genRotation, genOrder, genSyll, holds, MODELS, SA, SB, SC, rotKeys, mirror, keyOf, REASON_SET };
 </script>
 
 <script>
@@ -745,7 +816,8 @@ function vHome() {
   h += `<div class="card"><div class="sub">Therapie heute ${spk('today')}</div>
     ${ts.length ? `<div style="margin:8px 0">${ts.map(s => gradeChip(gradeOfSet(s))).join(' ')}</div><div class="sub">✅ Tägliche Dosis erledigt</div>` : `<p class="sub" style="margin:6px 0 0">Noch keine Sitzung. Die Therapie wartet.</p>`}
     <button class="btn${ts.length ? ' ghost' : ''}" onclick="startSet('daily')">🧠 Matrizen · 10 Aufgaben${stufeTag('daily')}</button>
-    <button class="btn ghost" onclick="startSet('reason')">🌀 Denksport · Rotation, Logik & Reihen${stufeTag('reason')}</button></div>`;
+    <button class="btn ghost" onclick="startSet('reason')">🌀 Denksport · Rotation, Logik & Reihen${stufeTag('reason')}</button>
+    <button class="btn ghost" onclick="startSet('build')">🧱 Bau-Training · wie der echte Test${stufeTag('build')}</button></div>`;
   h += `<div class="grid3">
     <div class="metric"><div class="v">${S.cold ? S.cold.iq : '–'}</div><div class="l"><b>Erstmessung</b>Ausweis</div></div>
     <div class="metric"><div class="v">${st.avg7 ?? '–'}</div><div class="l"><b>Ø Note</b>7 Tage</div></div>
@@ -779,7 +851,7 @@ function vHist() {
   else h += `<div class="card">${rs.slice().reverse().map(a => `<div class="row"><span>${a.kind === 'cold' ? '🪪' : '🧪'} ${fmtDay(a.day)} · ${a.correct}/${a.n || REAL_N}</span><b>${a.iq} ${tierOf(a.iq)[1]}</b></div>`).join('')}</div>`;
   const days = [...new Set(tr.map(s => s.day))].sort().slice(-14).reverse();
   h += `<h2>Therapie · Noten ${spk('grades')}</h2><div class="card">${days.map(d => `<div class="row"><span>${fmtDay(d)}</span><span>${tr.filter(s => s.day === d).map(s => gradeChip(gradeOfSet(s))).join(' ')}</span></div>`).join('') || '<span class="sub">Noch keine Sitzung.</span>'}</div>`;
-  h += `<h2>Letzte Sitzungen</h2><div class="card">${tr.slice(-15).reverse().map(s => `<div class="row"><span>${s.kind === 'reason' ? '🌀' : s.kind === 'series' ? '🔢' : '🧠'} ${fmtDay(s.day)} · ${s.correct}/10${s.st ? ' · Stufe ' + s.st : ''}</span>${gradeChip(gradeOfSet(s))}</div>`).join('') || '<span class="sub">Noch nichts.</span>'}</div>`;
+  h += `<h2>Letzte Sitzungen</h2><div class="card">${tr.slice(-15).reverse().map(s => `<div class="row"><span>${s.kind === 'reason' ? '🌀' : s.kind === 'series' ? '🔢' : s.kind === 'build' ? '🧱' : '🧠'} ${fmtDay(s.day)} · ${s.correct}/10${s.st ? ' · Stufe ' + s.st : ''}</span>${gradeChip(gradeOfSet(s))}</div>`).join('') || '<span class="sub">Noch nichts.</span>'}</div>`;
   return h;
 }
 
@@ -811,6 +883,7 @@ const BRAIN = `<svg viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
 
 function vId() {
   if (!S.cold) return `<div class="card"><p>Noch kein Ausweis. Die Erstmessung, ein echter IQ-Test, stellt ihn aus.</p><button class="btn" onclick="go('home');startSet('cold')">Erstmessung starten</button></div>`;
+  ensureBriefs();
   const nm = (S.name || 'Unbekannt').toUpperCase();
   const mrz = esc(('IDD<<' + nm.replace(/[^A-Z]/g, '<') + '<<UNTRAINIERT<<<<<<<<<<<<<<<<<<<<').slice(0, 44)) + '<br>' + esc((S.cold.iq + 'IQ<<' + S.cold.day.replace(/-/g, '') + '<<SMOOTH<<<<<<<<<<<<<<<<<<<<<<<').slice(0, 44));
   const st = stats();
@@ -825,6 +898,7 @@ function vId() {
     <div class="mrz">${mrz}</div></div></div>
     <div class="card">${spk('id')}<div class="cmp"><div><div class="sub">Damals</div><div class="v" style="color:#8a6a12">${S.cold.iq}</div></div><div><div class="sub">Echter IQ heute</div><div class="v" style="color:var(--acc)">${st.last ? st.last.iq : S.cold.iq}</div></div></div>
     <p class="sub" style="text-align:center;margin:8px 0 0">Dieses Dokument wird nicht erneuert.</p></div>
+    ${realSets().some(s => s.brief) ? `<div class="card"><div class="sub">✉️ Korrespondenz · Dr. H. J. Westerman</div>${realSets().filter(s => s.brief).reverse().map(s => `<div class="row" style="cursor:pointer" onclick="openBrief(${s.t})"><span>${fmtDay(s.day)} · ${s.kind === 'cold' ? 'Erstmessung' : 'Monatliche Messung'}</span><b>Brief lesen ›</b></div>`).join('')}</div>` : ''}
     <button class="btn" onclick="shareCard()">📤 IQ-Karte teilen</button>
     <button class="btn ghost" onclick="printFile()">🖨 Patientenakte drucken</button>`;
 }
@@ -875,15 +949,44 @@ document.addEventListener('visibilitychange', () => { // phone call / app switch
   if (document.hidden) run.hid = performance.now();
   else if (run.hid) { run.t0 += performance.now() - run.hid; run.hid = 0; }
 });
-const stufeOf = kind => (kind === 'daily' || kind === 'reason') ? ((S.stufe || {})[kind] || 0) : 0;
+const stufeOf = kind => (kind === 'daily' || kind === 'reason' || kind === 'build') ? ((S.stufe || {})[kind] || 0) : 0;
 const stufeTag = kind => stufeOf(kind) ? ` · Stufe ${stufeOf(kind)}` : '';
 function startSet(kind) {
   if (REAL_KINDS.includes(kind)) return startReal(kind);
   const st = stufeOf(kind);
-  const items = kind === 'reason' ? reasonSet(st) : matrixSet(st);
-  run = { kind, items, st, i: 0, res: [], t0: 0, raf: 0, lock: false };
-  const d = document.createElement('div'); d.id = 'test'; document.body.appendChild(d);
-  showItem();
+  const items = kind === 'reason' ? reasonSet(st) : kind === 'build' ? buildSet(st) : matrixSet(st);
+  run = { kind, items, st, i: 0, res: [], t0: 0, raf: 0, lock: false, cur: '0'.repeat(20) };
+  const d = document.createElement('div'); d.id = 'test'; if (kind === 'build') d.className = 'real'; document.body.appendChild(d);
+  kind === 'build' ? showBuild() : showItem();
+}
+/* ---------- Bau-Training: the real test's format, generated items, 60 s each, feedback after every item ---------- */
+function showBuild() {
+  const it = run.items[run.i];
+  run.cur = '0'.repeat(20);
+  $('#test').innerHTML = `<div class="thead"><span>🧱 Bau-Training</span><span>${run.st ? 'Stufe ' + run.st + ' · ' : ''}${run.i + 1}/10</span><button class="x" onclick="quitSet()">✕</button></div><div class="bar"><i id="tb"></i></div>
+    <div class="matrix omib">${it.cells.slice(0, 8).map(omibSVG).join('')}<div class="build" id="qb">${omibSVG(run.cur)}</div></div>
+    <div class="blocks">${OB.map((_, k) => `<button id="ob${k}" onclick="toggleBlock(${k})">${omibSVG('0'.repeat(k) + '1' + '0'.repeat(19 - k))}</button>`).join('')}</div>
+    <button class="btn" onclick="submitBuild()">✓ Weiter</button>`;
+  run.lock = false; run.t0 = performance.now();
+  cancelAnimationFrame(run.raf);
+  const tick = () => {
+    if (!run) return;
+    const t = (performance.now() - run.t0) / 1000, f = Math.max(0, 1 - t / BUILD_SEC), tb = $('#tb');
+    if (tb) { tb.style.width = (f * 100) + '%'; tb.className = f < .25 ? 'late' : ''; }
+    if (t >= BUILD_SEC) return submitBuild();
+    run.raf = requestAnimationFrame(tick);
+  };
+  run.raf = requestAnimationFrame(tick);
+}
+function submitBuild() {
+  if (!run || run.lock) return;
+  run.lock = true; cancelAnimationFrame(run.raf);
+  const it = run.items[run.i], ok = run.cur === it.answer, t = Math.min(BUILD_SEC, (performance.now() - run.t0) / 1000);
+  run.res.push({ ok, t, lvl: it.level, built: run.cur });
+  const qb = $('#qb');
+  qb.style.outline = `4px solid var(${ok ? '--grn' : '--red'})`;
+  if (!ok) setTimeout(() => { if (qb.isConnected) { qb.innerHTML = omibSVG(it.answer); qb.style.outline = '4px solid var(--grn)'; } }, 450);
+  setTimeout(() => { if (!run) return; run.i++; run.i < 10 ? showBuild() : finish(); }, ok ? 450 : 1700);
 }
 function showItem() {
   const it = run.items[run.i], el = $('#test');
@@ -926,7 +1029,7 @@ function answer(k, btn) {
   const btns = document.querySelectorAll('#test .opts button, #test .sopts button, #test .ropts button, #test .topts button');
   if (btn) btn.classList.add(ok ? 'ok' : 'no');
   if (!ok && btns[it.answer]) btns[it.answer].classList.add('ok');
-  setTimeout(() => { run.i++; run.i < 10 ? showItem() : finish(); }, ok ? 380 : 900);
+  setTimeout(() => { if (!run) return; run.i++; run.i < 10 ? showItem() : finish(); }, ok ? 380 : 900);
 }
 function quitSet() { // a real test keeps its progress in S.pend and can be continued from Heute
   if (!run) return;
@@ -983,7 +1086,9 @@ function finishReal() {
   const bands = [0, 1, 2].map(i => [res.slice(cut[i], cut[i + 1]).filter(x => x.ok).length, cut[i + 1] - cut[i]]);
   S.seen = S.seen || {}; for (const it of r.items) S.seen[it.id] = (S.seen[it.id] || 0) + 1;
   const prev = realSets().slice(-1)[0];
-  S.sets.push({ t: now, day, kind: r.kind, iq, correct, n: res.length, time, st: 0, lo: bf.lo, hi: bf.hi, pct: bf.pct, bands });
+  const rset = { t: now, day, kind: r.kind, iq, correct, n: res.length, time, st: 0, lo: bf.lo, hi: bf.hi, pct: bf.pct, bands };
+  rset.brief = writeBrief(rset, prev, training().filter(s => !prev || s.t > prev.t));
+  S.sets.push(rset);
   if (r.kind === 'cold') S.cold = { iq, day, correct };
   const fresh = [];
   if (iq >= 135) award('galaxy', day, fresh); else if (iq >= 125) award('giga', day, fresh);
@@ -1013,7 +1118,8 @@ function finishReal() {
       <div class="row"><span>Bearbeitungszeit</span><b>${mmss(time)} min</b></div>
       <p class="sub" style="margin:10px 0 0">Besser als ${pctTxt(bf.pct)} der Bevölkerung.</p></div>
     ${ac ? `<div style="margin:10px 0">${ac}</div>` : ''}
-    <button class="btn" onclick="closeResult()">${r.kind === 'cold' ? 'Ausweis ansehen' : 'Fertig'}</button>
+    <button class="btn" onclick="openBrief(${now}, 1)">✉️ Post von Dr. H. J. Westerman</button>
+    <button class="btn ghost" onclick="closeResult()">${r.kind === 'cold' ? 'Ausweis ansehen' : 'Fertig'}</button>
     <p class="sub" style="margin-top:14px">Lösungen bleiben unter Verschluss. Echte Aufgaben verrät man nicht.</p>
   </div>`;
   countUp($('#cnt'), iq);
@@ -1152,9 +1258,9 @@ function finish() {
   S.stufe = S.stufe || {};
   if (correct >= 9 && r.st < MAX_STUFE) { S.stufe[r.kind] = r.st + 1; stufeMsg = `⬆️ Stufe ${r.st + 1} freigeschaltet. Schwerere Aufgaben. Die Therapie wird intensiviert.`; }
   else if (correct <= 4 && r.st > 0) { S.stufe[r.kind] = r.st - 1; stufeMsg = `Stufe ${r.st - 1}. Die Dosis wird angepasst.`; }
-  if (S.stufe[r.kind] === MAX_STUFE && !S.awards['top_' + r.kind]) award('top_' + r.kind, day, fresh);
+  if (S.stufe[r.kind] === MAX_STUFE && !S.awards['top_' + r.kind] && AWARDS.some(a => a.id === 'top_' + r.kind)) award('top_' + r.kind, day, fresh);
   const other = r.kind === 'daily' ? 'reason' : 'daily';
-  if (earlierToday.every(s => s.kind !== r.kind) && earlierToday.some(s => s.kind === other)) award('double', day, fresh);
+  if (r.kind !== 'build' && earlierToday.every(s => s.kind !== r.kind) && earlierToday.some(s => s.kind === other)) award('double', day, fresh);
   save();
   const d = nextOf(DOC[g], x => x[0]), note = pick(NOTES[g]), ac = awardChips(fresh), after = stufeMsg ? nextOf(SAY[S.stufe[r.kind] > r.st ? 'up' : 'down'], x => x.f).f : null;
   $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding-top:4vh">
@@ -1194,7 +1300,12 @@ function ruleText(it) {
 }
 function reviewItem(it, i) {
   let h = `<div class="card" style="text-align:left"><div class="sub" style="margin-bottom:8px">Aufgabe ${i + 1}</div>`;
-  if (it.kind === 'matrix') {
+  if (it.kind === 'build') {
+    const G = ['Ecken', 'Diagonalen', 'Randbalken', 'Mitte', 'Pfeile'];
+    const T = { or: 'Feld 3 = Feld 1 und Feld 2 zusammen', xor: 'Feld 3 = nur, was in genau einem der beiden Felder ist', and: 'Feld 3 = nur, was in beiden Feldern ist', sub: 'Feld 3 = Feld 1 ohne das aus Feld 2', const: 'pro Zeile gleich', dist: 'drei Varianten, jede Zeile hat jede genau einmal' };
+    h += `<div class="matrix" style="width:min(80vw,300px);margin:0 auto">${it.cells.map((c, k) => k === 8 ? `<div style="outline:3px solid var(--grn);outline-offset:-3px">${omibSVG(c)}</div>` : omibSVG(c)).join('')}</div>
+      <p style="margin:12px 0 0;line-height:1.6">${Object.keys(it.rules).sort().map(g => `<b>${G[g]}:</b> ${T[it.rules[g]]}`).join('<br>')}<br><span class="sub">Alle anderen Bausteine kommen nicht vor.</span></p>`;
+  } else if (it.kind === 'matrix') {
     h += `<div class="matrix" style="width:min(80vw,300px);margin:0 auto">${it.panels.flat().map((p, k) => k === 8 ? `<div style="outline:3px solid var(--grn);outline-offset:-3px">${panelSVG(p)}</div>` : panelSVG(p)).join('')}</div><p style="margin:12px 0 0;line-height:1.6">${ruleText(it)}</p>`;
   } else if (it.kind === 'cube') {
     h += `<div style="display:flex;gap:10px;align-items:center"><div class="rtarget" style="width:58%;margin:0;aspect-ratio:auto">${netSVG(it.net)}</div><div style="font-size:26px">→</div><div class="rtarget" style="width:34%;margin:0;padding:4px;outline:3px solid var(--grn)">${cubeSVG(it.options[it.answer])}</div></div><p class="sub" style="margin:10px 0 0">Gegenüberliegende Seiten sieht man nie zusammen, und die Reihenfolge rund um eine Ecke muss stimmen.</p>`;
@@ -1261,6 +1372,51 @@ function tapeView() {
   }).join('')}</div>`;
 }
 
+/* ---------- Westermans Monatsbrief: a typed letter into the file after every real test (stored on the set) ---------- */
+function writeBrief(s, prev, since) {
+  const P = [], d = prev ? s.iq - prev.iq : null, hard = (s.bands || [])[2];
+  if (!prev) P.push(pick([`deine Erstmessung ergab einen echten IQ von ${s.iq}. Ich habe die Zahl mit Füller in deine Akte geschrieben. Sie ist jetzt dokumentiert.`,
+    `willkommen am Institut. Deine Erstmessung: IQ ${s.iq}. Ein unbehandeltes Gehirn mit ${s.iq} Punkten. Ich konnte danach nicht schlafen, vor Vorfreude.`]));
+  else if (d > 0) P.push(pick([`dein echter IQ ist von ${prev.iq} auf ${s.iq} gestiegen. Ich habe es zweimal nachgerechnet. Es stimmt.`,
+    `plus ${d} Punkte. Von ${prev.iq} auf ${s.iq}. Ich habe das Ergebnis im Labor laut vorgelesen. Die anderen Probanden haben es gehört. Das war Absicht.`]));
+  else if (d === 0) P.push(pick([`dein echter IQ liegt unverändert bei ${s.iq}. Ein Gehirn, das hält, was es verspricht. Ich respektiere das.`,
+    `${s.iq}, wie im letzten Monat. Auf den Punkt genau. So zuverlässig misst sich nur ein sehr gesundes Gehirn.`]));
+  else P.push(pick([`dein echter IQ ist von ${prev.iq} auf ${s.iq} gefallen. Das ist kein Rückschritt. Das ist Anlauf.`,
+    `${s.iq}. Vorher ${prev.iq}. Ich habe die Zahl nicht in rot geschrieben. Ich habe sie in schwarz geschrieben, ganz klein, damit sie sich nicht schämt.`]));
+  const n = since.length;
+  if (!n) P.push(prev ? 'Seit der letzten Messung hast du keine einzige Sitzung besucht. Dein Stuhl stand jeden Tag bereit. Ich auch.' : 'Die Therapie beginnt morgen. Oder heute. Ich bin ohnehin hier.');
+  else {
+    const best = since.map(gradeOfSet).sort((a, b) => GRADE_RANK[b] - GRADE_RANK[a])[0], top = Math.max(0, ...Object.values(S.stufe || {}));
+    P.push(`Seit der letzten Messung: ${n} ${n === 1 ? 'Sitzung' : 'Sitzungen'}. Deine beste Note: ${best}. ` + ({
+      'A+': 'Ich habe sie ausgedruckt und über mein Bett gehängt.', A: 'Ich habe sie mir eingerahmt. Der Rahmen war teuer.', B: 'Eine ehrliche Note. Ich habe sie mir trotzdem notiert.',
+      C: 'Ich habe sie unterstrichen. Zweimal. Wir arbeiten daran.', D: 'Ich habe sie aufgehoben, für später, wenn wir beide darüber lachen.', F: 'Ich habe sie nicht weggeworfen. Ich werfe nichts von dir weg.' }[best])
+      + (top ? ` Höchste Stufe bisher: ${top}. Die Dosis steigt.` : ''));
+  }
+  P.push(`Prozentrang ${pctTxt(s.pct)}. Du bist besser als ${pctTxt(s.pct)} der Bevölkerung. Ich habe es den anderen nicht gesagt. Noch nicht.` +
+    (hard ? ` Bei den schweren Aufgaben: ${hard[0]} von ${hard[1]}. ${hard[0] >= hard[1] / 2 ? 'Bemerkenswert.' : 'Dort wohnt dein nächster Monat.'}` : ''));
+  P.push(pick(['Ich beobachte deine Fortschritte. Sehr genau.', 'Schlaf gut. Dein Gehirn arbeitet ohnehin weiter. Für uns.',
+    `Bis zur nächsten Messung ab dem ${fmtDay(nextRealDay())}. Ich habe die Tage schon gezählt.`, 'Iss etwas. Trink Wasser. Komm wieder. In dieser Reihenfolge.']));
+  return { t: s.t, p: P, ps: pick(['PS: Deine Akte liegt jetzt in meiner obersten Schublade. Die anderen liegen unten.', 'PS: Ich habe dein Ergebnis auswendig gelernt.',
+    'PS: Niemand sonst liest diesen Brief. Ich habe nachgesehen.', 'PS: Das Institut ist stolz auf dich. Ich bin das Institut.']) };
+}
+function ensureBriefs() { // real tests from before the letters existed get theirs on first look
+  let prev = null, ch = false;
+  for (const s of realSets()) { if (!s.brief) { s.brief = writeBrief(s, prev, training().filter(x => x.t < s.t && (!prev || x.t > prev.t))); ch = true; } prev = s; }
+  if (ch) save();
+}
+const briefHTML = b => `<div class="letter"><div class="lh"><span>INSTITUT FÜR KOGNITIVE OPTIMIERUNG · ABT. III</span><span>${fmtDay(dayOf(b.t))}</span></div>
+  <div class="re">Akte Nr. ${aktenNr()} · Betreff: Monatliche Messung</div>
+  <p>${esc(S.name || 'Proband')},</p>${b.p.map(x => `<p>${x}</p>`).join('')}
+  <p>Mit wissenschaftlicher Hochachtung</p><div class="sig">H. J. Westerman</div><div class="sub2">Dr. H. J. Westerman · Therapieleitung</div><p class="ps">${b.ps}</p></div>`;
+function openBrief(t, back) {
+  const s = S.sets.find(x => x.t === t); if (!s || !s.brief) return;
+  let d = $('#test'); if (!d) { d = document.createElement('div'); d.id = 'test'; document.body.appendChild(d); }
+  d.className = '';
+  d.innerHTML = `<div style="width:100%;max-width:440px;padding-bottom:20px"><div class="thead"><span>✉️ Post vom Institut</span><span></span><button class="x" onclick="${back ? 'closeResult()' : "$('#test').remove()"}">✕</button></div>${briefHTML(s.brief)}
+    <button class="btn" onclick="${back ? 'closeResult()' : "$('#test').remove()"}">Zur Akte legen</button></div>`;
+  d.scrollTop = 0;
+}
+
 /* ---------- printable patient file (A4) ---------- */
 function printFile() {
   const rs = realSets(), tr = training().slice(-40).reverse(), nm = esc((S.name || 'Unbekannt').toUpperCase());
@@ -1272,7 +1428,8 @@ function printFile() {
     <div class="pd-stamp">VERTRAULICH</div>
     <h2>Personalien</h2><table class="kv">${row('Proband', nm)}${row('Akte angelegt', fmtDay(dayOf(S.created)))}${row('Einwilligung', S.consent ? 'per Fingerabdruck am ' + fmtDay(dayOf(S.consent.t)) : 'nicht dokumentiert')}${row('Erstmessung', S.cold ? `IQ ${S.cold.iq} am ${fmtDay(S.cold.day)}` : 'ausstehend')}${row('Stand', fmtDay(today()))}</table>
     <h2>Echte Messungen</h2>${rs.length ? `<table class="grid"><tr><th>Datum</th><th>Art</th><th>Richtig</th><th>IQ</th><th>Bereich (90 %)</th><th>Prozentrang</th></tr>${rs.map(s => `<tr><td>${fmtDay(s.day)}</td><td>${s.kind === 'cold' ? 'Erstmessung' : 'Kontrolle'}</td><td>${s.correct}/${s.n || REAL_N}</td><td><b>${s.iq}</b></td><td>${s.lo ? s.lo + '–' + s.hi : '–'}</td><td>${s.pct != null ? pctTxt(s.pct) : '–'}</td></tr>`).join('')}</table>` : '<p>Keine Messungen.</p>'}
-    <h2>Therapieprotokoll (letzte ${tr.length} Sitzungen)</h2>${tr.length ? `<table class="grid"><tr><th>Datum</th><th>Sitzung</th><th>Richtig</th><th>Note</th><th>Stufe</th></tr>${tr.map(s => `<tr><td>${fmtDay(s.day)}</td><td>${s.kind === 'reason' ? 'Denksport' : s.kind === 'series' ? 'Zahlenreihen' : 'Matrizen'}</td><td>${s.correct}/10</td><td><b>${gradeOfSet(s)}</b></td><td>${s.st || 0}</td></tr>`).join('')}</table>` : '<p>Keine Sitzungen.</p>'}
+    <h2>Therapieprotokoll (letzte ${tr.length} Sitzungen)</h2>${tr.length ? `<table class="grid"><tr><th>Datum</th><th>Sitzung</th><th>Richtig</th><th>Note</th><th>Stufe</th></tr>${tr.map(s => `<tr><td>${fmtDay(s.day)}</td><td>${s.kind === 'reason' ? 'Denksport' : s.kind === 'series' ? 'Zahlenreihen' : s.kind === 'build' ? 'Bau-Training' : 'Matrizen'}</td><td>${s.correct}/10</td><td><b>${gradeOfSet(s)}</b></td><td>${s.st || 0}</td></tr>`).join('')}</table>` : '<p>Keine Sitzungen.</p>'}
+    ${rs.some(s => s.brief) ? `<h2>Korrespondenz</h2>${rs.filter(s => s.brief).map(s => `<div class="pd-letter"><b>${fmtDay(s.day)} · Dr. H. J. Westerman an ${nm}</b>${s.brief.p.map(x => `<p>${x}</p>`).join('')}<p><i>${s.brief.ps}</i></p></div>`).join('')}` : ''}
     <h2>Auszeichnungen</h2><p>${got.length ? got.map(a => `${a.n} (${fmtDay(S.awards[a.id].first)})`).join(' · ') : 'Keine.'}</p>
     <h2>Methodik</h2><p>Figurale Matrizen mit freier Antwortkonstruktion, Open Matrices Item Bank (Koch, Spinath, Greiff &amp; Becker, 2022, J. Intell. 10(3):41, GPLv3), 219 validierte Aufgaben, Normstichprobe 2.561 Probanden. Skalierung 2PL-IRT, EAP, IQ = 115 + 15θ. Eine Messung pro Kalendermonat.</p>
     <div class="pd-sign"><div class="line"></div>Dr. H. J. Westerman · Therapieleitung</div>`;
