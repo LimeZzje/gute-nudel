@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#e7e2d3">
+<meta name="theme-color" content="#111214">
 <title>IQ MaXxing</title>
 <style>
 :root{--bg:#0b0b0c;--card:#17171a;--line:#2a2a2f;--ink:#f2f2f2;--dim:#9a9aa3;--acc:#c6ff3d;--red:#ff4d5e;--grn:#49e07a}
@@ -131,7 +131,8 @@ textarea{height:90px;font-size:12px}
 .memo{margin-top:10px;text-align:left;font-family:"Courier New",monospace;background:#e9e2c9;color:#2b2615;border-radius:6px;padding:10px 12px;font-size:14px;transform:rotate(-.6deg)}
 .memo b{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.65;margin-bottom:3px}
 /* ===== clinical theme (11-08): printed patient file of a research institute ===== */
-:root{--bg:#e7e2d3;--card:#faf7ee;--line:#bcb39d;--ink:#1d1c19;--dim:#6c6555;--acc:#1d1c19;--red:#a3261d;--grn:#2f6b3a;--mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,"Courier New",monospace;color-scheme:light}
+:root{--bg:#111214;--card:#1b1d20;--line:#34373c;--ink:#e8e4d8;--dim:#959083;--acc:#e8e4d8;--red:#e0574b;--grn:#6fbf7f;--nav:rgba(22,23,26,.97);--gA:#6fbf7f;--gB:#86aee0;--gC:#d1a83a;--gD:#e0574b;--mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,"Courier New",monospace;color-scheme:dark}
+:root[data-theme="light"]{--bg:#e7e2d3;--card:#faf7ee;--line:#bcb39d;--ink:#1d1c19;--dim:#6c6555;--acc:#1d1c19;--red:#a3261d;--grn:#2f6b3a;--nav:rgba(243,239,227,.97);--gA:#2f6b3a;--gB:#24466e;--gC:#8a6a12;--gD:#a3261d;color-scheme:light}
 html,body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .mast{border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:14px}
 .mast .inst{font:700 10.5px/1.3 var(--mono);letter-spacing:.16em;color:var(--dim)}
@@ -148,7 +149,7 @@ h2{font:700 11.5px var(--mono);letter-spacing:.16em;color:var(--dim);border-bott
 .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink);font:700 13.5px var(--mono);letter-spacing:.06em}
 .metric{background:var(--card);border-radius:3px}.metric .v{font-family:var(--mono)}.metric .l{color:var(--dim)}
 .metric .l b{font-size:10px;letter-spacing:.1em;color:var(--ink)}
-nav{background:rgba(243,239,227,.97);border-top:2px solid var(--ink)}
+nav{background:var(--nav);border-top:2px solid var(--ink)}
 nav button{font:700 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
 nav button span{filter:grayscale(1);opacity:.75}nav button.on{color:var(--ink)}nav button.on span{opacity:1}
 #test{background:var(--bg)}
@@ -161,18 +162,24 @@ nav button span{filter:grayscale(1);opacity:.75}nav button.on{color:var(--ink)}n
 .tq{font-family:inherit}
 .chip{background:transparent;color:var(--ink);border:1.5px solid var(--ink);border-radius:2px;font:700 12.5px var(--mono);letter-spacing:.04em}
 .gchip{background:transparent;border:1.5px solid currentColor;border-radius:2px;font-family:var(--mono)}
-.g5,.g4{color:#2f6b3a}.g3{color:#24466e}.g2{color:#8a6a12}.g1,.g0{color:#a3261d}
-.grade{display:inline-block;font:900 104px/1 var(--mono);border:6px solid currentColor;border-radius:8px;padding:6px 22px 2px;margin:14px 0 14px;transform:rotate(-4deg);opacity:.88;mix-blend-mode:multiply}
+.g5,.g4{color:var(--gA)}.g3{color:var(--gB)}.g2{color:var(--gC)}.g1,.g0{color:var(--gD)}
+.grade{display:inline-block;font:900 104px/1 var(--mono);border:6px solid currentColor;border-radius:8px;padding:6px 22px 2px;margin:14px 0 14px;transform:rotate(-4deg);opacity:.9}
+:root[data-theme="light"] .grade{mix-blend-mode:multiply}
 .doc{background:var(--card);border-radius:3px;border-left:3px solid var(--ink)}
 .doc .who button{background:var(--ink);color:var(--card);border-radius:2px}
 .doc .say{color:var(--ink)}
 .msg{font-weight:700}
 .cmp .v{font-family:var(--mono)}
-.row{border-bottom-color:var(--line)}
-input,textarea{background:#fff;color:var(--ink);border-color:var(--line);border-radius:3px}
+.row{border-bottom-color:var(--line);gap:14px}.row>span:first-child{color:var(--dim);flex:none;filter:grayscale(1)}.row b{text-align:right}
+input,textarea{background:var(--bg);color:var(--ink);border-color:var(--line);border-radius:3px}
 .aw .ic{filter:grayscale(1)}.aw .n{font-family:var(--mono);letter-spacing:.02em}
 .idwrap .idcard{box-shadow:0 6px 16px rgba(60,50,30,.35)}
-.btn,.tier,.chip,.sub,.thead,.msg{filter:grayscale(1)} /* emojis in ink, like the rest of the file */
+.btn,.tier,.chip,.sub,.thead,.msg{filter:grayscale(1)}
+.chart svg{color:var(--ink)}
+.spk{float:right;background:none;border:1px solid var(--line);border-radius:3px;width:30px;height:24px;margin:-4px 0 0 8px;padding:0;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;filter:none}
+.spk svg{width:15px;height:15px}h2 .spk{margin-top:-6px}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 78px);transform:translateX(-50%);width:min(92vw,440px);background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:3px;padding:10px 12px;z-index:30;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);transition:opacity .3s}
+#toast .who{font:700 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}#toast .en{font:italic 15px/1.4 Georgia,serif;margin-top:4px}#toast .de{color:var(--dim);font-size:13px;margin-top:3px} /* emojis in ink, like the rest of the file */
 </style>
 </head>
 <body>
@@ -638,7 +645,10 @@ function nav() {
 }
 function go(k) { tab = k; render(); window.scrollTo(0, 0); }
 
+function applyTheme() { const th = S.theme === 'light' ? 'light' : 'dark'; document.documentElement.dataset.theme = th; const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = th === 'light' ? '#e7e2d3' : '#111214'; }
+function setTheme(th) { S.theme = th; save(); render(); }
 function render() {
+  applyTheme();
   nav();
   const v = { home: vHome, hist: vHist, id: vId, more: vMore }[tab]();
   $('#app').innerHTML = (FROM_GN ? `<a class="gnback" href="../">← Gute Nudel</a>` : '') + `<div class="mast"><div class="inst">INSTITUT FÜR KOGNITIVE OPTIMIERUNG · ABT. III</div><div class="title"><b>IQ MaXxing</b><span>AKTE NR. ${String(S.created).slice(-6, -4)}-${String(S.created).slice(-4)}</span></div></div>` + v;
@@ -649,26 +659,26 @@ function vHome() {
   if (!S.cold && !S.sets.length) return `
     <div class="card hero">
       <div style="font-size:64px">🧠🕸️</div>
-      <div class="msg">Willkommen. Bevor die Therapie beginnt, brauchen wir eine Erstmessung.</div>
+      ${spk('welcome')}<div class="msg">Willkommen. Bevor die Therapie beginnt, brauchen wir eine Erstmessung.</div>
       <p class="sub">Dein Gehirn ist noch völlig unbehandelt. Ein echter IQ-Test aus der Forschung misst, wo du startest, und stellt dir deinen Ausweis aus.</p>
       <button class="btn" onclick="startSet('cold')">${realLabel('cold', 'Erstmessung starten')}</button>
     </div>${REAL_ROWS}`;
   const st = stats();
   let h = '';
-  if (S.cold && realDue() && !S.pend && S.clinicHeard !== monthOf(Date.now())) setTimeout(() => { const p = say('clinic'); if (p && p.then) p.then(() => { S.clinicHeard = monthOf(Date.now()); save(); }, () => {}); }, 300);
+  if (!FROM_GN && S.cold && realDue() && !S.pend && S.clinicHeard !== monthOf(Date.now())) setTimeout(() => { const p = say('clinic'); if (p && p.then) p.then(() => { S.clinicHeard = monthOf(Date.now()); save(); }, () => {}); }, 300);
   if (!st.last) {
-    h += `<div class="card hero"><div class="sub">Dein echter IQ</div><div class="big" style="color:var(--line)">???</div>
+    h += `<div class="card hero"><div class="sub">Dein echter IQ ${spk('real')}</div><div class="big" style="color:var(--line)">???</div>
       <p class="sub">Noch nicht gemessen. ${REAL_N} echte Aufgaben aus der Forschung, keine Zeitgrenze. Das Ergebnis kommt in deinen Ausweis.</p>
       <button class="btn" onclick="startSet('cold')">${realLabel('cold', 'Erstmessung starten')}</button></div>`;
   } else {
     const t = tierOf(st.last.iq), d = st.prevReal ? st.last.iq - st.prevReal.iq : null;
-    h += `<div class="card hero"><div class="sub">Dein echter IQ</div><div class="big">${st.last.iq}</div><div class="tier">${t[2]} ${t[1]}</div>
+    h += `<div class="card hero"><div class="sub">Dein echter IQ ${spk('real')}</div><div class="big">${st.last.iq}</div><div class="tier">${t[2]} ${t[1]}</div>
       ${d === null ? '' : d >= 0 ? `<div class="delta up">▲ +${d} seit dem letzten Test</div>` : `<div class="delta down">▼ −${-d} seit dem letzten Test</div>`}
       <div class="sub" style="margin-top:8px">Gemessen am ${fmtDay(st.last.day)}</div>
       ${realDue() || S.pend ? `<button class="btn" onclick="startSet('real')">${realLabel('real', `🧪 IQ-Test · ${REAL_N} Aufgaben`)}</button>` : `<div class="sub" style="margin-top:6px">Nächster Test ab ${fmtDay(nextRealDay())}. Bis dahin: Therapie.</div>`}</div>`;
   }
   const ts = st.todaySets;
-  h += `<div class="card"><div class="sub">Therapie heute</div>
+  h += `<div class="card"><div class="sub">Therapie heute ${spk('today')}</div>
     ${ts.length ? `<div style="margin:8px 0">${ts.map(s => gradeChip(gradeOfSet(s))).join(' ')}</div><div class="sub">✅ Tägliche Dosis erledigt</div>` : `<p class="sub" style="margin:6px 0 0">Noch keine Sitzung. Die Therapie wartet.</p>`}
     <button class="btn${ts.length ? ' ghost' : ''}" onclick="startSet('daily')">🧠 Matrizen · 10 Aufgaben${stufeTag('daily')}</button>
     <button class="btn ghost" onclick="startSet('reason')">🌀 Denksport · Rotation, Logik & Reihen${stufeTag('reason')}</button></div>`;
@@ -686,25 +696,25 @@ function chartSVG() {
   let s = `<svg viewBox="0 0 ${W} ${H}">`;
   const bands = [[70, 85, '#ff4d5e'], [85, 100, '#888'], [100, 115, '#6aa0ff'], [115, 125, '#49e07a'], [125, 135, '#8a6a12'], [135, 160, '#6b3fa0']];
   for (const [a, b, c] of bands) s += `<rect x="${x0}" y="${Y(b)}" width="${w}" height="${Y(a) - Y(b)}" fill="${c}" opacity=".08"/>`;
-  for (const v of [70, 85, 100, 115, 125, 135, 160]) s += `<text x="${x0 - 4}" y="${Y(v) + 4}" fill="#6c6555" font-size="10" text-anchor="end">${v}</text>`;
-  s += `<line x1="${x0}" x2="${x0 + w}" y1="${Y(130)}" y2="${Y(130)}" stroke="#1d1c19" stroke-dasharray="4 4" opacity=".45"/><text x="${x0 + w - 2}" y="${Y(130) - 4}" fill="#6c6555" font-size="10" text-anchor="end">Mensa</text>`;
+  for (const v of [70, 85, 100, 115, 125, 135, 160]) s += `<text x="${x0 - 4}" y="${Y(v) + 4}" fill="currentColor" opacity=".6" font-size="10" text-anchor="end">${v}</text>`;
+  s += `<line x1="${x0}" x2="${x0 + w}" y1="${Y(130)}" y2="${Y(130)}" stroke="currentColor" stroke-dasharray="4 4" opacity=".45"/><text x="${x0 + w - 2}" y="${Y(130) - 4}" fill="currentColor" opacity=".6" font-size="10" text-anchor="end">Mensa</text>`;
   if (rs.length) {
     const X = i => x0 + (rs.length === 1 ? w / 2 : i / (rs.length - 1) * w);
     const pts = rs.map((r, i) => [X(i), Y(r.iq)]);
-    if (pts.length > 1) s += `<polyline fill="none" stroke="#1d1c19" stroke-width="2" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
-    pts.forEach((p, i) => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#1d1c19"/><text x="${p[0]}" y="${p[1] - 9}" fill="#1d1c19" font-size="11" font-weight="800" text-anchor="middle">${rs[i].iq}</text>`; });
-    s += `<text x="${x0}" y="${H - 4}" fill="#777" font-size="10">${fmtDay(rs[0].day)}</text>${rs.length > 1 ? `<text x="${x0 + w}" y="${H - 4}" fill="#777" font-size="10" text-anchor="end">${fmtDay(rs[rs.length - 1].day)}</text>` : ''}`;
+    if (pts.length > 1) s += `<polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+    pts.forEach((p, i) => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="currentColor"/><text x="${p[0]}" y="${p[1] - 9}" fill="currentColor" font-size="11" font-weight="800" text-anchor="middle">${rs[i].iq}</text>`; });
+    s += `<text x="${x0}" y="${H - 4}" fill="currentColor" opacity=".6" font-size="10">${fmtDay(rs[0].day)}</text>${rs.length > 1 ? `<text x="${x0 + w}" y="${H - 4}" fill="currentColor" opacity=".6" font-size="10" text-anchor="end">${fmtDay(rs[rs.length - 1].day)}</text>` : ''}`;
   }
   return s + '</svg>';
 }
 
 function vHist() {
   const rs = realSets(), tr = training();
-  let h = `<h2>Echter IQ</h2><div class="card chart">${chartSVG()}</div>`;
+  let h = `<h2>Echter IQ ${spk('hist')}</h2><div class="card chart">${chartSVG()}</div>`;
   if (!rs.length) h += `<p class="sub">Noch kein echter IQ gemessen.</p>`;
   else h += `<div class="card">${rs.slice().reverse().map(a => `<div class="row"><span>${a.kind === 'cold' ? '🪪' : '🧪'} ${fmtDay(a.day)} · ${a.correct}/${a.n || REAL_N}</span><b>${a.iq} ${tierOf(a.iq)[1]}</b></div>`).join('')}</div>`;
   const days = [...new Set(tr.map(s => s.day))].sort().slice(-14).reverse();
-  h += `<h2>Therapie · Noten</h2><div class="card">${days.map(d => `<div class="row"><span>${fmtDay(d)}</span><span>${tr.filter(s => s.day === d).map(s => gradeChip(gradeOfSet(s))).join(' ')}</span></div>`).join('') || '<span class="sub">Noch keine Sitzung.</span>'}</div>`;
+  h += `<h2>Therapie · Noten ${spk('grades')}</h2><div class="card">${days.map(d => `<div class="row"><span>${fmtDay(d)}</span><span>${tr.filter(s => s.day === d).map(s => gradeChip(gradeOfSet(s))).join(' ')}</span></div>`).join('') || '<span class="sub">Noch keine Sitzung.</span>'}</div>`;
   h += `<h2>Letzte Sitzungen</h2><div class="card">${tr.slice(-15).reverse().map(s => `<div class="row"><span>${s.kind === 'reason' ? '🌀' : s.kind === 'series' ? '🔢' : '🧠'} ${fmtDay(s.day)} · ${s.correct}/10${s.st ? ' · Stufe ' + s.st : ''}</span>${gradeChip(gradeOfSet(s))}</div>`).join('') || '<span class="sub">Noch nichts.</span>'}</div>`;
   return h;
 }
@@ -749,18 +759,18 @@ function vId() {
       <div class="f">IQ (Erstmessung)</div><div class="v iq">${S.cold.iq}</div></div></div>
     <div class="stamp">UNTRAINIERT</div>
     <div class="mrz">${mrz}</div></div></div>
-    <div class="card"><div class="cmp"><div><div class="sub">Damals</div><div class="v" style="color:#8a6a12">${S.cold.iq}</div></div><div><div class="sub">Echter IQ heute</div><div class="v" style="color:var(--acc)">${st.last ? st.last.iq : S.cold.iq}</div></div></div>
+    <div class="card">${spk('id')}<div class="cmp"><div><div class="sub">Damals</div><div class="v" style="color:#8a6a12">${S.cold.iq}</div></div><div><div class="sub">Echter IQ heute</div><div class="v" style="color:var(--acc)">${st.last ? st.last.iq : S.cold.iq}</div></div></div>
     <p class="sub" style="text-align:center;margin:8px 0 0">Dieses Dokument wird nicht erneuert.</p></div>
     <button class="btn" onclick="shareCard()">📤 IQ-Karte teilen</button>`;
 }
 
 function vMore() {
   const got = AWARDS.filter(a => S.awards[a.id]).length;
-  let h = `<h2>Trophäen · ${got}/${AWARDS.length}</h2><div class="card">` + AWARDS.map(a => {
+  let h = `<h2>Trophäen · ${got}/${AWARDS.length} ${spk('awards')}</h2><div class="card">` + AWARDS.map(a => {
     const w = S.awards[a.id];
     return `<div class="aw ${w ? '' : 'off'}"><div class="ic">${a.ic}</div><div><div class="n">${a.n}${w && w.count > 1 ? ` ×${w.count}` : ''}</div><div class="sub">${a.d}${w ? ' · seit ' + fmtDay(w.first) : ''}</div></div></div>`;
   }).join('') + `</div>`;
-  h += `<h2>Einstellungen</h2><div class="card"><div class="sub" style="margin-bottom:6px">Name (für Ausweis und IQ-Karte)</div>
+  h += `<h2>Einstellungen ${spk('settings')}</h2><div class="card"><div class="sub" style="margin-bottom:6px">Darstellung</div><div style="display:flex;gap:8px;margin-bottom:14px"><button class="btn small${S.theme === 'light' ? ' ghost' : ''}" style="margin:0" onclick="setTheme('dark')">Dunkel</button><button class="btn small${S.theme === 'light' ? '' : ' ghost'}" style="margin:0" onclick="setTheme('light')">Papier</button></div><div class="sub" style="margin-bottom:6px">Name (für Ausweis und IQ-Karte)</div>
     <input id="nm" value="${esc(S.name)}" maxlength="24" onchange="S.name=this.value.trim();save()">
     <button class="btn ghost small" onclick="exportData()">Daten exportieren</button>
     <button class="btn ghost small" onclick="$('#imp').style.display='block'">Daten importieren</button>
@@ -768,7 +778,14 @@ function vMore() {
     <button class="btn ghost small" id="rst" onclick="resetData(this)" style="color:var(--red)">Alles löschen</button>
     <div id="exp" class="sub" style="margin-top:8px;word-break:break-all"></div></div>
     <h2>Tiers</h2><div class="card">${TIERS.map((t, i) => `<div class="row"><span>${t[2]} ${t[1]}</span><b>${i ? t[0] : '<85'}${TIERS[i + 1] ? '–' + (TIERS[i + 1][0] - 1) : '+'}</b></div>`).join('').replace('<85–84', '&lt;85')}</div>
-    <p class="sub" style="margin-top:18px">Echter IQ-Test: Open Matrices Item Bank (Koch, Spinath, Greiff &amp; Becker, 2022, Journal of Intelligence 10(3):41), GPLv3, osf.io/4km79. Normstichprobe: 2.561 Bewerber für das Medizinstudium, Mittelwert als IQ 115 gesetzt. Stimme und Zeilen: Dr. Easterman, The Outlast Trials.</p>`;
+    <h2>Methodik</h2><div class="card">
+      <div class="row"><span>Verfahren</span><b>Figurale Matrizen, freie Antwortkonstruktion</b></div>
+      <div class="row"><span>Itembank</span><b>OMIB · 219 validierte Aufgaben</b></div>
+      <div class="row"><span>Normstichprobe</span><b>2.561 Probanden</b></div>
+      <div class="row"><span>Skalierung</span><b>2PL-IRT · EAP · IQ = 115 + 15θ</b></div>
+      <div class="row"><span>Messintervall</span><b>1 Messung pro Kalendermonat</b></div>
+      <div class="row"><span>Quelle</span><b>Koch, Spinath, Greiff &amp; Becker (2022), J. Intell. 10(3):41 · GPLv3</b></div>
+      <p class="sub" style="margin:10px 0 0">Alle Messungen werden vertraulich behandelt.</p></div>`;
   return h;
 }
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -799,7 +816,7 @@ function startSet(kind) {
   if (REAL_KINDS.includes(kind)) return startReal(kind);
   const st = stufeOf(kind);
   const items = kind === 'reason' ? reasonSet(st) : matrixSet(st);
-  if (!training().some(s => s.day === today())) say('therapy');
+  if (!training().some(s => s.day === today())) say('therapy', true);
   run = { kind, items, st, i: 0, res: [], t0: 0, raf: 0, lock: false };
   const d = document.createElement('div'); d.id = 'test'; document.body.appendChild(d);
   showItem();
@@ -855,7 +872,7 @@ function quitSet() { // a real test keeps its progress in S.pend and can be cont
 
 /* ---------- the real test (OMIB): build the missing cell, no time limit, no feedback ---------- */
 function startReal(kind) {
-  if (!S.pend || S.pend.kind !== kind) { S.pend = { kind, ids: realSet(S.seen || {}).map(it => it.id), ans: [], time: 0 }; save(); say(kind === 'cold' ? 'welcome' : 'realStart'); }
+  if (!S.pend || S.pend.kind !== kind) { S.pend = { kind, ids: realSet(S.seen || {}).map(it => it.id), ans: [], time: 0 }; save(); say(kind === 'cold' ? 'welcome' : 'realStart', true); }
   const byId = new Map(OMIB.map(it => [it[0], it]));
   run = { kind, real: true, items: S.pend.ids.map(id => omibItem(byId.get(id))), i: S.pend.ans.length, st: 0, t0: 0, raf: 0, lock: false, cur: '0'.repeat(20) };
   const d = document.createElement('div'); d.id = 'test'; d.className = 'real'; document.body.appendChild(d);
@@ -981,17 +998,38 @@ const NOTES = {
   D: ['Westerman will not be pleased.', 'Forgot the first two parts of Fight/Flight/Freeze.', 'Reagent does not appear to know if awake or asleep.'],
   F: ['Diagnosis: Dog Food.', 'What a waste.', 'That hurt to watch.']
 };
-// moments around the tests (Easterman + the Sleep Room scientists)
+// every line outside the grade card: file, English, German; who = Westerman (Easterman's voice) or the lab speaker
+const L = (f, en, de) => ({ f, en, de, who: f.includes('_East_') ? 'Dr. H. J. Westerman' : 'Laborlautsprecher' });
+const SCI = n => 'VO_Scripted_Scientist_' + n;
 const SAY = {
-  welcome: [V('Lobby_EvalTalkFTUE01')], // Erstmessung starts
-  realStart: ['VO_Scripted_Scientist_Aquarium_Male01_Ready09'],
-  therapy: ['VO_Scripted_Scientist_Aquarium_Male01_Ready10', 'VO_Scripted_Scientist_Aquarium_Male01_Ready08'], // first session of the day
-  clinic: ['VO_Scripted_RelapseDoc01_Lobby_RelapseAvailable10'], // this month's real test is open
-  braver: ['VO_Scripted_RelapseDoc01_Lobby_ExitCancel10'], // real test left halfway
-  up: [V('Positive06'), V('Positive09')], // Stufe up
-  healed: [V('Positive04')], // real IQ went up
-  down: [V('Negative01')] // Stufe down / real IQ went down
+  welcome: [L(V('Lobby_EvalTalkFTUE01'), "Good morning. Know that you're special. You're loved. You're worth our effort. You have to trust that we wouldn't have chosen you if you didn't deserve to be here.", 'Guten Morgen. Wisse, dass du besonders bist. Du wirst geliebt. Du bist unsere Mühe wert. Vertrau darauf: Wir hätten dich nicht ausgewählt, wenn du es nicht verdient hättest.')],
+  realStart: [L(SCI('Aquarium_Male01_Ready09'), 'The Trial is ready for subjects, please proceed to the shuttle.', 'Die Prüfung ist bereit für Probanden. Bitte begeben Sie sich zum Shuttle.')],
+  therapy: [L(SCI('Aquarium_Male01_Ready10'), "Please enter the shuttle for today's therapy session.", 'Bitte betreten Sie das Shuttle für die heutige Therapiesitzung.'),
+    L(SCI('Aquarium_Male01_Ready08'), 'The therapy is ready, please enter the shuttle.', 'Die Therapie ist bereit. Bitte betreten Sie das Shuttle.')],
+  clinic: [L('VO_Scripted_RelapseDoc01_Lobby_RelapseAvailable10', 'The Clinic is open.', 'Die Klinik ist geöffnet.')],
+  braver: [L('VO_Scripted_RelapseDoc01_Lobby_ExitCancel10', "You come back whenever you're feeling braver.", 'Komm wieder, wann immer du dich mutiger fühlst.')],
+  up: [L(V('Positive06'), "You're getting stronger.", 'Du wirst stärker.'), L(V('Positive09'), 'I just want you to know that great things are coming. Expect more from me.', 'Ich will nur, dass du weißt: Große Dinge kommen. Erwarte mehr von mir.')],
+  healed: [L(V('Positive04'), "You're healing.", 'Du heilst.')],
+  down: [L(V('Negative01'), 'The spider in failure consumes its web.', 'Im Scheitern frisst die Spinne ihr eigenes Netz.')],
+  // speaker icons
+  real: [L(V('Positive01'), 'You have to accept the primacy of the unreal.', 'Du musst den Vorrang des Unwirklichen akzeptieren.'), L(V('Positive07'), 'You are awake. You are inventing the dream.', 'Du bist wach. Du erfindest den Traum.')],
+  today: [L(SCI('Aquarium_Male01_Ready10'), "Please enter the shuttle for today's therapy session.", 'Bitte betreten Sie das Shuttle für die heutige Therapiesitzung.'), L(V('Positive05'), "You're growing.", 'Du wächst.')],
+  hist: [L(SCI('Generic_Male01_Idle05'), "What we do here is going to define the twentieth century. It's going to be an age of faith.", 'Was wir hier tun, wird das zwanzigste Jahrhundert prägen. Es wird ein Zeitalter des Glaubens.'),
+    L(SCI('Generic_Male01_Idle08'), "If they're all having the same dreams maybe that means the conditioning's working.", 'Wenn sie alle dieselben Träume haben, heißt das vielleicht, dass die Konditionierung wirkt.')],
+  grades: [L(SCI('Generic_Male01_Idle04'), "They've got a whole life being told to obey and follow orders. That's a lot they gotta forget.", 'Ein ganzes Leben lang hieß es für sie: gehorchen, Befehle befolgen. Das ist eine Menge zu vergessen.')],
+  id: [L(SCI('Generic_Male01_Idle01'), "Tell vivisection we're bringing in some fresh specimen.", 'Sagt der Vivisektion, wir bringen ein frisches Exemplar.'), L(V('Positive08'), 'You are safe.', 'Du bist in Sicherheit.')],
+  awards: [L(V('Positive02'), "There's my little how-high.", 'Da ist ja mein kleines Wie-Hoch.')],
+  settings: [L(V('Positive03'), 'Sleep.', 'Schlaf.')],
+  review: [L(V('TrialGradeD03'), 'Even failure is an opportunity to learn.', 'Auch Versagen ist eine Gelegenheit zu lernen.')]
 };
+const SPK_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11.5 5.5a3.5 3.5 0 0 1 0 5M13.3 3.7a6 6 0 0 1 0 8.6"/></svg>';
+const spk = k => `<button class="spk" onclick="event.stopPropagation();say('${k}')" aria-label="Durchsage abspielen">${SPK_SVG}</button>`;
+let toastT = 0;
+function toast(l) {
+  let el = $('#toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="who">🔊 ${l.who}</div><div class="en">„${l.en}“</div><div class="de">${l.de}</div>`;
+  clearTimeout(toastT); toastT = setTimeout(() => { const e = $('#toast'); if (e) e.remove(); }, 3500 + l.en.length * 45);
+}
 let docAudio = null;
 function voice(f, then) { // the public Gute Nudel copy has no voice files; a missing file just stays silent
   if (FROM_GN || !f) return null;
@@ -1003,7 +1041,7 @@ function voice(f, then) { // the public Gute Nudel copy has no voice files; a mi
     return p;
   } catch (e) { return null; }
 }
-const say = k => voice(pick(SAY[k]));
+function say(k, quiet) { const l = pick(SAY[k]); if (!quiet) toast(l); return voice(l.f); } // quiet = voice only (test screens)
 
 function finish() {
   const r = run; run = null;
@@ -1024,7 +1062,7 @@ function finish() {
   const other = r.kind === 'daily' ? 'reason' : 'daily';
   if (earlierToday.every(s => s.kind !== r.kind) && earlierToday.some(s => s.kind === other)) award('double', day, fresh);
   save();
-  const d = pick(DOC[g]), note = pick(NOTES[g]), ac = awardChips(fresh), after = stufeMsg ? pick(SAY[S.stufe[r.kind] > r.st ? 'up' : 'down']) : null;
+  const d = pick(DOC[g]), note = pick(NOTES[g]), ac = awardChips(fresh), after = stufeMsg ? pick(SAY[S.stufe[r.kind] > r.st ? 'up' : 'down']).f : null;
   $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding-top:4vh">
     <div class="sub">Evaluation · ${correct}/10 richtig · ${mmss(time)} min</div>
     <div class="grade g${GRADE_RANK[g]}">${g}</div>
@@ -1078,7 +1116,7 @@ function reviewItem(it, i) {
 }
 function review() {
   const r = review.run, missed = r.items.map((it, i) => [it, i]).filter(([, i]) => !r.res[i].ok);
-  $('#test').innerHTML = `<div style="width:100%;max-width:440px"><div class="thead"><span>🔍 Fehleranalyse</span><span></span><button class="x" onclick="closeResult()">✕</button></div>
+  $('#test').innerHTML = `<div style="width:100%;max-width:440px"><div class="thead"><span>🔍 Fehleranalyse ${spk('review')}</span><span></span><button class="x" onclick="closeResult()">✕</button></div>
     <p class="sub">Jede Analyse macht dein Gehirn messbar stärker.</p>${missed.map(([it, i]) => reviewItem(it, i)).join('')}
     <button class="btn" onclick="closeResult()">Fertig</button></div>`;
   $('#test').scrollTop = 0;
