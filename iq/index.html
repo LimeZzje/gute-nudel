@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0b0c">
+<meta name="theme-color" content="#e7e2d3">
 <title>IQ MaXxing</title>
 <style>
 :root{--bg:#0b0b0c;--card:#17171a;--line:#2a2a2f;--ink:#f2f2f2;--dim:#9a9aa3;--acc:#c6ff3d;--red:#ff4d5e;--grn:#49e07a}
@@ -130,6 +130,49 @@ textarea{height:90px;font-size:12px}
 .doc .de{color:var(--dim);font-size:14px;margin-top:6px;line-height:1.4}
 .memo{margin-top:10px;text-align:left;font-family:"Courier New",monospace;background:#e9e2c9;color:#2b2615;border-radius:6px;padding:10px 12px;font-size:14px;transform:rotate(-.6deg)}
 .memo b{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.65;margin-bottom:3px}
+/* ===== clinical theme (11-08): printed patient file of a research institute ===== */
+:root{--bg:#e7e2d3;--card:#faf7ee;--line:#bcb39d;--ink:#1d1c19;--dim:#6c6555;--acc:#1d1c19;--red:#a3261d;--grn:#2f6b3a;--mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,"Courier New",monospace;color-scheme:light}
+html,body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mast{border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:14px}
+.mast .inst{font:700 10.5px/1.3 var(--mono);letter-spacing:.16em;color:var(--dim)}
+.mast .title{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:3px}
+.mast .title b{font:800 21px/1.1 var(--mono);letter-spacing:.02em}
+.mast .title span{font:600 10.5px var(--mono);letter-spacing:.1em;color:var(--dim);white-space:nowrap}
+h2{font:700 11.5px var(--mono);letter-spacing:.16em;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:5px;margin:22px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:3px;box-shadow:0 1px 0 rgba(60,50,30,.08)}
+.card>.sub:first-child,.metric .l b,.doc .who{font:700 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.hero>div:first-child{filter:grayscale(1)}
+.big{font-family:var(--mono);font-weight:800;letter-spacing:-.04em;color:var(--ink)}
+.tier{background:transparent;color:var(--ink);border:2px solid var(--ink);border-radius:2px;font:800 12px var(--mono);letter-spacing:.12em;text-transform:uppercase;padding:3px 10px}
+.btn{background:var(--ink);color:var(--card);border-radius:3px;font:700 14.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:15px}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink);font:700 13.5px var(--mono);letter-spacing:.06em}
+.metric{background:var(--card);border-radius:3px}.metric .v{font-family:var(--mono)}.metric .l{color:var(--dim)}
+.metric .l b{font-size:10px;letter-spacing:.1em;color:var(--ink)}
+nav{background:rgba(243,239,227,.97);border-top:2px solid var(--ink)}
+nav button{font:700 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+nav button span{filter:grayscale(1);opacity:.75}nav button.on{color:var(--ink)}nav button.on span{opacity:1}
+#test{background:var(--bg)}
+.thead{font:700 12.5px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.thead .x{color:var(--ink)}
+.bar{background:var(--line);border-radius:0;height:4px}
+.matrix{background:#8d8676;border-color:#8d8676;border-radius:2px}
+.opts button,.blocks button,.ropts button{border-color:#5d574b;border-radius:3px}
+.seq b,.sopts button,.topts button,.tq{border-radius:3px;font-family:var(--mono)}
+.tq{font-family:inherit}
+.chip{background:transparent;color:var(--ink);border:1.5px solid var(--ink);border-radius:2px;font:700 12.5px var(--mono);letter-spacing:.04em}
+.gchip{background:transparent;border:1.5px solid currentColor;border-radius:2px;font-family:var(--mono)}
+.g5,.g4{color:#2f6b3a}.g3{color:#24466e}.g2{color:#8a6a12}.g1,.g0{color:#a3261d}
+.grade{display:inline-block;font:900 104px/1 var(--mono);border:6px solid currentColor;border-radius:8px;padding:6px 22px 2px;margin:14px 0 14px;transform:rotate(-4deg);opacity:.88;mix-blend-mode:multiply}
+.doc{background:var(--card);border-radius:3px;border-left:3px solid var(--ink)}
+.doc .who button{background:var(--ink);color:var(--card);border-radius:2px}
+.doc .say{color:var(--ink)}
+.msg{font-weight:700}
+.cmp .v{font-family:var(--mono)}
+.row{border-bottom-color:var(--line)}
+input,textarea{background:#fff;color:var(--ink);border-color:var(--line);border-radius:3px}
+.aw .ic{filter:grayscale(1)}.aw .n{font-family:var(--mono);letter-spacing:.02em}
+.idwrap .idcard{box-shadow:0 6px 16px rgba(60,50,30,.35)}
+.btn,.tier,.chip,.sub,.thead,.msg{filter:grayscale(1)} /* emojis in ink, like the rest of the file */
 </style>
 </head>
 <body>
@@ -598,7 +641,7 @@ function go(k) { tab = k; render(); window.scrollTo(0, 0); }
 function render() {
   nav();
   const v = { home: vHome, hist: vHist, id: vId, more: vMore }[tab]();
-  $('#app').innerHTML = (FROM_GN ? `<a class="gnback" href="../">← Gute Nudel</a>` : '') + `<h1>IQ <b>MaXxing</b></h1>` + v;
+  $('#app').innerHTML = (FROM_GN ? `<a class="gnback" href="../">← Gute Nudel</a>` : '') + `<div class="mast"><div class="inst">INSTITUT FÜR KOGNITIVE OPTIMIERUNG · ABT. III</div><div class="title"><b>IQ MaXxing</b><span>AKTE NR. ${String(S.created).slice(-6, -4)}-${String(S.created).slice(-4)}</span></div></div>` + v;
 }
 
 const REAL_ROWS = `<div class="card"><div class="row"><span>Aufgaben</span><b>${REAL_N} echte Matrizen</b></div><div class="row"><span>Zeit</span><b>keine Grenze · ca. 25 min</b></div><div class="row"><span>Ziel</span><b>Baue das fehlende Feld</b></div></div>`;
@@ -641,15 +684,15 @@ function chartSVG() {
   const lo = 70, hi = 160, Y = v => y0 + h - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * h;
   const rs = realSets();
   let s = `<svg viewBox="0 0 ${W} ${H}">`;
-  const bands = [[70, 85, '#ff4d5e'], [85, 100, '#888'], [100, 115, '#6aa0ff'], [115, 125, '#49e07a'], [125, 135, '#c6ff3d'], [135, 160, '#c77dff']];
+  const bands = [[70, 85, '#ff4d5e'], [85, 100, '#888'], [100, 115, '#6aa0ff'], [115, 125, '#49e07a'], [125, 135, '#8a6a12'], [135, 160, '#6b3fa0']];
   for (const [a, b, c] of bands) s += `<rect x="${x0}" y="${Y(b)}" width="${w}" height="${Y(a) - Y(b)}" fill="${c}" opacity=".08"/>`;
-  for (const v of [70, 85, 100, 115, 125, 135, 160]) s += `<text x="${x0 - 4}" y="${Y(v) + 4}" fill="#777" font-size="10" text-anchor="end">${v}</text>`;
-  s += `<line x1="${x0}" x2="${x0 + w}" y1="${Y(130)}" y2="${Y(130)}" stroke="#fff" stroke-dasharray="4 4" opacity=".6"/><text x="${x0 + w - 2}" y="${Y(130) - 4}" fill="#ddd" font-size="10" text-anchor="end">Mensa (theoretisch)</text>`;
+  for (const v of [70, 85, 100, 115, 125, 135, 160]) s += `<text x="${x0 - 4}" y="${Y(v) + 4}" fill="#6c6555" font-size="10" text-anchor="end">${v}</text>`;
+  s += `<line x1="${x0}" x2="${x0 + w}" y1="${Y(130)}" y2="${Y(130)}" stroke="#1d1c19" stroke-dasharray="4 4" opacity=".45"/><text x="${x0 + w - 2}" y="${Y(130) - 4}" fill="#6c6555" font-size="10" text-anchor="end">Mensa (theoretisch)</text>`;
   if (rs.length) {
     const X = i => x0 + (rs.length === 1 ? w / 2 : i / (rs.length - 1) * w);
     const pts = rs.map((r, i) => [X(i), Y(r.iq)]);
-    if (pts.length > 1) s += `<polyline fill="none" stroke="#c6ff3d" stroke-width="2.5" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
-    pts.forEach((p, i) => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#c6ff3d"/><text x="${p[0]}" y="${p[1] - 9}" fill="#f2f2f2" font-size="11" font-weight="800" text-anchor="middle">${rs[i].iq}</text>`; });
+    if (pts.length > 1) s += `<polyline fill="none" stroke="#1d1c19" stroke-width="2" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+    pts.forEach((p, i) => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#1d1c19"/><text x="${p[0]}" y="${p[1] - 9}" fill="#1d1c19" font-size="11" font-weight="800" text-anchor="middle">${rs[i].iq}</text>`; });
     s += `<text x="${x0}" y="${H - 4}" fill="#777" font-size="10">${fmtDay(rs[0].day)}</text>${rs.length > 1 ? `<text x="${x0 + w}" y="${H - 4}" fill="#777" font-size="10" text-anchor="end">${fmtDay(rs[rs.length - 1].day)}</text>` : ''}`;
   }
   return s + '</svg>';
@@ -706,7 +749,7 @@ function vId() {
       <div class="f">IQ (Erstmessung)</div><div class="v iq">${S.cold.iq}</div></div></div>
     <div class="stamp">UNTRAINIERT</div>
     <div class="mrz">${mrz}</div></div></div>
-    <div class="card"><div class="cmp"><div><div class="sub">Damals</div><div class="v" style="color:#c9b673">${S.cold.iq}</div></div><div><div class="sub">Echter IQ heute</div><div class="v" style="color:var(--acc)">${st.last ? st.last.iq : S.cold.iq}</div></div></div>
+    <div class="card"><div class="cmp"><div><div class="sub">Damals</div><div class="v" style="color:#8a6a12">${S.cold.iq}</div></div><div><div class="sub">Echter IQ heute</div><div class="v" style="color:var(--acc)">${st.last ? st.last.iq : S.cold.iq}</div></div></div>
     <p class="sub" style="text-align:center;margin:8px 0 0">Dieses Dokument wird nicht erneuert.</p></div>
     <button class="btn" onclick="shareCard()">📤 IQ-Karte teilen</button>`;
 }
@@ -931,11 +974,11 @@ const DOC = {
     [V('TrialFail08'), 'What am I teaching you? How to be dog food?', 'Was bringe ich dir eigentlich bei? Wie man Hundefutter wird?']]
 };
 const NOTES = {
-  'A+': ['This one scares me.', 'Notify Easterman, exceptional candidate.', 'Could Easterman be right?'],
-  A: ['Strong performance, consistently committed effort. Patient shows real dedication to therapy.', 'Subject shows natural talent. Could amount to something with a little effort.', "Tag patient chart for Easterman's attention; shows growth and potential."],
+  'A+': ['This one scares me.', 'Notify Westerman, exceptional candidate.', 'Could Westerman be right?'],
+  A: ['Strong performance, consistently committed effort. Patient shows real dedication to therapy.', 'Subject shows natural talent. Could amount to something with a little effort.', "Tag patient chart for Westerman's attention; shows growth and potential."],
   B: ['Progress, but slow. Mark the chart for next stage of osmosis.', 'Solid performance by lone Reagent.', 'Passing performance. Murkoff will want more exciting results.'],
   C: ['The curious masochism of the perversely mediocre.', 'Subject needs to learn to use shame as fuel.', 'Middling performance. Reagent risks plateauing in process without engaging transformation.'],
-  D: ['Easterman will not be pleased.', 'Forgot the first two parts of Fight/Flight/Freeze.', 'Reagent does not appear to know if awake or asleep.'],
+  D: ['Westerman will not be pleased.', 'Forgot the first two parts of Fight/Flight/Freeze.', 'Reagent does not appear to know if awake or asleep.'],
   F: ['Diagnosis: Dog Food.', 'What a waste.', 'That hurt to watch.']
 };
 // moments around the tests (Easterman + the Sleep Room scientists)
@@ -986,7 +1029,7 @@ function finish() {
     <div class="sub">Evaluation · ${correct}/10 richtig · ${mmss(time)} min</div>
     <div class="grade g${GRADE_RANK[g]}">${g}</div>
     ${stufeMsg ? `<div class="chip" style="margin:4px 0 10px;border-radius:14px;padding:10px 14px;display:block">${stufeMsg}</div>` : ''}
-    <div class="doc"><div class="who">Dr. H. J. Easterman${FROM_GN ? '' : ` <button onclick="voice('${d[0]}')">▶</button>`}</div>
+    <div class="doc"><div class="who">Dr. H. J. Westerman${FROM_GN ? '' : ` <button onclick="voice('${d[0]}')">▶</button>`}</div>
       <div class="say">„${d[1]}“</div><div class="de">${d[2]}</div></div>
     <div class="memo"><b>Aktennotiz</b>${note}</div>
     ${ac ? `<div style="margin:10px 0">${ac}</div>` : ''}
@@ -1047,16 +1090,16 @@ function shareCard() {
   const iq = (stats().last || S.cold).iq, t = tierOf(iq);
   const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
   const g = c.getContext('2d');
-  g.fillStyle = '#0b0b0c'; g.fillRect(0, 0, 1080, 1350);
-  g.fillStyle = '#c6ff3d'; g.fillRect(0, 0, 1080, 18); g.fillRect(0, 1332, 1080, 18);
+  g.fillStyle = '#faf7ee'; g.fillRect(0, 0, 1080, 1350);
+  g.fillStyle = '#1d1c19'; g.fillRect(0, 0, 1080, 18); g.fillRect(0, 1332, 1080, 18);
   g.textAlign = 'center';
-  g.fillStyle = '#f2f2f2'; g.font = '900 64px system-ui,sans-serif'; g.fillText('IQ MaXxing', 540, 150);
-  g.fillStyle = '#9a9aa3'; g.font = '700 46px system-ui,sans-serif'; g.fillText((S.name || 'Anonymes Genie').toUpperCase(), 540, 300);
-  g.fillStyle = '#c6ff3d'; g.font = '900 420px system-ui,sans-serif'; g.fillText(String(iq), 540, 720);
-  g.fillStyle = '#f2f2f2'; g.font = '800 54px system-ui,sans-serif'; g.fillText('IQ · offiziell gemessen', 540, 820);
-  g.fillStyle = '#c6ff3d'; g.beginPath(); g.roundRect ? g.roundRect(290, 900, 500, 110, 55) : g.rect(290, 900, 500, 110); g.fill();
-  g.fillStyle = '#111'; g.font = '900 60px system-ui,sans-serif'; g.fillText(t[1], 540, 976);
-  g.fillStyle = '#9a9aa3'; g.font = '600 38px system-ui,sans-serif'; g.fillText('Stand ' + fmtDay(today()), 540, 1200);
+  g.fillStyle = '#6c6555'; g.font = '700 30px monospace'; g.fillText('INSTITUT FÜR KOGNITIVE OPTIMIERUNG', 540, 110); g.fillStyle = '#1d1c19'; g.font = '800 64px monospace'; g.fillText('IQ MaXxing', 540, 190);
+  g.fillStyle = '#6c6555'; g.font = '700 46px monospace'; g.fillText((S.name || 'Anonymes Genie').toUpperCase(), 540, 300);
+  g.fillStyle = '#1d1c19'; g.font = '800 400px monospace'; g.fillText(String(iq), 540, 720);
+  g.fillStyle = '#1d1c19'; g.font = '700 46px monospace'; g.fillText('BEFUND: IQ · AMTLICH GEMESSEN', 540, 820);
+  g.strokeStyle = '#a3261d'; g.lineWidth = 10; g.save(); g.translate(540, 955); g.rotate(-0.06); g.strokeRect(-250, -55, 500, 110); g.restore();
+  g.fillStyle = '#a3261d'; g.font = '800 58px monospace'; g.fillText(t[1], 540, 976);
+  g.fillStyle = '#6c6555'; g.font = '600 36px monospace'; g.fillText('Stand ' + fmtDay(today()), 540, 1200);
   // shown as an image (long-press to save): downloads + Web Share are blocked inside the artifact viewer
   const ov = document.createElement('div'); ov.id = 'test';
   ov.innerHTML = `<div style="width:100%;max-width:440px;text-align:center"><img src="${c.toDataURL('image/png')}" style="width:100%;border-radius:14px;border:1px solid var(--line)">
