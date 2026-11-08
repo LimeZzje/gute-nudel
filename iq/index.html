@@ -227,6 +227,10 @@ nav{border-top-color:var(--acc)}nav button.on{color:var(--acc)}
 }
 .aw:not(.off){border-left:3px solid var(--acc);padding-left:10px}.aw:not(.off) .n{color:var(--acc)}.aw:not(.off) .ic{filter:none}
 .aw:not(.off) .n::after{content:"ERREICHT";margin-left:8px;font:700 9.5px var(--mono);letter-spacing:.14em;border:1.5px solid var(--acc);border-radius:2px;padding:1px 5px;vertical-align:2px}
+#unlock{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 12px);transform:translateX(-50%);z-index:31;pointer-events:none;display:flex;gap:10px;align-items:center;background:var(--card);border:1.5px solid var(--acc);border-radius:3px;padding:7px 12px;font:700 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--acc);box-shadow:0 6px 18px rgba(0,0,0,.35);white-space:nowrap}
+#unlock span{color:var(--ink);letter-spacing:.06em}
+#unlock.go{animation:unl 2.6s ease forwards}
+@keyframes unl{0%{opacity:0;transform:translate(-50%,-8px)}10%,82%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-4px)}}
 </style>
 </head>
 <body>
@@ -1101,24 +1105,37 @@ let toastT = 0;
 function toast(l) {
   let el = $('#toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el); }
   el.innerHTML = `<div class="who">🔊 ${l.who}</div><div class="en">„${l.en}“</div>`;
-  clearTimeout(toastT); toastT = setTimeout(() => { const e = $('#toast'); if (e) e.remove(); }, 3500 + l.en.length * 45);
+  toastHide(3500 + l.en.length * 45);
+}
+function toastHide(ms) { clearTimeout(toastT); toastT = ms == null ? 0 : setTimeout(() => { const e = $('#toast'); if (e) e.remove(); }, ms); }
+let unlockT = 0;
+function unlockPop() { // a line heard for the first time: small stamp at the top with the collection count
+  let el = $('#unlock'); if (!el) { el = document.createElement('div'); el.id = 'unlock'; document.body.appendChild(el); }
+  const h = S.heard || {}, n = LINES_ALL.filter(l => h[l.f]).length;
+  el.innerHTML = `<b>Neues Tonband freigeschaltet</b><span>${n}/${LINES_ALL.length}</span>`;
+  el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+  clearTimeout(unlockT); unlockT = setTimeout(() => { const e = $('#unlock'); if (e) e.remove(); }, 2600);
 }
 let docAudio = null;
 function voice(f, then) { // voice/<f>.mp3 next to this page; a missing file just stays silent
   if (!f) return null;
+  const fresh = !(S.heard || {})[f];
   heard(f);
+  if (fresh && LINES_ALL.some(l => l.f === f)) unlockPop();
   try {
     if (docAudio) docAudio.pause();
     const a = docAudio = new Audio('voice/' + f + '.mp3');
-    if (then) a.onended = () => { if (docAudio === a) voice(then); };
-    const p = a.play(); if (p && p.catch) p.catch(() => {});
+    a.addEventListener('playing', () => { if (docAudio === a) toastHide(null); }); // text stays for the whole line...
+    a.addEventListener('ended', () => { if (docAudio !== a) return; if (then) voice(then); else toastHide(2000); }); // ...plus 2 s
+    a.addEventListener('error', () => { if (docAudio === a) toastHide(4000); });
+    const p = a.play(); if (p && p.catch) p.catch(() => { if (docAudio === a) toastHide(4000); });
     return p;
   } catch (e) { return null; }
 }
 // his rule: a category plays its unheard lines first (random order, each once), only then random repeats
 // Westerman (and the lab speaker) go first; Dr. ▇▇▇▇'s lines (X_...) only after those are all heard
 const nextOf = (arr, key) => { const h = S.heard || {}, fresh = arr.filter(x => !h[key(x)]), first = fresh.filter(x => !key(x).startsWith('X_')); return pick(first.length ? first : fresh.length ? fresh : arr); };
-function say(k, quiet) { const l = nextOf(SAY[k], x => x.f); heard(l.f); if (!quiet) toast(l); return voice(l.f); } // quiet = voice only (test screens)
+function say(k, quiet) { const l = nextOf(SAY[k], x => x.f); if (!quiet) toast(l); return voice(l.f); } // quiet = voice only (test screens)
 
 function finish() {
   const r = run; run = null;
