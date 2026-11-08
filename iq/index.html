@@ -724,7 +724,7 @@ function vHome() {
     </div>${REAL_ROWS}`;
   const st = stats();
   let h = '';
-  if (!FROM_GN && S.cold && realDue() && !S.pend && S.clinicHeard !== monthOf(Date.now())) setTimeout(() => { const p = say('clinic'); if (p && p.then) p.then(() => { S.clinicHeard = monthOf(Date.now()); save(); }, () => {}); }, 300);
+  if (S.cold && realDue() && !S.pend && S.clinicHeard !== monthOf(Date.now())) setTimeout(() => { const p = say('clinic'); if (p && p.then) p.then(() => { S.clinicHeard = monthOf(Date.now()); save(); }, () => {}); }, 300);
   if (!st.last) {
     h += `<div class="card hero"><div class="sub">Dein echter IQ ${spk('real')}</div><div class="big" style="color:var(--line)">???</div>
       <p class="sub">Noch nicht gemessen. ${REAL_N} echte Aufgaben aus der Forschung, keine Zeitgrenze. Das Ergebnis kommt in deinen Ausweis.</p>
@@ -1101,8 +1101,8 @@ function toast(l) {
   clearTimeout(toastT); toastT = setTimeout(() => { const e = $('#toast'); if (e) e.remove(); }, 3500 + l.en.length * 45);
 }
 let docAudio = null;
-function voice(f, then) { // the public Gute Nudel copy has no voice files; a missing file just stays silent
-  if (FROM_GN || !f) return null;
+function voice(f, then) { // voice/<f>.mp3 next to this page; a missing file just stays silent
+  if (!f) return null;
   try {
     if (docAudio) docAudio.pause();
     const a = docAudio = new Audio('voice/' + f + '.mp3');
@@ -1137,7 +1137,7 @@ function finish() {
     <div class="sub">Evaluation · ${correct}/10 richtig · ${mmss(time)} min</div>
     <div class="grade g${GRADE_RANK[g]}">${g}</div>
     ${stufeMsg ? `<div class="chip" style="margin:4px 0 10px;border-radius:14px;padding:10px 14px;display:block">${stufeMsg}</div>` : ''}
-    <div class="doc"><div class="who">Dr. H. J. Westerman${FROM_GN ? '' : ` <button onclick="voice('${d[0]}')">▶</button>`}</div>
+    <div class="doc"><div class="who">Dr. H. J. Westerman <button onclick="voice('${d[0]}')">▶</button></div>
       <div class="say">„${d[1]}“</div><div class="de">${d[2]}</div></div>
     <div class="memo"><b>Aktennotiz</b>${note}</div>
     ${ac ? `<div style="margin:10px 0">${ac}</div>` : ''}
@@ -1234,7 +1234,7 @@ function tapeView() {
   const h = S.heard || {}, n = LINES_ALL.filter(l => h[l.f]).length;
   return `<h2>Tonbandprotokoll · ${n}/${LINES_ALL.length}</h2><div class="card">${LINES_ALL.map((l, i) => {
     const no = `Band ${String(i + 1).padStart(2, '0')} · `;
-    return h[l.f] ? `<div class="tl">${FROM_GN ? '' : `<button class="spk" onclick="voice('${l.f}')" aria-label="Abspielen">${SPK_SVG}</button>`}<div class="who">${no}${l.who}</div><div class="en">„${esc(l.en)}“</div><div class="de">${esc(l.de)}</div></div>`
+    return h[l.f] ? `<div class="tl"><button class="spk" onclick="voice('${l.f}')" aria-label="Abspielen">${SPK_SVG}</button><div class="who">${no}${l.who}</div><div class="en">„${esc(l.en)}“</div><div class="de">${esc(l.de)}</div></div>`
       : `<div class="tl off"><div class="who">${no}Nicht freigegeben</div><div class="redact">${'█'.repeat(Math.min(26, Math.ceil(l.en.length / 4)))}</div></div>`;
   }).join('')}</div>`;
 }
