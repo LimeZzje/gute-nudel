@@ -687,7 +687,7 @@ function chartSVG() {
   const bands = [[70, 85, '#ff4d5e'], [85, 100, '#888'], [100, 115, '#6aa0ff'], [115, 125, '#49e07a'], [125, 135, '#8a6a12'], [135, 160, '#6b3fa0']];
   for (const [a, b, c] of bands) s += `<rect x="${x0}" y="${Y(b)}" width="${w}" height="${Y(a) - Y(b)}" fill="${c}" opacity=".08"/>`;
   for (const v of [70, 85, 100, 115, 125, 135, 160]) s += `<text x="${x0 - 4}" y="${Y(v) + 4}" fill="#6c6555" font-size="10" text-anchor="end">${v}</text>`;
-  s += `<line x1="${x0}" x2="${x0 + w}" y1="${Y(130)}" y2="${Y(130)}" stroke="#1d1c19" stroke-dasharray="4 4" opacity=".45"/><text x="${x0 + w - 2}" y="${Y(130) - 4}" fill="#6c6555" font-size="10" text-anchor="end">Mensa (theoretisch)</text>`;
+  s += `<line x1="${x0}" x2="${x0 + w}" y1="${Y(130)}" y2="${Y(130)}" stroke="#1d1c19" stroke-dasharray="4 4" opacity=".45"/><text x="${x0 + w - 2}" y="${Y(130) - 4}" fill="#6c6555" font-size="10" text-anchor="end">Mensa</text>`;
   if (rs.length) {
     const X = i => x0 + (rs.length === 1 ? w / 2 : i / (rs.length - 1) * w);
     const pts = rs.map((r, i) => [X(i), Y(r.iq)]);
