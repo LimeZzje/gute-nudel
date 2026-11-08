@@ -233,6 +233,14 @@ nav{border-top-color:var(--acc)}nav button.on{color:var(--acc)}
 .letter .re{font-size:11px;letter-spacing:.06em;opacity:.7;margin-bottom:12px}.letter p{margin:0 0 10px}
 .letter .sig{font:italic 30px/1 Georgia,serif;margin:4px 0 2px;transform:rotate(-3deg);transform-origin:left}.letter .sub2{font-size:11px;opacity:.7}
 .letter .ps{margin:14px 0 0;font-size:13px;opacity:.85}
+/* Mensa-Bootcamp */
+.study{width:min(96vw,440px);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:10px;font-size:17px;line-height:1.5}
+.study h3{margin:0 0 12px;font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}.study p{margin:0 0 8px}
+.mlist{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mlist b{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center;font-size:18px}
+.mpairs div{padding:8px 0;border-bottom:1px solid var(--line);font-size:18px}.mpairs div:last-child{border:0}
+.bc{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px;color:var(--ink)}
+.bc>span:first-child{font-size:26px}.bc>span:nth-child(2){flex:1;min-width:0}.bc b{display:block;font-size:17px}.bc small{display:block;color:var(--dim);font-size:13px;margin-top:2px}
+#test button.picked{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}
 .aw:not(.off){border-left:3px solid var(--acc);padding-left:10px}.aw:not(.off) .n{color:var(--acc)}.aw:not(.off) .ic{filter:none}
 .aw:not(.off) .n::after{content:"ERREICHT";margin-left:8px;font:700 9.5px var(--mono);letter-spacing:.14em;border:1.5px solid var(--acc);border-radius:2px;padding:1px 5px;vertical-align:2px}
 #unlock{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 12px);transform:translateX(-50%);z-index:31;pointer-events:none;display:flex;gap:10px;align-items:center;background:var(--card);border:1.5px solid var(--acc);border-radius:3px;padding:7px 12px;font:700 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--acc);box-shadow:0 6px 18px rgba(0,0,0,.35);white-space:nowrap}
@@ -651,7 +659,138 @@ function genBuild(L) {
 }
 const buildSet = (st = 0) => BUILD_LEVELS.map(L => genBuild(Math.min(MAX_LEVEL, L + st)));
 
-if (typeof module !== 'undefined') module.exports = { genBuild, buildSet, bUnique, bOk, BUILD_LEVELS, befund, thetaPost, OMIB, realSet, thetaEAP, realIQ, cellBits, gradeOf, genCube, foldNet, ALL_ORIENT, matrixSet, reasonSet, MAX_LEVEL, genMatrix, genSeries, iqFrom, SET_LEVELS, RANGE, NLINES, genRotation, genOrder, genSyll, holds, MODELS, SA, SB, SC, rotKeys, mirror, keyOf, REASON_SET };
+/* ---------- Mensa-Bootcamp: the areas Mensa e.V. names for its 2-hour paper test (language, numbers, memory, spatial).
+   The real items are not public, so these are classic German IQ-battery formats, not copies. Word bank hand-written. */
+const CATS = {
+  Obst: 'Apfel Birne Kirsche Pflaume Banane Mango Aprikose Pfirsich Traube', Gemüse: 'Karotte Brokkoli Spinat Lauch Sellerie Kohl Zwiebel Rettich Radieschen',
+  Vögel: 'Amsel Adler Pinguin Strauß Taube Eule Möwe Spatz Storch', Säugetiere: 'Hund Pferd Wal Fledermaus Delfin Elefant Maus Bär Fuchs',
+  Fische: 'Forelle Hering Lachs Karpfen Hai Thunfisch Aal Dorsch', Insekten: 'Ameise Biene Käfer Libelle Mücke Wespe Schmetterling Heuschrecke',
+  Musikinstrumente: 'Geige Flöte Trompete Harfe Klavier Trommel Cello Gitarre Oboe', Möbel: 'Stuhl Tisch Schrank Sofa Regal Kommode Hocker Bett',
+  Werkzeuge: 'Hammer Zange Säge Schraubenzieher Feile Meißel Bohrer Hobel', Metalle: 'Eisen Kupfer Gold Silber Zinn Blei Zink Nickel',
+  Planeten: 'Merkur Venus Mars Jupiter Saturn Uranus Neptun', Kleidungsstücke: 'Hemd Hose Mantel Rock Jacke Pullover Bluse Weste',
+  Gewürze: 'Pfeffer Zimt Kümmel Muskat Safran Anis Kardamom Ingwer', Bäume: 'Eiche Buche Birke Ahorn Linde Tanne Fichte Kiefer Esche',
+  Blumen: 'Rose Tulpe Lilie Veilchen Narzisse Krokus Dahlie Orchidee', Edelsteine: 'Rubin Smaragd Saphir Diamant Topas Opal'
+};
+for (const k in CATS) CATS[k] = CATS[k].split(' ');
+const CAT_NEAR = [['Obst', 'Gemüse'], ['Vögel', 'Säugetiere'], ['Fische', 'Säugetiere'], ['Bäume', 'Blumen'], ['Metalle', 'Edelsteine'], ['Werkzeuge', 'Möbel'], ['Gewürze', 'Gemüse']];
+// classic traps: looks like it belongs, doesn't (the odd one is the trap word)
+const CAT_TRAPS = [['Fische', 'Wal'], ['Fische', 'Delfin'], ['Vögel', 'Fledermaus'], ['Insekten', 'Spinne'], ['Insekten', 'Skorpion'], ['Planeten', 'Mond'], ['Planeten', 'Sonne'], ['Metalle', 'Diamant'], ['Säugetiere', 'Pinguin'], ['Bäume', 'Efeu']];
+const ANALOG = {
+  'Laut': 'Hund:bellen Katze:miauen Kuh:muhen Pferd:wiehern Schaf:blöken Ente:quaken Löwe:brüllen Schwein:grunzen Biene:summen Hahn:krähen',
+  'Junges': 'Hund:Welpe Kuh:Kalb Pferd:Fohlen Schaf:Lamm Huhn:Küken Schwein:Ferkel Frosch:Kaulquappe Katze:Kätzchen',
+  'Hauptstadt': 'Frankreich:Paris Italien:Rom Spanien:Madrid Polen:Warschau Norwegen:Oslo Österreich:Wien Portugal:Lissabon Ungarn:Budapest Griechenland:Athen Irland:Dublin',
+  'Werkzeug': 'Maler:Pinsel Friseur:Schere Fotograf:Kamera Dirigent:Taktstock Schmied:Amboss Fischer:Netz Astronom:Teleskop Arzt:Stethoskop',
+  'Sinn': 'Auge:sehen Ohr:hören Nase:riechen Zunge:schmecken Haut:tasten',
+  'Gegenteil': 'heiß:kalt hell:dunkel laut:leise schnell:langsam hart:weich schwer:leicht nass:trocken voll:leer früh:spät dick:dünn teuer:billig',
+  'Teil': 'Seite:Buch Zweig:Baum Speiche:Rad Taste:Klavier Schuppe:Fisch Feder:Vogel Zimmer:Haus Glied:Kette Stufe:Treppe',
+  'Steigerung': 'gut:besser viel:mehr gern:lieber hoch:höher nah:näher'
+};
+for (const k in ANALOG) ANALOG[k] = ANALOG[k].split(' ').map(p => p.split(':'));
+const SYN = ['mutig tapfer kühn', 'schnell rasch flink', 'klug gescheit schlau', 'traurig betrübt niedergeschlagen', 'fröhlich heiter vergnügt', 'faul träge',
+  'reich wohlhabend', 'selten rar', 'genau präzise exakt', 'beginnen anfangen starten', 'sprechen reden', 'schwierig kompliziert knifflig', 'freundlich nett liebenswürdig',
+  'ehrlich aufrichtig', 'kostbar wertvoll', 'dumm töricht', 'sauber rein', 'bekannt berühmt', 'schmutzig dreckig', 'geizig knausrig'].map(s => s.split(' '));
+const ANT = 'mutig:feige fleißig:faul reich:arm ehrlich:verlogen klug:dumm selten:häufig sauber:schmutzig geizig:großzügig heiß:kalt hell:dunkel laut:leise schnell:langsam hart:weich nass:trocken voll:leer früh:spät teuer:billig'.split(' ').map(p => p.split(':'));
+const synOf = w => (SYN.find(s => s.includes(w)) || [w]).filter(x => x !== w);
+const antOf = w => { const p = ANT.find(p => p.includes(w)); return p ? p[p[0] === w ? 1 : 0] : null; };
+const T = (lines, q, options, ans, sec, wide) => { const o = shuffle(options.slice()); return { kind: 'text', lines, q, options: o, answer: o.indexOf(ans), sec, wide }; };
+const fromOther = (pool, not, n) => shuffle(pool.filter(x => !not.includes(x))).slice(0, n);
+
+function genAnalogy(L) {
+  const rel = pick(Object.keys(ANALOG)), prs = ANALOG[rel], [a, c] = shuffle(prs.slice()).slice(0, 2);
+  if (L < 3) return T([`<b>${a[0]}</b> verhält sich zu <b>${a[1]}</b><br>wie <b>${c[0]}</b> zu …`], 'Welches Wort passt?', [c[1], ...fromOther(prs.map(p => p[1]), [c[1], a[1]], 3)], c[1], 30);
+  // pair form: the relation must be found, reversed pairs and other relations are the traps
+  const other = pick(Object.keys(ANALOG).filter(k => k !== rel)), op = pick(ANALOG[other]), d = shuffle(prs.filter(p => p !== a && p !== c))[0];
+  const op2 = pick(ANALOG[other].filter(p => p !== op)), ok = `${c[0]} : ${c[1]}`; // opposites read both ways: no reversed trap there
+  const opts = [ok, rel === 'Gegenteil' ? `${op2[0]} : ${op2[1]}` : `${c[1]} : ${c[0]}`, `${op[0]} : ${op[1]}`, `${c[0]} : ${d[1]}`];
+  return T([`<b>${a[0]} : ${a[1]}</b> &nbsp;=&nbsp; ? : ?`], 'Welches Paar steht in derselben Beziehung?', opts, ok, 40, true);
+}
+function genOdd(L) {
+  if (L >= 3 && Math.random() < .5) { const [cat, trap] = pick(CAT_TRAPS); const four = shuffle(CATS[cat].slice()).slice(0, 4); return T([`${[...four, trap].length} Wörter. Eines gehört nicht dazu.`], 'Welches Wort passt nicht?', [...four, trap], trap, 30); }
+  const [A, B] = L >= 2 ? shuffle(pick(CAT_NEAR).slice()) : shuffle(Object.keys(CATS)).slice(0, 2);
+  const four = shuffle(CATS[A].slice()).slice(0, 4), odd = pick(CATS[B].filter(w => !CATS[A].includes(w)));
+  return T(['5 Wörter. Eines gehört nicht dazu.'], 'Welches Wort passt nicht?', [...four, odd], odd, 30);
+}
+function genSynAnt() {
+  const syn = Math.random() < .5, pool = syn ? SYN.flat() : ANT.flat();
+  for (;;) {
+    const w = pick(syn ? SYN.flat() : ANT.flat()), ans = syn ? pick(synOf(w).length ? synOf(w) : [null]) : antOf(w);
+    if (!ans) continue;
+    const trap = syn ? antOf(w) : pick(synOf(w).length ? synOf(w) : [null]), ban = [w, ans, ...synOf(w), antOf(w), ...synOf(ans), antOf(ans)].filter(Boolean);
+    const opts = [ans, ...(trap ? [trap] : []), ...fromOther([...new Set(SYN.flat().concat(ANT.flat()))], ban.concat(trap || []), trap ? 2 : 3)];
+    return T([`<b>${w}</b>`], syn ? 'Welches Wort bedeutet fast dasselbe?' : 'Welches Wort ist das Gegenteil?', opts, ans, 25);
+  }
+}
+function genCommon(L) {
+  const cat = pick(Object.keys(CATS)), near = CAT_NEAR.filter(p => p.includes(cat)).flat().filter(k => k !== cat);
+  const [x, y] = shuffle(CATS[cat].slice()).slice(0, 2), wrong = [...near.slice(0, 1), ...fromOther(Object.keys(CATS), [cat, ...near], 3)].slice(0, 3);
+  return T([`<b>${x}</b> und <b>${y}</b>`], 'Was haben beide gemeinsam? Beide sind …', [cat, ...wrong], cat, 25);
+}
+const langSet = () => [genAnalogy(1), genOdd(1), genSynAnt(), genCommon(1), genAnalogy(2), genOdd(2), genSynAnt(), genAnalogy(3), genOdd(3), genCommon(3)];
+
+// numbers: series (exist) + word problems + mental arithmetic, every answer a whole number
+const numOpts = (ans, extra = []) => { const s = new Set([ans]); for (const e of extra) if (e > 0 && e !== ans && s.size < 4) s.add(e); let k = 1; while (s.size < 4) { const v = ans + pick([-1, 1]) * k * Math.max(1, Math.round(ans * .1)); if (v > 0) s.add(v); k++; } return [...s]; };
+const WORD = [
+  () => { const h = 2 + R(4), v = 40 + 10 * R(9), n = h + 1 + R(4), km = v * h; return [[`Ein Zug fährt ${km} km in ${h} Stunden.`, `Er fährt immer gleich schnell.`], `Wie viele km schafft er in ${n} Stunden?`, v * n, [km + v, v * (n - 1), km * n / h + v], 'km']; },
+  () => { const p = 20 * (2 + R(9)), q = pick([10, 20, 25, 30, 40, 50, 75]), ans = p * (100 - q) / 100; return [[`Eine Jacke kostet ${p} €.`, `Sie wird um ${q} % reduziert.`], 'Was kostet sie jetzt?', ans, [p * q / 100, p - q, ans + p / 10], '€']; },
+  () => { const a = 2 + R(4), t = a * (2 + R(4)), b = pick([2, 3, 4, 6, 8, 12].filter(x => x !== a && (a * t) % x === 0 && (a * t) / x !== t)); if (!b) return WORD[2](); const ans = a * t / b; return [[`${a} Maler streichen ein Haus in ${t} Tagen.`, `Alle arbeiten gleich schnell.`], `Wie viele Tage brauchen ${b} Maler?`, ans, [t * b / a, t + a - b, ans + 1], 'Tage']; },
+  () => { const [k, m] = pick([[3, 2], [4, 3], [4, 2], [5, 3], [5, 2]]), n = (k - m) * (1 + R(4)), b = n * (m - 1) / (k - m); return [[`Lena ist ${k}-mal so alt wie Tom.`, `In ${n} Jahren ist sie nur noch ${m}-mal so alt wie er.`], 'Wie alt ist Tom heute?', b, [b * k, b + n, n], 'Jahre']; },
+  () => { const [x, y] = pick([[1, 2], [1, 3], [2, 3], [3, 5], [1, 4], [3, 4]]), u = 2 + R(9), tot = (x + y) * u; return [[`${tot} Murmeln werden im Verhältnis ${x} : ${y} geteilt.`], 'Wie viele bekommt der größere Teil?', y * u, [x * u, tot / 2, tot - x], 'Murmeln']; },
+  () => { const d = pick([2, 3, 4, 5]), n = pick([2, 3]), m = d * 4 * (2 + R(5)), part = m * (d - 1) / d; return [[`Von ${m} Äpfeln werden ${d - 1}/${d} verkauft.`, `Vom Rest isst Max die Hälfte.`], 'Wie viele Äpfel bleiben übrig?', (m - part) / 2, [m - part, part / 2, m / d + 1], 'Äpfel']; }
+];
+function genWord() { for (;;) { const [lines, q, ans, wr, unit] = pick(WORD)(); if (!Number.isInteger(ans) || ans <= 0) continue; return T(lines, q, numOpts(ans, wr.filter(Number.isInteger)).map(v => `${v} ${unit}`), `${ans} ${unit}`, 60); } }
+function genArith(L) {
+  for (;;) {
+    const a = 6 + R(L >= 3 ? 30 : 15), b = 3 + R(9), c = 5 + R(L >= 3 ? 90 : 40), d = 2 + R(7);
+    const [txt, ans] = pick([[`${a} × ${b} − ${c}`, a * b - c], [`${a * d} : ${d} + ${c}`, a + c], [`${c} + ${a} × ${b}`, c + a * b], [`(${a} + ${b}) × ${d}`, (a + b) * d], [`${a * b} : ${b} × ${d}`, a * d]]);
+    if (ans <= 0) continue;
+    return T([`<b>${txt}</b>`], 'Rechne im Kopf.', numOpts(ans, [ans + 10, ans - 10, ans + b]).map(String), String(ans), 40);
+  }
+}
+const numSet = () => [genSeries(), genArith(1), genWord(), genSeries(), genArith(2), genWord(), genSeries(), genWord(), genArith(3), genWord()];
+
+// memory: look, the card goes away, then questions (study screens are not scored)
+const CITIES = ['Kiel', 'Bonn', 'Jena', 'Ulm', 'Trier', 'Passau', 'Lübeck', 'Görlitz', 'Fulda', 'Aachen', 'Rostock', 'Gotha'];
+function memList(n = 10, sec = 60) {
+  const cats = shuffle(Object.keys(CATS)).slice(0, 4), words = [];
+  const cnt = [3, 3, 2, 2].slice(0, 4); if (n > 10) cnt[2]++, cnt[3]++;
+  cats.forEach((c, i) => words.push(...shuffle(CATS[c].slice()).slice(0, cnt[i])));
+  const list = shuffle(words), lure = cats.flatMap(c => CATS[c].filter(w => !list.includes(w)));
+  const study = { kind: 'study', sec, title: 'Merke dir diese Wörter', html: `<div class="mlist">${list.map(w => `<b>${w}</b>`).join('')}</div>` };
+  const qs = [], countCat = pick(cats), countN = list.filter(w => CATS[countCat].includes(w)).length;
+  qs.push(T(['Aus der Wortliste'], 'Welches Wort stand in der Liste?', [list[R(list.length)], ...fromOther(lure, [], 3)], null, 20));
+  qs[0].answer = qs[0].options.findIndex(o => list.includes(o));
+  const notIn = pick(lure); qs.push(T(['Aus der Wortliste'], 'Welches Wort stand NICHT in der Liste?', [notIn, ...shuffle(list.slice()).slice(0, 3)], notIn, 20));
+  qs.push(T(['Aus der Wortliste'], `Wie viele Wörter aus der Gruppe „${countCat}“ standen in der Liste?`, ['1', '2', '3', '4'], String(countN), 20));
+  const i = R(list.length - 1); qs.push(T(['Aus der Wortliste'], `Welches Wort stand direkt nach „${list[i]}“?`, [list[i + 1], ...fromOther(list, [list[i + 1], list[i]], 3)], list[i + 1], 20));
+  const j = pick(list); qs.push(T(['Aus der Wortliste'], 'Welches Wort stand in der Liste?', [j, ...fromOther(lure, [notIn], 3)], j, 20));
+  return [study, qs];
+}
+function memPairs(n = 6, sec = 60) {
+  const names = shuffle(NAMES.slice()).slice(0, n), cities = shuffle(CITIES.slice()).slice(0, n);
+  const study = { kind: 'study', sec, title: 'Wer wohnt wo? Merke es dir.', html: `<div class="mpairs">${names.map((nm, i) => `<div><b>${nm}</b> wohnt in <b>${cities[i]}</b></div>`).join('')}</div>` };
+  const idx = shuffle([...Array(n).keys()]).slice(0, 5);
+  const qs = idx.map((k, q) => q % 2
+    ? T(['Wer wohnt wo?'], `Wer wohnt in ${cities[k]}?`, [names[k], ...fromOther(names, [names[k]], 3)], names[k], 20)
+    : T(['Wer wohnt wo?'], `Wo wohnt ${names[k]}?`, [cities[k], ...fromOther(cities, [cities[k]], 3)], cities[k], 20));
+  return [study, qs];
+}
+const memSet = () => { const [s1, q1] = memList(), [s2, q2] = memPairs(); return [s1, ...q1, s2, ...q2]; };
+const spaceSet = () => [genMatrix(2), genRotation(0), genMatrix(3), genCube(0), genMatrix(4), genRotation(1), genMatrix(5), genCube(1), genRotation(2), genMatrix(6)];
+
+// Generalprobe: all areas back to back, one clock per section (time out = the rest of the section counts as wrong)
+const MOCK_SECTIONS = [['Sprache', 600], ['Zahlen', 840], ['Merken', 300], ['Räumlich', 720]];
+function mockSet() {
+  const [s1, q1] = memList(12, 90), [s2, q2] = memPairs(6, 75), intro = (k, n) => ({ kind: 'study', intro: true, title: `Abschnitt ${k + 1} · ${MOCK_SECTIONS[k][0]}`, html: `<p>${n} Aufgaben · ${MOCK_SECTIONS[k][1] / 60} Minuten für den ganzen Abschnitt.</p><p class="sub">Die Uhr läuft für den Abschnitt, nicht pro Aufgabe. Ist sie abgelaufen, zählt der Rest als falsch.</p>` });
+  const tag = (k, xs) => xs.map(x => ({ ...x, sx: k }));
+  const lang = [1, 1, 2, 2, 3, 3, 3, 4].flatMap(L => [genAnalogy(L), genOdd(L)]).concat([genSynAnt(), genSynAnt(), genCommon(2), genCommon(3)]);
+  const num = [genSeries(), genSeries(), genSeries(), genSeries(), genSeries(), genSeries(), ...[1, 2, 2, 3].map(genArith), genWord(), genWord(), genWord(), genWord(), genWord(), genWord(), genWord(), genWord()];
+  const space = [2, 3, 4, 5, 6, 6, 7, 8].map(genMatrix).concat([0, 1, 1, 2].map(genRotation), [0, 1, 1, 2].map(genCube));
+  return [{ kind: 'study', intro: true, title: 'Generalprobe', html: '<p>Vier Abschnitte wie im Mensa-Test: Sprache, Zahlen, Merken, Räumlich. Etwa 45 Minuten.</p><p>Zuerst prägst du dir zwei Dinge ein. Abgefragt wird erst nach Sprache und Zahlen.</p>' },
+    s1, s2, intro(0, lang.length), ...tag(0, lang), intro(1, num.length), ...tag(1, num), intro(2, 10), ...tag(2, [...q1, ...q2]), intro(3, space.length), ...tag(3, space)];
+}
+const BOOT_SETS = { m_lang: langSet, m_num: numSet, m_mem: memSet, m_space: spaceSet, mock: mockSet };
+
+if (typeof module !== 'undefined') module.exports = { BOOT_SETS, CATS, ANALOG, SYN, ANT, MOCK_SECTIONS, genAnalogy, genOdd, genSynAnt, genCommon, genWord, genArith, memList, memPairs, genBuild, buildSet, bUnique, bOk, BUILD_LEVELS, befund, thetaPost, OMIB, realSet, thetaEAP, realIQ, cellBits, gradeOf, genCube, foldNet, ALL_ORIENT, matrixSet, reasonSet, MAX_LEVEL, genMatrix, genSeries, iqFrom, SET_LEVELS, RANGE, NLINES, genRotation, genOrder, genSyll, holds, MODELS, SA, SB, SC, rotKeys, mirror, keyOf, REASON_SET };
 </script>
 
 <script>
@@ -819,7 +958,8 @@ function vHome() {
     ${ts.length ? `<div style="margin:8px 0">${ts.map(s => gradeChip(gradeOfSet(s))).join(' ')}</div><div class="sub">✅ Tägliche Dosis erledigt</div>` : `<p class="sub" style="margin:6px 0 0">Noch keine Sitzung. Die Therapie wartet.</p>`}
     <button class="btn${ts.length ? ' ghost' : ''}" onclick="startSet('daily')">🧠 Matrizen · 10 Aufgaben${stufeTag('daily')}</button>
     <button class="btn ghost" onclick="startSet('reason')">🌀 Denksport · Rotation, Logik & Reihen${stufeTag('reason')}</button>
-    <button class="btn ghost" onclick="startSet('build')">🧱 Bau-Training · wie der echte Test${stufeTag('build')}</button></div>`;
+    <button class="btn ghost" onclick="startSet('build')">🧱 Bau-Training · wie der echte Test${stufeTag('build')}</button>
+    <button class="btn ghost" onclick="bootcamp()">🎖️ Mensa-Bootcamp · Sprache, Zahlen, Merken, Räumlich</button></div>`;
   h += `<div class="grid3">
     <div class="metric"><div class="v">${S.cold ? S.cold.iq : '–'}</div><div class="l"><b>Erstmessung</b>Ausweis</div></div>
     <div class="metric"><div class="v">${st.avg7 ?? '–'}</div><div class="l"><b>Ø Note</b>7 Tage</div></div>
@@ -853,7 +993,7 @@ function vHist() {
   else h += `<div class="card">${rs.slice().reverse().map(a => `<div class="row"><span>${a.kind === 'cold' ? '🪪' : '🧪'} ${fmtDay(a.day)} · ${a.correct}/${a.n || REAL_N}</span><b>${a.iq} ${tierOf(a.iq)[1]}</b></div>`).join('')}</div>`;
   const days = [...new Set(tr.map(s => s.day))].sort().slice(-14).reverse();
   h += `<h2>Therapie · Noten ${spk('grades')}</h2><div class="card">${days.map(d => `<div class="row"><span>${fmtDay(d)}</span><span>${tr.filter(s => s.day === d).map(s => gradeChip(gradeOfSet(s))).join(' ')}</span></div>`).join('') || '<span class="sub">Noch keine Sitzung.</span>'}</div>`;
-  h += `<h2>Letzte Sitzungen</h2><div class="card">${tr.slice(-15).reverse().map(s => `<div class="row"><span>${s.kind === 'reason' ? '🌀' : s.kind === 'series' ? '🔢' : s.kind === 'build' ? '🧱' : '🧠'} ${fmtDay(s.day)} · ${s.correct}/10${s.st ? ' · Stufe ' + s.st : ''}</span>${gradeChip(gradeOfSet(s))}</div>`).join('') || '<span class="sub">Noch nichts.</span>'}</div>`;
+  h += `<h2>Letzte Sitzungen</h2><div class="card">${tr.slice(-15).reverse().map(s => `<div class="row"><span>${kindIc(s.kind)} ${fmtDay(s.day)} · ${s.correct}/${s.n || 10}${s.st ? ' · Stufe ' + s.st : ''}</span>${gradeChip(gradeOfSet(s))}</div>`).join('') || '<span class="sub">Noch nichts.</span>'}</div>`;
   return h;
 }
 
@@ -956,10 +1096,34 @@ const stufeTag = kind => stufeOf(kind) ? ` · Stufe ${stufeOf(kind)}` : '';
 function startSet(kind) {
   if (REAL_KINDS.includes(kind)) return startReal(kind);
   const st = stufeOf(kind);
-  const items = kind === 'reason' ? reasonSet(st) : kind === 'build' ? buildSet(st) : matrixSet(st);
-  run = { kind, items, st, i: 0, res: [], t0: 0, raf: 0, lock: false, cur: '0'.repeat(20) };
+  const items = BOOT_SETS[kind] ? BOOT_SETS[kind]() : kind === 'reason' ? reasonSet(st) : kind === 'build' ? buildSet(st) : matrixSet(st);
+  run = { kind, items, st, i: 0, res: [], t0: 0, raf: 0, lock: false, cur: '0'.repeat(20), mock: kind === 'mock', n: items.filter(x => x.kind !== 'study').length };
+  if (run.mock) run.secLeft = MOCK_SECTIONS.map(s => s[1]);
+  $('#test')?.remove();
   const d = document.createElement('div'); d.id = 'test'; if (kind === 'build') d.className = 'real'; document.body.appendChild(d);
   kind === 'build' ? showBuild() : showItem();
+}
+const KIND_INFO = { daily: ['🧠', 'Matrizen'], reason: ['🌀', 'Denksport'], series: ['🔢', 'Zahlenreihen'], build: ['🧱', 'Bau-Training'],
+  m_lang: ['🗣️', 'Sprache'], m_num: ['➗', 'Zahlen'], m_mem: ['🧩', 'Merkfähigkeit'], m_space: ['🧊', 'Räumlich'], mock: ['🎖️', 'Generalprobe'] };
+const kindIc = k => (KIND_INFO[k] || KIND_INFO.daily)[0], kindName = k => (KIND_INFO[k] || KIND_INFO.daily)[1];
+function bootcamp() { // the Mensa e.V. areas as drills + the long Generalprobe
+  const last = k => { const s = training().filter(x => x.kind === k).slice(-1)[0]; return s ? gradeChip(gradeOfSet(s)) : '<span class="sub">–</span>'; };
+  const row = (k, d) => `<button class="bc" onclick="startSet('${k}')"><span>${kindIc(k)}</span><span><b>${kindName(k)}</b><small>${d}</small></span>${last(k)}</button>`;
+  $('#test')?.remove();
+  const el = document.createElement('div'); el.id = 'test'; document.body.appendChild(el);
+  el.innerHTML = `<div style="width:100%;max-width:440px;padding-bottom:20px"><div class="thead"><span>🎖️ Mensa-Bootcamp</span><span></span><button class="x" onclick="$('#test').remove()">✕</button></div>
+    <p class="sub" style="margin:4px 0 12px">Der Mensa-Test (Mensa in Deutschland e.V.) dauert rund zwei Stunden, auf Papier, unter Aufsicht. Er prüft Sprache, Zahlen, Merkfähigkeit und räumliches Denken. Hier trainierst du genau diese Bereiche.</p>
+    <div class="sub" style="margin-bottom:6px">Drills · 10 Aufgaben, auf Zeit</div>
+    ${row('m_lang', 'Analogien, Gemeinsamkeiten, Wortbedeutung')}${row('m_num', 'Zahlenreihen, Textaufgaben, Kopfrechnen')}${row('m_mem', 'Wortliste und Wohnorte merken, dann abfragen')}${row('m_space', 'Matrizen, Rotation, Würfel')}
+    <div class="sub" style="margin:16px 0 6px">Prüfungssimulation</div>
+    ${row('mock', 'Alle vier Bereiche am Stück · ca. 45 min · Uhr pro Abschnitt · kein Feedback')}</div>`;
+}
+const nextItem = () => { if (!run) return; run.i++; run.i < run.items.length ? showItem() : finish(); };
+function sectionOut() { // the section clock ran out: the rest of the section counts as wrong
+  const sx = run.items[run.i].sx;
+  cancelAnimationFrame(run.raf); run.lock = true; run.secLeft[sx] = 0;
+  while (run.i < run.items.length && run.items[run.i].sx === sx) { run.res.push({ ok: false, t: 0, lvl: 0, sx, out: true }); run.i++; }
+  run.i--; nextItem();
 }
 /* ---------- Bau-Training: the real test's format, generated items, 60 s each, feedback after every item ---------- */
 function showBuild() {
@@ -992,8 +1156,16 @@ function submitBuild() {
 }
 function showItem() {
   const it = run.items[run.i], el = $('#test');
-  const title = run.kind === 'reason' ? '🌀 Denksport' : '🧠 Matrizen';
-  let h = `<div class="thead"><span>${title}</span><span>${run.st ? 'Stufe ' + run.st + ' · ' : ''}${run.i + 1}/10</span><button class="x" onclick="quitSet()">✕</button></div><div class="bar"><i id="tb"></i></div>`;
+  const title = `${kindIc(run.kind)} ${run.mock && it.sx != null ? MOCK_SECTIONS[it.sx][0] : kindName(run.kind)}`;
+  let h = `<div class="thead"><span>${title}</span><span>${run.st ? 'Stufe ' + run.st + ' · ' : ''}${Math.min(run.n, run.res.length + 1)}/${run.n}</span><button class="x" onclick="quitSet()">✕</button></div><div class="bar"><i id="tb"></i></div>`;
+  if (it.kind === 'study') { // look-and-remember card or a section intro: not scored
+    el.innerHTML = h + `<div class="study"><h3>${it.title}</h3>${it.html}</div><button class="btn" style="max-width:440px" onclick="cancelAnimationFrame(run.raf);nextItem()">${it.intro ? 'Los geht’s' : 'Gemerkt ✓'}</button>`;
+    if (!it.sec) { $('#tb').style.width = '0'; return; }
+    run.lock = false; run.t0 = performance.now(); cancelAnimationFrame(run.raf);
+    const tick = () => { if (!run || run.items[run.i] !== it) return; const t = (performance.now() - run.t0) / 1000, tb = $('#tb'); if (tb) tb.style.width = Math.max(0, 100 - t / it.sec * 100) + '%'; if (t >= it.sec) return nextItem(); run.raf = requestAnimationFrame(tick); };
+    run.raf = requestAnimationFrame(tick);
+    return;
+  }
   if (it.kind === 'matrix') {
     h += `<div class="matrix">${it.panels.flat().map((p, k) => k === 8 ? '<div class="q">?</div>' : panelSVG(p)).join('')}</div>
       <div class="opts">${it.options.map((p, k) => `<button onclick="answer(${k},this)">${panelSVG(p)}</button>`).join('')}</div>`;
@@ -1014,11 +1186,13 @@ function showItem() {
   el.innerHTML = h;
   run.lock = false; run.t0 = performance.now();
   cancelAnimationFrame(run.raf);
+  const lim = it.sec || ITEM_SEC, sec = run.mock && it.sx != null;
   const tick = () => {
     if (!run) return;
-    const t = (performance.now() - run.t0) / 1000, f = Math.max(0, 1 - t / ITEM_SEC), tb = $('#tb');
+    const t = (performance.now() - run.t0) / 1000, tb = $('#tb');
+    const f = sec ? Math.max(0, (run.secLeft[it.sx] - t) / MOCK_SECTIONS[it.sx][1]) : Math.max(0, 1 - t / lim);
     if (tb) { tb.style.width = (f * 100) + '%'; tb.className = f < .25 ? 'late' : ''; }
-    if (t >= ITEM_SEC) return answer(-1, null);
+    if (sec ? t >= run.secLeft[it.sx] : t >= lim) return sec ? sectionOut() : answer(-1, null);
     run.raf = requestAnimationFrame(tick);
   };
   run.raf = requestAnimationFrame(tick);
@@ -1026,12 +1200,14 @@ function showItem() {
 function answer(k, btn) {
   if (!run || run.lock) return;
   run.lock = true; cancelAnimationFrame(run.raf);
-  const it = run.items[run.i], ok = k === it.answer, t = Math.min(ITEM_SEC, (performance.now() - run.t0) / 1000);
-  run.res.push({ ok, t, lvl: it.level || 0 });
+  const it = run.items[run.i], ok = k === it.answer, el = (performance.now() - run.t0) / 1000, t = run.mock ? el : Math.min(it.sec || ITEM_SEC, el);
+  run.res.push({ ok, t, lvl: it.level || 0, sx: it.sx });
+  if (run.mock && it.sx != null) run.secLeft[it.sx] = Math.max(0, run.secLeft[it.sx] - el);
+  if (run.mock) { if (btn) btn.classList.add('picked'); return setTimeout(nextItem, 160); } // exam: no feedback
   const btns = document.querySelectorAll('#test .opts button, #test .sopts button, #test .ropts button, #test .topts button');
   if (btn) btn.classList.add(ok ? 'ok' : 'no');
   if (!ok && btns[it.answer]) btns[it.answer].classList.add('ok');
-  setTimeout(() => { if (!run) return; run.i++; run.i < 10 ? showItem() : finish(); }, ok ? 380 : 900);
+  setTimeout(nextItem, ok ? 380 : 900);
 }
 function quitSet() { // a real test keeps its progress in S.pend and can be continued from Heute
   if (!run) return;
@@ -1247,9 +1423,10 @@ function say(k, quiet) { const l = nextOf(SAY[k], x => x.f); if (!quiet) toast(l
 
 function finish() {
   const r = run; run = null;
-  const correct = r.res.filter(x => x.ok).length, time = Math.round(r.res.reduce((a, x) => a + x.t, 0)), g = gradeOf(correct);
+  const correct = r.res.filter(x => x.ok).length, N = r.res.length || 10, time = Math.round(r.res.reduce((a, x) => a + x.t, 0)), g = gradeOf(Math.round(correct * 10 / N));
   const now = Date.now(), day = dayOf(now);
-  const set = { t: now, day, kind: r.kind, correct, grade: g, time, st: r.st };
+  const secs = r.mock ? MOCK_SECTIONS.map((s, k) => [s[0], r.res.filter(x => x.sx === k && x.ok).length, r.res.filter(x => x.sx === k).length]) : null;
+  const set = { t: now, day, kind: r.kind, correct, n: N, grade: g, time, st: r.st, ...(secs ? { secs } : {}) };
   const earlierToday = training().filter(s => s.day === day);
   S.sets.push(set);
   const fresh = [];
@@ -1258,23 +1435,25 @@ function finish() {
   if (earlierToday.some(s => GRADE_RANK[gradeOfSet(s)] - GRADE_RANK[g] >= 3)) award('choke', day, fresh);
   let stufeMsg = '';
   S.stufe = S.stufe || {};
-  if (correct >= 9 && r.st < MAX_STUFE) { S.stufe[r.kind] = r.st + 1; stufeMsg = `⬆️ Stufe ${r.st + 1} freigeschaltet. Schwerere Aufgaben. Die Therapie wird intensiviert.`; }
-  else if (correct <= 4 && r.st > 0) { S.stufe[r.kind] = r.st - 1; stufeMsg = `Stufe ${r.st - 1}. Die Dosis wird angepasst.`; }
+  const hasStufe = ['daily', 'reason', 'build'].includes(r.kind);
+  if (hasStufe && correct >= 9 && r.st < MAX_STUFE) { S.stufe[r.kind] = r.st + 1; stufeMsg = `⬆️ Stufe ${r.st + 1} freigeschaltet. Schwerere Aufgaben. Die Therapie wird intensiviert.`; }
+  else if (hasStufe && correct <= 4 && r.st > 0) { S.stufe[r.kind] = r.st - 1; stufeMsg = `Stufe ${r.st - 1}. Die Dosis wird angepasst.`; }
   if (S.stufe[r.kind] === MAX_STUFE && !S.awards['top_' + r.kind] && AWARDS.some(a => a.id === 'top_' + r.kind)) award('top_' + r.kind, day, fresh);
   const other = r.kind === 'daily' ? 'reason' : 'daily';
-  if (r.kind !== 'build' && earlierToday.every(s => s.kind !== r.kind) && earlierToday.some(s => s.kind === other)) award('double', day, fresh);
+  if ((r.kind === 'daily' || r.kind === 'reason') && earlierToday.every(s => s.kind !== r.kind) && earlierToday.some(s => s.kind === other)) award('double', day, fresh);
   save();
   const d = nextOf(DOC[g], x => x[0]), note = pick(NOTES[g]), ac = awardChips(fresh), after = stufeMsg ? nextOf(SAY[S.stufe[r.kind] > r.st ? 'up' : 'down'], x => x.f).f : null;
   $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding-top:4vh">
-    <div class="sub">Evaluation · ${correct}/10 richtig · ${mmss(time)} min</div>
+    <div class="sub">Evaluation · ${kindName(r.kind)} · ${correct}/${N} richtig · ${mmss(time)} min</div>
     <div class="grade g${GRADE_RANK[g]}">${g}</div>
+    ${secs ? `<div class="card" style="text-align:left">${secs.map(s => `<div class="row"><span>${s[0]}</span><b>${s[1]}/${s[2]}</b></div>`).join('')}${r.res.some(x => x.out) ? '<p class="sub" style="margin:8px 0 0">⏱ In einem Abschnitt ist die Zeit abgelaufen. Der Rest zählte als falsch.</p>' : ''}</div>` : ''}
     ${stufeMsg ? `<div class="chip" style="margin:4px 0 10px;border-radius:14px;padding:10px 14px;display:block">${spk(S.stufe[r.kind] > r.st ? 'up' : 'down')}${stufeMsg}</div>` : ''}
     <div class="doc"><div class="who">${d[3] || 'Dr. H. J. Westerman'} <button onclick="voice('${d[0]}')">▶</button></div>
       <div class="say">„${d[1]}“</div><div class="de">${d[2]}</div></div>
     <div class="memo"><b>Aktennotiz</b>${note}</div>
     ${ac ? `<div style="margin:10px 0">${ac}</div>` : ''}
     <button class="btn" onclick="closeResult()">Fertig</button>
-    ${correct < 10 ? `<button class="btn ghost" onclick="review()">🔍 Fehler ansehen (${10 - correct})</button>` : ''}
+    ${correct < N ? `<button class="btn ghost" onclick="review()">🔍 Fehler ansehen (${N - correct})</button>` : ''}
     <button class="btn ghost" onclick="$('#test').remove();startSet('${r.kind}')">Noch eine Sitzung</button>
   </div>`;
   closeResult.kind = r.kind; review.run = r;
@@ -1321,7 +1500,7 @@ function reviewItem(it, i) {
   return h + '</div>';
 }
 function review() {
-  const r = review.run, missed = r.items.map((it, i) => [it, i]).filter(([, i]) => !r.res[i].ok);
+  const r = review.run, missed = r.items.filter(it => it.kind !== 'study').map((it, i) => [it, i]).filter(([, i]) => r.res[i] && !r.res[i].ok);
   $('#test').innerHTML = `<div style="width:100%;max-width:440px"><div class="thead"><span>🔍 Fehleranalyse ${spk('review')}</span><span></span><button class="x" onclick="closeResult()">✕</button></div>
     <p class="sub">Jede Analyse macht dein Gehirn messbar stärker.</p>${missed.map(([it, i]) => reviewItem(it, i)).join('')}
     <button class="btn" onclick="closeResult()">Fertig</button></div>`;
@@ -1430,7 +1609,7 @@ function printFile() {
     <div class="pd-stamp">VERTRAULICH</div>
     <h2>Personalien</h2><table class="kv">${row('Proband', nm)}${row('Akte angelegt', fmtDay(dayOf(S.created)))}${row('Einwilligung', S.consent ? 'per Fingerabdruck am ' + fmtDay(dayOf(S.consent.t)) : 'nicht dokumentiert')}${row('Erstmessung', S.cold ? `IQ ${S.cold.iq} am ${fmtDay(S.cold.day)}` : 'ausstehend')}${row('Stand', fmtDay(today()))}</table>
     <h2>Echte Messungen</h2>${rs.length ? `<table class="grid"><tr><th>Datum</th><th>Art</th><th>Richtig</th><th>IQ</th><th>Bereich (90 %)</th><th>Prozentrang</th></tr>${rs.map(s => `<tr><td>${fmtDay(s.day)}</td><td>${s.kind === 'cold' ? 'Erstmessung' : 'Kontrolle'}</td><td>${s.correct}/${s.n || REAL_N}</td><td><b>${s.iq}</b></td><td>${s.lo ? s.lo + '–' + s.hi : '–'}</td><td>${s.pct != null ? pctTxt(s.pct) : '–'}</td></tr>`).join('')}</table>` : '<p>Keine Messungen.</p>'}
-    <h2>Therapieprotokoll (letzte ${tr.length} Sitzungen)</h2>${tr.length ? `<table class="grid"><tr><th>Datum</th><th>Sitzung</th><th>Richtig</th><th>Note</th><th>Stufe</th></tr>${tr.map(s => `<tr><td>${fmtDay(s.day)}</td><td>${s.kind === 'reason' ? 'Denksport' : s.kind === 'series' ? 'Zahlenreihen' : s.kind === 'build' ? 'Bau-Training' : 'Matrizen'}</td><td>${s.correct}/10</td><td><b>${gradeOfSet(s)}</b></td><td>${s.st || 0}</td></tr>`).join('')}</table>` : '<p>Keine Sitzungen.</p>'}
+    <h2>Therapieprotokoll (letzte ${tr.length} Sitzungen)</h2>${tr.length ? `<table class="grid"><tr><th>Datum</th><th>Sitzung</th><th>Richtig</th><th>Note</th><th>Stufe</th></tr>${tr.map(s => `<tr><td>${fmtDay(s.day)}</td><td>${kindName(s.kind)}</td><td>${s.correct}/${s.n || 10}</td><td><b>${gradeOfSet(s)}</b></td><td>${s.st || 0}</td></tr>`).join('')}</table>` : '<p>Keine Sitzungen.</p>'}
     ${rs.some(s => s.brief) ? `<h2>Korrespondenz</h2>${rs.filter(s => s.brief).map(s => `<div class="pd-letter"><b>${fmtDay(s.day)} · Dr. H. J. Westerman an ${nm}</b>${s.brief.p.map(x => `<p>${x}</p>`).join('')}<p><i>${s.brief.ps}</i></p></div>`).join('')}` : ''}
     <h2>Auszeichnungen</h2><p>${got.length ? got.map(a => `${a.n} (${fmtDay(S.awards[a.id].first)})`).join(' · ') : 'Keine.'}</p>
     <h2>Methodik</h2><p>Figurale Matrizen mit freier Antwortkonstruktion, Open Matrices Item Bank (Koch, Spinath, Greiff &amp; Becker, 2022, J. Intell. 10(3):41, GPLv3), 219 validierte Aufgaben, Normstichprobe 2.561 Probanden. Skalierung 2PL-IRT, EAP, IQ = 115 + 15θ. Eine Messung pro Kalendermonat.</p>
