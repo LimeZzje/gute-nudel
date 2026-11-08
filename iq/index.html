@@ -1097,7 +1097,7 @@ const spk = k => `<button class="spk" onclick="event.stopPropagation();say('${k}
 let toastT = 0;
 function toast(l) {
   let el = $('#toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el); }
-  el.innerHTML = `<div class="who">🔊 ${l.who}</div><div class="en">„${l.en}“</div><div class="de">${l.de}</div>`;
+  el.innerHTML = `<div class="who">🔊 ${l.who}</div><div class="en">„${l.en}“</div>`;
   clearTimeout(toastT); toastT = setTimeout(() => { const e = $('#toast'); if (e) e.remove(); }, 3500 + l.en.length * 45);
 }
 let docAudio = null;
