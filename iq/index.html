@@ -612,6 +612,7 @@ function vHome() {
     </div>${REAL_ROWS}`;
   const st = stats();
   let h = '';
+  if (S.cold && realDue() && !S.pend && S.clinicHeard !== monthOf(Date.now())) setTimeout(() => { const p = say('clinic'); if (p && p.then) p.then(() => { S.clinicHeard = monthOf(Date.now()); save(); }, () => {}); }, 300);
   if (!st.last) {
     h += `<div class="card hero"><div class="sub">Dein echter IQ</div><div class="big" style="color:var(--line)">???</div>
       <p class="sub">Noch nicht gemessen. ${REAL_N} echte Aufgaben aus der Forschung, keine Zeitgrenze. Das Ergebnis kommt in deinen Ausweis.</p>
@@ -755,6 +756,7 @@ function startSet(kind) {
   if (REAL_KINDS.includes(kind)) return startReal(kind);
   const st = stufeOf(kind);
   const items = kind === 'reason' ? reasonSet(st) : matrixSet(st);
+  if (!training().some(s => s.day === today())) say('therapy');
   run = { kind, items, st, i: 0, res: [], t0: 0, raf: 0, lock: false };
   const d = document.createElement('div'); d.id = 'test'; document.body.appendChild(d);
   showItem();
@@ -804,12 +806,13 @@ function answer(k, btn) {
 }
 function quitSet() { // a real test keeps its progress in S.pend and can be continued from Heute
   if (!run) return;
+  if (run.real && S.pend) say('braver');
   cancelAnimationFrame(run.raf); run = null; $('#test').remove(); render();
 }
 
 /* ---------- the real test (OMIB): build the missing cell, no time limit, no feedback ---------- */
 function startReal(kind) {
-  if (!S.pend || S.pend.kind !== kind) { S.pend = { kind, ids: realSet(S.seen || {}).map(it => it.id), ans: [], time: 0 }; save(); }
+  if (!S.pend || S.pend.kind !== kind) { S.pend = { kind, ids: realSet(S.seen || {}).map(it => it.id), ans: [], time: 0 }; save(); say(kind === 'cold' ? 'welcome' : 'realStart'); }
   const byId = new Map(OMIB.map(it => [it[0], it]));
   run = { kind, real: true, items: S.pend.ids.map(id => omibItem(byId.get(id))), i: S.pend.ans.length, st: 0, t0: 0, raf: 0, lock: false, cur: '0'.repeat(20) };
   const d = document.createElement('div'); d.id = 'test'; d.className = 'real'; document.body.appendChild(d);
@@ -881,29 +884,83 @@ function finishReal() {
     <p class="sub" style="margin-top:14px">Lösungen bleiben unter Verschluss. Echte Aufgaben verrät man nicht.</p>
   </div>`;
   countUp($('#cnt'), iq);
+  if (prev && iq !== prev.iq) say(iq > prev.iq ? 'healed' : 'down');
   closeResult.kind = r.kind;
 }
 
 /* ---------- training: grade + Dr. Easterman (Outlast Trials evaluation chamber) ----------
-   say = his spoken line (voice file in voice/, he provides them), note = a written solo evaluation note.
-   Lines from outlast.fandom.com (Hendrick_Joliet_Easterman/Dialogues, Template:Performance_Evaluation_-_Summary_Report). */
+   Spoken lines + voice files from outlast.fandom.com (Hendrick_Joliet_Easterman/Dialogues, Scientists/Dialogues),
+   written notes from Template:Performance_Evaluation_-_Summary_Report (solo). Voice = voice/<f>.mp3, never in the public GN copy. */
+const V = n => 'VO_Scripted_East_' + n;
 const DOC = {
-  'A+': { f: 'VO Scripted East TrialGradeAplus03.ogg', say: "Damn near perfect. I'd almost think you're the one teaching me.",
-    de: 'Beinahe perfekt. Fast glaube ich, du bist derjenige, der mich unterrichtet.', note: 'This one scares me.' },
-  A: { f: 'VO Scripted East TrialGradeA07.ogg', say: 'So slightly shy of perfection. Those tiny mistakes like the craqueler on the surface of a Vermeer only highlighting your beauty. You grow stronger every day.',
-    de: 'So knapp an der Perfektion vorbei. Diese winzigen Fehler, wie die Craquelé auf einem Vermeer, betonen nur deine Schönheit. Du wirst jeden Tag stärker.', note: 'Strong performance, consistently committed effort. Patient shows real dedication to therapy.' },
-  B: { f: 'VO Scripted East TrialGradeB08.ogg', say: "Grade B. Passing. But if it was a steak, I wouldn't eat it. If it was milk, I wouldn't drink it. Are you happy with Grade B?",
-    de: 'Note B. Bestanden. Aber wäre es ein Steak, ich würde es nicht essen. Wäre es Milch, ich würde sie nicht trinken. Bist du zufrieden mit einer B?', note: 'Progress, but slow. Mark the chart for next stage of osmosis.' },
-  C: { f: 'VO Scripted East TrialGradeC08.ogg', say: 'Mediocre. I hate that word. So flaccid, damp. A bruised word the texture of dog shit. Like you. Me. D. Ochre. Me. D. Ochre.',
-    de: 'Mittelmäßig. Ich hasse dieses Wort. So schlaff, so feucht. Ein zerquetschtes Wort mit der Konsistenz von Hundescheiße. Wie du. Mit. Tel. Maß.', note: 'The curious masochism of the perversely mediocre.' },
-  D: { f: 'VO Scripted East TrialGradeD08.ogg', say: "I'm not angry. Just... disappointed.", de: 'Ich bin nicht wütend. Nur ... enttäuscht.', note: 'Easterman will not be pleased.' },
-  F: { f: 'VO Scripted East TrialFail02.ogg', say: 'You have earned nothing, you have learned nothing.', de: 'Du hast nichts verdient. Du hast nichts gelernt.', note: 'Diagnosis: Dog Food.' }
+  'A+': [
+    [V('TrialGradeAplus01'), 'Wonderful, perfect, beautiful. You are the hope for a better tomorrow.', 'Wundervoll, perfekt, wunderschön. Du bist die Hoffnung auf ein besseres Morgen.'],
+    [V('TrialGradeAplus03'), "Damn near perfect. I'd almost think you're the one teaching me.", 'Beinahe perfekt. Fast glaube ich, du bist derjenige, der mich unterrichtet.'],
+    [V('TrialGradeAplus04'), 'You learn beautifully. You may be my ideal student, my inspiration, a gift to science. I think you are a perfect masochist.', 'Du lernst wunderschön. Vielleicht bist du mein idealer Schüler, meine Inspiration, ein Geschenk an die Wissenschaft. Ich glaube, du bist ein perfekter Masochist.'],
+    [V('TrialGradeAplus05'), "I know a teacher isn't supposed to love a student, but I can't help myself. You're wonderful.", 'Ich weiß, ein Lehrer sollte seinen Schüler nicht lieben. Aber ich kann nicht anders. Du bist wundervoll.'],
+    [V('TrialGradeAplus06'), "You're special. Nobody else is operating on your level, and I have special things planned for you. Keep going.", 'Du bist besonders. Niemand sonst arbeitet auf deinem Niveau, und ich habe Besonderes mit dir vor. Mach weiter.']],
+  A: [
+    [V('TrialGradeA02'), "You're making so much progress. Can you feel it? Can you feel yourself changing?", 'Du machst so viele Fortschritte. Spürst du es? Spürst du, wie du dich veränderst?'],
+    [V('TrialGradeA04'), "A heroic effort. Just shy of perfection. I knew when we chose you that you would be a star pupil. You're learning so much.", 'Eine heldenhafte Leistung. Knapp an der Perfektion vorbei. Als wir dich auswählten, wusste ich, du wirst ein Musterschüler. Du lernst so viel.'],
+    [V('TrialGradeA05'), "Every trial is an evaluation and a prize in the same moment. A performance this good is its own reward. Treasure it. And you're welcome.", 'Jede Prüfung ist Bewertung und Preis zugleich. Eine so gute Leistung ist ihre eigene Belohnung. Bewahre sie. Gern geschehen.'],
+    [V('TrialGradeA07'), 'So slightly shy of perfection. Those tiny mistakes like the craqueler on the surface of a Vermeer only highlighting your beauty. You grow stronger every day.', 'So knapp an der Perfektion vorbei. Diese winzigen Fehler, wie die Craquelé auf einem Vermeer, betonen nur deine Schönheit. Du wirst jeden Tag stärker.'],
+    [V('TrialGradeA08'), 'Phenomenal. I barely recognize the pitiful, broken human garbage that crawled into this facility. You are getting... better.', 'Phänomenal. Ich erkenne den erbärmlichen, kaputten Menschenmüll kaum wieder, der hier hereingekrochen ist. Du wirst ... besser.']],
+  B: [
+    [V('TrialGradeB01'), 'Good. Almost good enough. Is that your ambition? Are you striving for "almost good enough?" The therapy only gives back what you put into it.', 'Gut. Fast gut genug. Ist das dein Ehrgeiz? Strebst du nach „fast gut genug“? Die Therapie gibt nur zurück, was du hineinsteckst.'],
+    [V('TrialGradeB02'), 'A decent performance. I said "jump" and you jumped. But what I need, is somebody who when I say "jump," says "how high?" Can you be my How High?', 'Eine ordentliche Leistung. Ich sagte „spring“, und du bist gesprungen. Aber ich brauche jemanden, der auf „spring“ antwortet: „Wie hoch?“ Kannst du mein Wie-Hoch sein?'],
+    [V('TrialGradeB05'), 'Good, not great. Is that the future we\'re trying to make? I need you to join me in the miracle.', 'Gut, nicht großartig. Ist das die Zukunft, die wir erschaffen wollen? Du musst mit mir ins Wunder kommen.'],
+    [V('TrialGradeB07'), "I feel like I'm looking at a Michelangelo still trapped in its block of marble. You have to help me shape you, you have to want to be free.", 'Ich sehe einen Michelangelo, noch gefangen in seinem Marmorblock. Du musst mir helfen, dich zu formen. Du musst frei sein wollen.'],
+    [V('TrialGradeB08'), "Grade B. Passing. But if it was a steak, I wouldn't eat it. If it was milk, I wouldn't drink it. Are you happy with Grade B?", 'Note B. Bestanden. Aber wäre es ein Steak, ich würde es nicht essen. Wäre es Milch, ich würde sie nicht trinken. Bist du zufrieden mit einer B?']],
+  C: [
+    [V('TrialGradeC01'), "This does not correlate with your potential. You know you're special, your performance should reflect that.", 'Das entspricht nicht deinem Potenzial. Du weißt, dass du besonders bist. Deine Leistung sollte das zeigen.'],
+    [V('TrialGradeC03'), "You can do better. If I'm going to sculpt you into a masterpiece, I need you hard enough to grind. Can you do that for me?", 'Du kannst das besser. Wenn ich ein Meisterwerk aus dir meißeln soll, musst du hart genug zum Schleifen sein. Schaffst du das für mich?'],
+    [V('TrialGradeC05'), 'A passing effort. Accept the therapy, internalize its lessons. Do better.', 'Gerade so bestanden. Nimm die Therapie an, verinnerliche ihre Lektionen. Werde besser.'],
+    [V('TrialGradeC07'), "Middling. Slightly less than average. If this were Russia, I'd be grading you with a bullet.", 'Mittelmaß. Knapp unter dem Durchschnitt. Wären wir in Russland, würde ich dich mit einer Kugel benoten.'],
+    [V('TrialGradeC08'), 'Mediocre. I hate that word. So flaccid, damp. A bruised word the texture of dog shit. Like you. Me. D. Ochre. Me. D. Ochre.', 'Mittelmäßig. Ich hasse dieses Wort. So schlaff, so feucht. Ein zerquetschtes Wort mit der Konsistenz von Hundescheiße. Wie du. Mit. Tel. Maß.']],
+  D: [
+    [V('TrialGradeD01'), "Technically, that's progress.", 'Technisch gesehen ist das ein Fortschritt.'],
+    [V('TrialGradeD03'), 'Even failure is an opportunity to learn.', 'Auch Versagen ist eine Gelegenheit zu lernen.'],
+    [V('TrialGradeD04'), 'I was embarrassed just watching that, it must have been awful for you.', 'Schon beim Zusehen war es mir peinlich. Für dich muss es furchtbar gewesen sein.'],
+    [V('TrialGradeD06'), 'You could only have done worse by dying.', 'Schlechter wäre es nur gegangen, wenn du gestorben wärst.'],
+    [V('TrialGradeD08'), "I'm not angry. Just... disappointed.", 'Ich bin nicht wütend. Nur ... enttäuscht.']],
+  F: [
+    [V('TrialFail01'), "You failed, because you're a failure. I don't know why I even try.", 'Du bist gescheitert, weil du ein Versager bist. Ich weiß nicht, warum ich es überhaupt versuche.'],
+    [V('TrialFail02'), 'You have earned nothing, you have learned nothing.', 'Du hast nichts verdient. Du hast nichts gelernt.'],
+    [V('TrialFail05'), "We scraped you up off the street. I tried to make you better. I guess there's no polishing a turd.", 'Wir haben dich von der Straße gekratzt. Ich habe versucht, dich besser zu machen. Einen Haufen kann man wohl nicht polieren.'],
+    [V('TrialFail06'), 'Mother used to say, "You can\'t cure stupid." I should have listened.', 'Mutter sagte immer: „Dummheit kann man nicht heilen.“ Ich hätte auf sie hören sollen.'],
+    [V('TrialFail08'), 'What am I teaching you? How to be dog food?', 'Was bringe ich dir eigentlich bei? Wie man Hundefutter wird?']]
+};
+const NOTES = {
+  'A+': ['This one scares me.', 'Notify Easterman, exceptional candidate.', 'Could Easterman be right?'],
+  A: ['Strong performance, consistently committed effort. Patient shows real dedication to therapy.', 'Subject shows natural talent. Could amount to something with a little effort.', "Tag patient chart for Easterman's attention; shows growth and potential."],
+  B: ['Progress, but slow. Mark the chart for next stage of osmosis.', 'Solid performance by lone Reagent.', 'Passing performance. Murkoff will want more exciting results.'],
+  C: ['The curious masochism of the perversely mediocre.', 'Subject needs to learn to use shame as fuel.', 'Middling performance. Reagent risks plateauing in process without engaging transformation.'],
+  D: ['Easterman will not be pleased.', 'Forgot the first two parts of Fight/Flight/Freeze.', 'Reagent does not appear to know if awake or asleep.'],
+  F: ['Diagnosis: Dog Food.', 'What a waste.', 'That hurt to watch.']
+};
+// moments around the tests (Easterman + the Sleep Room scientists)
+const SAY = {
+  welcome: [V('Lobby_EvalTalkFTUE01')], // Erstmessung starts
+  realStart: ['VO_Scripted_Scientist_Aquarium_Male01_Ready09'],
+  therapy: ['VO_Scripted_Scientist_Aquarium_Male01_Ready10', 'VO_Scripted_Scientist_Aquarium_Male01_Ready08'], // first session of the day
+  clinic: ['VO_Scripted_RelapseDoc01_Lobby_RelapseAvailable10'], // this month's real test is open
+  braver: ['VO_Scripted_RelapseDoc01_Lobby_ExitCancel10'], // real test left halfway
+  up: [V('Positive06'), V('Positive09')], // Stufe up
+  healed: [V('Positive04')], // real IQ went up
+  down: [V('Negative01')] // Stufe down / real IQ went down
 };
 let docAudio = null;
-function playDoc(g) { // the public Gute Nudel copy has no voice files
-  if (FROM_GN) return;
-  try { if (docAudio) docAudio.pause(); docAudio = new Audio('voice/' + encodeURIComponent(DOC[g].f)); docAudio.onerror = () => { const b = $('#docplay'); if (b) b.remove(); }; docAudio.play().catch(() => {}); } catch (e) {}
+function voice(f, then) { // the public Gute Nudel copy has no voice files; a missing file just stays silent
+  if (FROM_GN || !f) return null;
+  try {
+    if (docAudio) docAudio.pause();
+    const a = docAudio = new Audio('voice/' + f + '.mp3');
+    if (then) a.onended = () => { if (docAudio === a) voice(then); };
+    const p = a.play(); if (p && p.catch) p.catch(() => {});
+    return p;
+  } catch (e) { return null; }
 }
+const say = k => voice(pick(SAY[k]));
 
 function finish() {
   const r = run; run = null;
@@ -924,20 +981,20 @@ function finish() {
   const other = r.kind === 'daily' ? 'reason' : 'daily';
   if (earlierToday.every(s => s.kind !== r.kind) && earlierToday.some(s => s.kind === other)) award('double', day, fresh);
   save();
-  const d = DOC[g], ac = awardChips(fresh);
+  const d = pick(DOC[g]), note = pick(NOTES[g]), ac = awardChips(fresh), after = stufeMsg ? pick(SAY[S.stufe[r.kind] > r.st ? 'up' : 'down']) : null;
   $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding-top:4vh">
     <div class="sub">Evaluation · ${correct}/10 richtig · ${mmss(time)} min</div>
     <div class="grade g${GRADE_RANK[g]}">${g}</div>
     ${stufeMsg ? `<div class="chip" style="margin:4px 0 10px;border-radius:14px;padding:10px 14px;display:block">${stufeMsg}</div>` : ''}
-    <div class="doc"><div class="who">Dr. H. J. Easterman${FROM_GN ? '' : ` <button id="docplay" onclick="playDoc('${g}')">▶</button>`}</div>
-      <div class="say">„${d.say}“</div><div class="de">${d.de}</div></div>
-    <div class="memo"><b>Aktennotiz</b>${d.note}</div>
+    <div class="doc"><div class="who">Dr. H. J. Easterman${FROM_GN ? '' : ` <button onclick="voice('${d[0]}')">▶</button>`}</div>
+      <div class="say">„${d[1]}“</div><div class="de">${d[2]}</div></div>
+    <div class="memo"><b>Aktennotiz</b>${note}</div>
     ${ac ? `<div style="margin:10px 0">${ac}</div>` : ''}
     <button class="btn" onclick="closeResult()">Fertig</button>
     ${correct < 10 ? `<button class="btn ghost" onclick="review()">🔍 Fehler ansehen (${10 - correct})</button>` : ''}
     <button class="btn ghost" onclick="$('#test').remove();startSet('${r.kind}')">Noch eine Sitzung</button>
   </div>`;
-  playDoc(g);
+  voice(d[0], after);
   closeResult.kind = r.kind; review.run = r;
 }
 /* ---------- mistake review ---------- */
