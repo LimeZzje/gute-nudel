@@ -1111,7 +1111,9 @@ function voice(f, then) { // voice/<f>.mp3 next to this page; a missing file jus
     return p;
   } catch (e) { return null; }
 }
-function say(k, quiet) { const l = pick(SAY[k]); heard(l.f); if (!quiet) toast(l); return voice(l.f); } // quiet = voice only (test screens)
+// his rule: a category plays its unheard lines first (random order, each once), only then random repeats
+const nextOf = (arr, key) => { const h = S.heard || {}, fresh = arr.filter(x => !h[key(x)]); return pick(fresh.length ? fresh : arr); };
+function say(k, quiet) { const l = nextOf(SAY[k], x => x.f); heard(l.f); if (!quiet) toast(l); return voice(l.f); } // quiet = voice only (test screens)
 
 function finish() {
   const r = run; run = null;
@@ -1132,7 +1134,7 @@ function finish() {
   const other = r.kind === 'daily' ? 'reason' : 'daily';
   if (earlierToday.every(s => s.kind !== r.kind) && earlierToday.some(s => s.kind === other)) award('double', day, fresh);
   save();
-  const d = pick(DOC[g]), note = pick(NOTES[g]), ac = awardChips(fresh), after = stufeMsg ? pick(SAY[S.stufe[r.kind] > r.st ? 'up' : 'down']).f : null;
+  const d = nextOf(DOC[g], x => x[0]), note = pick(NOTES[g]), ac = awardChips(fresh), after = stufeMsg ? nextOf(SAY[S.stufe[r.kind] > r.st ? 'up' : 'down'], x => x.f).f : null;
   $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding-top:4vh">
     <div class="sub">Evaluation · ${correct}/10 richtig · ${mmss(time)} min</div>
     <div class="grade g${GRADE_RANK[g]}">${g}</div>
