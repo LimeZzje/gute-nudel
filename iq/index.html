@@ -108,6 +108,28 @@ input,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid var(-
 textarea{height:90px;font-size:12px}
 .chart svg{display:block;width:100%}
 .msg{font-size:19px;font-weight:800;margin-top:14px;line-height:1.3}
+/* real test (OMIB): 3x3 + 20 building blocks (5 columns = 5 block types) + confirm, fits a 390x700 phone */
+#test.real{--bk:min(calc((100vw - 56px) / 5),calc((100vh - 170px) / 8),64px);--cell:calc(var(--bk) * 1.3)}
+@supports (height:100dvh){#test.real{--bk:min(calc((100vw - 56px) / 5),calc((100dvh - 170px) / 8),64px)}}
+.matrix.omib{margin-top:8px}
+.matrix .build{background:#fff;outline:3px dashed var(--acc);outline-offset:-3px}
+.matrix .build svg{background:transparent}
+.blocks{display:grid;grid-template-rows:repeat(4,var(--bk));grid-auto-flow:column;grid-auto-columns:var(--bk);gap:6px;margin-top:12px}
+.blocks button{padding:0;border-radius:8px;overflow:hidden;border:3px solid #444;background:#fff}
+.blocks button svg{display:block;width:100%;height:100%}
+.blocks button.on{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc)}
+#test.real .btn{max-width:440px;margin-top:12px;padding:14px}
+/* grades + the evaluation chamber */
+.grade{font-size:132px;font-weight:900;line-height:1;margin:10px 0 8px;letter-spacing:-.04em}
+.g5{color:#c77dff}.g4{color:var(--acc)}.g3{color:#49e07a}.g2{color:#e8c547}.g1{color:#ff9a3d}.g0{color:var(--red)}
+.gchip{display:inline-block;min-width:34px;padding:3px 8px;border-radius:8px;background:#222;font-weight:900;text-align:center;font-size:15px}
+.doc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;text-align:left;margin-top:8px}
+.doc .who{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between;align-items:center}
+.doc .who button{background:var(--acc);color:#111;border-radius:99px;width:34px;height:34px;font-size:14px;font-weight:900}
+.doc .say{font-family:Georgia,serif;font-style:italic;font-size:18px;line-height:1.45;margin-top:8px}
+.doc .de{color:var(--dim);font-size:14px;margin-top:6px;line-height:1.4}
+.memo{margin-top:10px;text-align:left;font-family:"Courier New",monospace;background:#e9e2c9;color:#2b2615;border-radius:6px;padding:10px 12px;font-size:14px;transform:rotate(-.6deg)}
+.memo b{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.65;margin-bottom:3px}
 </style>
 </head>
 <body>
@@ -401,21 +423,58 @@ function genCube(lvl = 0) {
   return { kind: 'cube', net, options: order.map(i => opts[i].map(f => sym[f])), answer: order.indexOf(0), _faces: order.map(i => opts[i]) };
 }
 // st = Stufe 0..4: bigger figures, longer orderings
-const reasonSet = (st = 0) => [() => genRotation(0 + st), () => genOrder(Math.min(8, 5 + st)), genSyll, () => genCube(st), () => genRotation(1 + st), genSyll, () => genOrder(Math.min(8, 6 + st)), () => genCube(st + 1), genSyll, () => genRotation(2 + st)].map(f => f());
+// number series live here since 11-08 (the real test is OMIB now)
+const reasonSet = (st = 0) => [() => genRotation(0 + st), () => genOrder(Math.min(8, 5 + st)), genSyll, () => genCube(st), genSeries, () => genRotation(1 + st), genSyll, () => genOrder(Math.min(8, 6 + st)), () => genCube(st + 1), genSeries].map(f => f());
 const matrixSet = (st = 0) => SET_LEVELS.map(L => genMatrix(Math.min(MAX_LEVEL, L + st)));
 const MAX_STUFE = 4, STUFE_IQ = 4;
 const REASON_SET = reasonSet;
 
-if (typeof module !== 'undefined') module.exports = { genCube, foldNet, ALL_ORIENT, matrixSet, reasonSet, MAX_LEVEL, genMatrix, genSeries, iqFrom, SET_LEVELS, RANGE, NLINES, genRotation, genOrder, genSyll, holds, MODELS, SA, SB, SC, rotKeys, mirror, keyOf, REASON_SET };
+/* ---------- the real IQ test: Open Matrices Item Bank ----------
+   Koch, Spinath, Greiff & Becker (2022), "Development and Validation of the Open Matrices Item Bank",
+   Journal of Intelligence 10(3):41, items GPLv3 (osf.io/4km79). 2PL parameters from 2,561 medical-school applicants.
+   item = [id, a, b, rules, cell1..cell9]; a cell = 20 building blocks as a 20-bit hex code, cell9 = the solution */
+const OMIB = [[1,2.48,-1.28,1,"80000","20000","a0000","10000","40000","50000","a0000","50000","f0000"],[2,2.04,-1.49,1,"00f00","00400","00b00","00f00","00100","00e00","00f00","00200","00d00"],[3,1.14,1.43,1,"0a000","02000","08000","05000","01000","04000","0c000","06000","0a000"],[4,1.04,-2.84,1,"0f000","0c000","0c000","0f000","0a000","0a000","0f000","03000","03000"],[5,1.09,-2.5,1,"80000","40000","20000","20000","10000","80000","40000","20000","10000"],[6,1.0,-3.38,1,"00080","00040","00020","00020","00080","00040","00040","00020","00080"],[8,1.17,-0.01,1,"0f000","0c000","03000","0f000","03000","0c000","0f000","04000","0b000"],[9,2.09,-1.36,1,"00008","0000e","00006","00002","0000a","00008","00001","00007","00006"],[10,1.32,-1.24,1,"a0000","30000","20000","50000","c0000","40000","60000","c0000","40000"],[11,1.13,-3.25,1,"00400","00200","00100","00200","00100","00800","00100","00800","00400"],[12,0.84,-4.08,1,"00020","00010","00080","00010","00080","00020","00080","00020","00010"],[13,1.1,-1.05,1,"04000","02000","06000","01000","08000","09000","02000","08000","0a000"],[14,1.65,-1.39,1,"f0000","30000","c0000","e0000","20000","c0000","50000","10000","40000"],[15,1.64,-0.36,1,"00006","00009","0000f","0000a","0000d","00007","0000d","00007","0000a"],[16,2.0,-0.19,1,"00600","00c00","00400","00b00","00700","00300","00600","00b00","00200"],[17,1.29,-2.17,1,"00006","00003","00009","0000d","0000e","00007","00003","00009","0000c"],[18,0.11,-8.98,1,"00080","00020","00010","00010","00020","00080","00020","00080","00010"],[19,1.29,-0.55,1,"00a00","00400","00e00","00300","00c00","00f00","00800","00400","00c00"],[20,3.16,-0.79,1,"0f000","01000","0e000","0a000","08000","02000","0e000","02000","0c000"],[21,1.74,-0.73,2,"a0200","20800","80a00","50500","40800","10d00","60e00","20100","40f00"],[22,1.9,0.13,2,"0c800","0e200","02a00","09200","07800","0ea00","06400","0c100","0a500"],[23,1.7,-0.64,2,"c8000","84000","8c000","52000","14000","16000","a1000","84000","85000"],[24,1.43,-0.96,2,"08008","04001","02009","04002","02004","01006","02001","01004","08005"],[25,1.02,-1.28,2,"08040","02020","0a010","04010","01040","05020","02020","08010","0a040"],[26,1.39,0.25,2,"0cf00","0ed00","02200","06f00","0b600","0d900","03f00","0ea00","0d500"],[27,0.89,-1.26,2,"af000","32000","2d000","5f000","66000","49000","af000","6c000","23000"],[28,1.54,-1.14,2,"fc000","26000","d3000","f9000","8c000","76000","f6000","13000","e9000"],[29,1.08,-0.94,2,"ff000","07600","08010","0f010","fe000","01600","0f600","0b010","f4000"],[30,1.63,-0.1,2,"06a00","04600","02200","03300","06900","05100","06c00","0cb00","0a800"],[31,1.28,0.37,2,"c3000","36000","fc000","ec000","69000","83000","57000","3e000","6d000"],[32,1.69,-0.05,2,"06020","0e010","08020","0f020","0f020","00010","0d010","07020","0a020"],[33,1.51,0.38,2,"00f02","00804","00808","00601","00902","00004","00708","00301","00302"],[34,1.46,1.44,2,"8f000","2c000","1c000","87000","19000","21000","25000","87000","15000"],[35,0.62,-1.7,2,"c0020","60040","30010","d0010","e0040","70020","30040","90010","c0020"],[36,1.8,-0.71,2,"00c08","00402","0080a","00d02","00901","00403","00f04","00b08","0040c"],[37,1.63,-0.37,2,"0fc00","06900","09d00","0e300","0b600","05700","0c500","0fa00","03f00"],[38,1.53,-0.55,2,"0aa00","04c00","0e800","05300","08600","0d200","0cc00","03400","0f400"],[39,1.68,-0.52,2,"e6000","33000","f9000","c9000","ac000","e6000","56000","93000","d9000"],[40,0.99,-1.08,2,"00c10","00220","00e40","00340","00810","00b20","00920","00440","00d10"],[41,1.49,0.89,2,"ce000","42000","8c000","ef000","63000","8c000","f7000","59000","ae000"],[42,2.12,0.28,2,"00f0c","00e0a","00108","00c0e","0080a","0040a","00f03","00a0d","00501"],[43,0.72,-0.39,2,"00d07","0010b","00c0d","0060a","00205","0040a","00f0e","00607","0090b"],[44,0.9,-0.24,2,"00043","00021","00012","00017","00027","00040","0002e","00046","00018"],[45,2.97,0.45,2,"0fc00","03600","03a00","0ae00","07500","02b00","06700","0cc00","04b00"],[46,0.98,-1.14,2,"c000c","60006","a0003","60009","3000c","50006","30003","90009","a000c"],[47,1.27,-0.1,2,"0004a","0008c","00016","00013","00046","00085","0008c","00019","00045"],[48,0.83,0.84,2,"0e400","07c00","0b400","0b100","0d300","0e100","0e500","07900","0b100"],[49,0.91,-0.7,2,"0f00e","f000b","0000a","0000d","0f007","f0005","f000b","0000e","0f00a"],[50,1.76,-1.13,2,"8000f","4f000","20080","40080","2000f","1f000","1f000","80080","4000f"],[51,1.55,-0.53,2,"6c000","43000","2f000","e6000","c1000","27000","fc000","22000","de000"],[52,1.79,-0.26,2,"00606","00908","00f0e","00703","00e0c","0090f","00301","00506","00607"],[53,1.63,0.26,2,"c0006","10002","d0002","a0007","50002","f0002","6000c","10003","70000"],[54,1.69,-1.21,2,"cc000","63000","3f000","92000","c8000","6a000","36000","91000","c7000"],[55,1.58,-0.39,2,"ac000","02a00","0e040","05040","a8000","0da00","03a00","08040","ab000"],[56,1.95,-0.16,2,"1c000","12000","0e000","37000","22000","15000","ca000","46000","8c000"],[57,2.08,0.2,2,"0060e","00206","00406","00e0e","00801","00600","0030c","0030c","0000c"],[58,1.44,0.26,2,"e6000","c3000","29000","f9000","7c000","86000","77000","2b000","5d000"],[59,1.13,-0.41,2,"f0040","00020","f0040","e0040","60040","80020","70020","30040","40040"],[60,2.76,0.04,2,"c0006","60009","a0000","7000e","6000a","1000a","e0007","e0009","00001"],[61,1.62,1.37,2,"0c800","04400","08200","0f200","05100","0a800","0c400","02200","0e100"],[62,1.77,0.6,2,"0002c","0f00a","f0006","f000d","0002c","0f001","0f008","f000c","00024"],[63,1.28,0.79,2,"90c00","c0900","80300","f0e00","c0d00","c0b00","b0200","f0400","b0800"],[64,1.36,0.45,2,"00f80","0f400","f0400","0fb00","f0700","00380","f0300","00580","0f100"],[65,1.23,-2.25,2,"c0080","60040","30020","90040","c0020","60080","30020","90080","c0040"],[66,1.7,-0.58,2,"cf000","22000","ed000","ac000","18000","b4000","8e000","14000","9a000"],[67,2.21,-0.7,2,"8000c","10006","9000a","50003","80004","d0007","c0008","30004","f000c"],[68,1.74,-0.41,2,"00c0a","0020c","00e08","00a02","00502","00f02","00805","0030c","00b04"],[69,1.01,-0.79,2,"85000","12000","27000","6a000","c5000","9f000","d4000","b2000","76000"],[70,1.78,-0.8,2,"60010","10040","70020","80040","40020","c0010","60020","80010","e0040"],[71,1.33,-0.35,3,"c060c","20206","e040a","20b06","80302","a0804","30c03","4040b","70808"],[72,1.05,0.04,3,"06a50","08a40","0e040","04310","01140","05200","06d10","09810","0f510"],[73,1.39,-0.37,3,"8600c","2300c","a9000","0e003","17001","1b002","c9006","0c002","c6004"],[74,1.94,-1.06,3,"c004f","30023","f008c","60026","10082","70044","2004f","8002c","a0083"],[75,1.81,0.21,3,"c0c06","20c09","e0000","7070c","8020c","f050c","80607","20902","a0f02"],[76,1.44,0.02,3,"c6c00","68300","3ef00","9a300","c1500","6b600","32a00","98600","cac00"],[77,1.34,-0.2,3,"c0640","c0820","00e10","70340","60410","10720","c0c10","60120","a0d40"],[78,2.41,-0.24,3,"b8800","a4400","ac200","62200","e4100","66800","f5800","78400","7d200"],[79,1.84,0.17,3,"e4020","61010","65040","3c040","c3020","0f010","7c040","92010","1e020"],[80,1.46,-1.12,3,"65040","32020","97010","9c040","c2010","6e020","33020","9c040","cf010"],[81,2.24,-0.37,3,"fee00","47b00","b9a00","ec500","26c00","ca400","7cf00","19300","65300"],[82,1.94,-0.72,3,"dc800","86100","5a200","e7c00","6c900","8b300","fe300","5f600","a1c00"],[83,1.44,-0.42,3,"efc00","60540","80920","60e20","2fb00","40540","f0c40","c0e20","3f200"],[84,1.62,-0.32,3,"cea00","92200","32800","8cf00","1b700","28800","efe00","d7e00","b7000"],[85,2.56,-0.56,3,"de080","cd040","1c010","bc010","16080","a4040","fe040","6b010","9a080"],[86,1.49,-0.39,3,"dc040","19a00","c3010","4e010","4d040","0ba00","e8a00","41010","a2040"],[87,2.05,0.33,3,"ec900","a9300","a5600","eda00","76500","6ba00","ced00","74b00","4a700"],[88,1.36,0.89,3,"cef00","67080","a6000","b8000","75f00","c0080","ec080","b6000","54f00"],[89,2.0,-0.08,3,"a6080","33040","29020","fe020","07080","0b040","74040","b2080","31020"],[90,1.55,0.29,3,"0ce0a","0620c","0ac0e","06b05","0c806","0a307","0bf03","0630a","0dc0b"],[91,3.02,-0.45,3,"cfc00","22700","ed400","5e300","28900","76100","9c600","44a00","d8200"],[92,1.23,-0.38,3,"e040c","40106","a0503","50c03","40109","10d0c","c030c","40406","80703"],[93,2.28,-0.66,3,"fa040","ac010","5e080","e6080","48040","ae010","33010","2c080","1f040"],[94,1.91,-0.02,3,"0cc0c","06902","0450e","03607","09a08","01c0f","0f705","0cc08","0cb0d"],[95,1.66,0.36,3,"c0c0e","60607","a0e0b","6030b","c040d","a070e","50c0e","c0107","90d0b"],[96,1.83,-0.05,3,"0c04a","06026","0e01c","07013","08046","0f025","05026","02018","0704e"],[97,1.94,0.04,3,"c030c","20906","e0c04","2060f","80300","a0900","70e03","80707","f0b03"],[98,1.75,-0.22,3,"ae020","1b010","ba040","47010","1d040","55020","e6040","2b020","e2010"],[99,1.48,-0.43,3,"0fe0c","0072a","00b1e","00d13","0fe08","0072b","00b24","00d11","0fe05"],[100,2.17,0.03,3,"e060e","20b07","c0209","b0b07","10d0d","a090a","e0e0c","60406","8040a"],[101,2.55,-0.11,3,"0ce0e","0740d","0ba0b","0ce0a","06605","0a80a","0f608","0c401","03202"],[102,2.16,-0.14,3,"e008f","f001d","10022","d002c","70084","a0018","c001f","b0025","7008a"],[103,1.7,0.21,3,"8ff00","17f00","28f00","67e00","c1b00","96a00","ecc00","d4d00","b8c00"],[104,1.66,0.41,3,"00c1f","00582","0042d","00a8c","00f24","00a18","0072e","00e14","0068a"],[105,1.5,-0.83,3,"c0e80","90410","30a20","e0610","d0220","b0480","80f20","10780","20810"],[106,2.26,-0.41,3,"c600c","99005","3f004","7e00e","eb005","d5004","8c00e","1300a","2f00a"],[107,2.07,-0.36,3,"e008c","60043","6002f","7004e","50027","50089","e002c","40089","40045"],[108,2.04,-0.38,3,"e4080","78020","61010","ae020","7d010","2b080","9a080","35010","1a020"],[109,2.65,-0.38,3,"c6008","4c001","8a009","e7001","c700e","2000f","dc006","96008","4a00e"],[110,3.09,-0.07,3,"66700","92500","f4500","6ff00","16000","79000","c7600","21b00","e6200"],[111,1.63,0.13,3,"86300","88900","0ec00","77c00","38600","4f300","f8700","32b00","cad00"],[112,1.87,-1.07,3,"1c040","44020","58080","ce020","28040","e6080","3f040","c1020","fe080"],[113,1.94,0.21,3,"66f00","19000","7f000","c7600","2ef00","e9600","26e00","43d00","65c00"],[114,1.2,-0.1,3,"ecf00","73f00","bf000","32700","9cb00","cec00","62700","31c00","93b00"],[115,2.24,-0.46,3,"a6040","51080","f7080","3c080","63040","5f080","e4040","62080","86080"],[116,2.12,-0.35,3,"8ea00","fb500","faa00","66a00","3c500","74a00","c3a00","1f500","d3a00"],[117,2.19,-0.55,3,"66010","91010","07020","7c010","c2020","4e010","fa010","f5010","ff020"],[118,1.98,-0.58,3,"3c040","c6020","f3020","2e020","87040","ab020","3d040","4e020","77020"],[119,1.93,0.28,3,"eee00","64400","6aa00","ec700","56500","4a200","fec00","ab400","a5800"],[120,1.93,0.12,3,"e0a0e","30504","d0a0a","9030c","c0608","50c04","e0c0f","40903","a030c"],[121,2.37,-0.16,3,"0fc80","02e40","0d220","06540","04b20","02e80","0bc20","01780","0ab40"],[122,1.94,-0.38,3,"7e800","d6100","58200","8e700","b4e00","8ad00","cf600","eec00","c1900"],[123,2.92,-0.42,3,"ee020","62080","6c040","bf080","a9020","a6040","fc020","f4040","f8080"],[124,2.83,-0.39,3,"00c4f","00912","0032d","0072c","00e44","00d18","00a17","00522","00a45"],[125,2.72,0.23,3,"cc00e","c9007","03006","ce00a","dd003","1b002","e800e","51006","b2006"],[126,3.3,-0.43,3,"0ce80","04640","08610","0b710","07280","0c240","0cc40","04410","08480"],[127,1.98,0.65,3,"0ec80","06940","06320","0fe20","0ad80","0ab40","0d940","0a320","08680"],[128,1.87,-0.11,3,"8cf00","16a00","9a500","43e00","26400","65a00","aeb00","5b800","f5300"],[129,2.49,-0.41,3,"ca00e","53004","4b00a","a6007","6a002","2e005","e900f","74003","6d00c"],[130,2.18,-0.15,3,"0dc0c","04506","09d03","07e0c","04106","03f03","0a90c","02606","08f03"],[131,1.44,-0.09,3,"0084e","0071c","00f22","0012f","00c4a","00d15","00316","00824","00b42"],[132,1.48,-0.05,3,"0ce09","0620c","0ec08","06306","0160e","07506","0a503","05601","0f301"],[133,2.11,0.0,3,"a6700","6cb00","ead00","73d00","26e00","75700","ce700","27b00","e9d00"],[134,1.98,-0.11,3,"00c8b","0061c","00a2f","00222","00c81","00e13","0011c","00222","0038e"],[135,1.68,-0.13,3,"ec040","7d010","bc050","b5080","d6080","e4080","ef040","7e020","be060"],[136,2.37,-0.14,3,"af00b","7004a","2002b","e002e","bf005","a004f","60044","c0026","4f006"],[137,1.65,-0.77,3,"04e20","02480","01e40","01640","08120","04780","04c80","02540","01d20"],[138,2.2,-0.2,3,"ef00e","7e004","9e00a","e7007","4e006","a6001","de00e","bd004","6c00a"],[139,2.63,-0.48,3,"cec00","94600","3aa00","87e00","12500","25b00","efc00","d2700","bdb00"],[140,1.27,0.35,3,"fec00","0540f","0b810","0e710","f3200","0d50f","0ee0f","05c10","fb200"],[141,2.84,-0.45,3,"90d0e","30606","60408","60c05","c0d01","90c04","30107","60706","c0101"],[142,2.5,-0.2,3,"00f1e","00a4d","0052c","00e2f","0081f","0064f","00b4e","00125","00a14"],[143,1.56,-0.12,3,"0f02c","0a016","05083","0e087","0802b","0601d","0708a","02015","0502a"],[144,3.04,0.21,3,"ecc00","77600","6b300","ec700","b6b00","aad00","ce800","45400","4b200"],[145,2.86,0.16,3,"ef080","7a020","9a00f","ce020","6b00f","aa080","9e00f","36080","a6020"],[146,3.63,-0.04,3,"8000f","1004a","2002a","e002e","d000b","b004a","c004e","90025","30004"],[147,1.41,-0.08,3,"a0e08","60602","c080a","3070a","70101","4060b","e0f0e","b0a01","5050f"],[148,1.36,1.65,3,"fc040","66050","9e040","d3010","1a010","cb010","e6040","8c020","6e000"],[149,2.16,-0.45,3,"0ac0c","04908","0e304","0530f","06606","07c09","0e903","0e302","0e601"],[150,1.4,0.05,3,"0f01c","f0018","00e14","00e23","0f042","f0061","f001e","00e4a","0f054"],[151,1.51,0.43,4,"c6f0f","38300","fec00","65607","3240d","57205","e8d05","72803","9a501"],[152,1.93,0.27,4,"c6706","88803","4ef09","7150c","32306","43603","e6e0e","e9707","0f90b"],[153,1.44,0.03,4,"a6043","a6084","00027","fc047","f6080","0a027","7308c","34022","4704e"],[154,4.05,0.22,4,"cf302","20301","e0008","8ce01","2e808","ac604","6670c","9d306","f4403"],[155,2.44,0.21,4,"c6740","26720","e0710","4ec10","16320","58040","37710","45d40","72520"],[156,1.85,-0.12,4,"66603","93802","99e01","9330e","6980a","9cb04","99403","9c103","66500"],[157,2.01,0.1,4,"c6603","3c309","f450c","6ff06","86103","e6e09","3a60c","4b306","7a503"],[158,3.78,-0.03,4,"8ca80","26c10","aa840","4cf10","12340","5e380","ce740","33a80","fd210"],[159,2.19,-0.12,4,"c038c","10949","d0123","80e4e","10b8d","90a2b","c0828","20f41","e0882"],[160,2.94,0.25,4,"cec02","4a601","8aa08","e6c0c","4b806","a2403","dfb0e","81307","5180b"],[161,1.57,0.26,4,"c078c","70328","b0344","c024e","30284","f022a","c0f27","90a41","50a86"],[162,1.74,0.48,4,"e7085","4e048","ad02d","cc04c","49029","83085","dc02e","4908d","93043"],[163,3.35,0.17,4,"08f8c","01348","02324","0e72f","0db47","0b388","03e4e","06b8e","0ca20"],[164,1.28,0.87,4,"f8e0e","01225","02c14","02f13","f4907","08623","01624","0271f","f4104"],[165,1.55,0.53,4,"6cf05","93207","ffd05","7570c","72506","07204","e8e03","a2606","4a802"],[166,2.01,0.76,4,"66307","39c03","9ff04","ea50a","76208","bc702","7c80e","b7606","dbe08"],[167,2.67,0.21,4,"36620","c6180","f0710","cf380","67010","a8320","75e80","e1120","94f10"],[168,2.95,0.09,4,"46e40","2cc10","14250","cb340","6e300","3a040","77e10","be600","d6810"],[169,3.86,0.05,4,"6e340","86610","e8220","43e10","13d40","50c20","ee740","1ad20","f4510"],[170,5.16,0.18,4,"61047","2808b","4904d","ca042","c4041","0e088","7204c","61086","13043"],[171,2.06,0.63,4,"cce0c","96602","5360e","97505","2b902","bd107","c3c0c","79f01","bcc0d"],[172,2.68,0.26,4,"40e4c","10623","5068f","c058e","20d23","e054d","80f8c","60248","e0224"],[173,3.13,0.05,4,"8808c","16016","2e044","cc04e","93017","3f086","e808f","d3044","bb014"],[174,3.12,0.22,4,"ce50e","94a0c","3af0c","ece05","d8503","b4b01","8fc0f","12606","2da06"],[175,3.17,0.42,4,"c038e","60114","a012a","a0e85","10a21","b0a14","c0e2e","a0718","60686"],[176,2.22,0.01,4,"fe04c","a5016","5b023","e602d","4304e","a5017","cc012","41021","8d048"],[177,1.97,0.07,4,"c0f4e","8052d","4051b","e0e14","c0828","20841","f0b43","60e16","90a2c"],[178,3.03,0.15,4,"e0c8c","b0616","a0a43","f0e1d","6054e","60b87","e0649","7018c","60716"],[179,2.65,0.17,4,"c6208","c6205","0600d","7bf07","b5308","c1c0f","7ce03","56a0c","2440f"],[180,2.44,0.18,4,"a6340","89910","2fc50","ea820","66440","8c260","f7720","3cb00","cbd20"],[181,1.77,0.06,4,"64640","94920","f0f20","ae620","46e40","e8820","4b340","1be20","50d20"],[182,2.52,0.37,4,"86308","4f201","26109","cbf0e","6ea01","3a50f","73e01","bec06","d2207"],[183,3.24,-0.09,4,"c6028","66011","40049","ea046","62021","68017","5702a","a6014","0104e"],[184,2.02,0.04,4,"c8320","62140","3a210","36c40","99c10","cf020","63740","38620","9b110"],[185,3.68,0.46,4,"9cc07","3290a","ae302","cae0c","91d06","5bb04","e820d","56405","be805"],[186,1.77,0.16,4,"cc840","67420","a4c80","bb780","3d840","89f20","ff420","54980","a4d40"],[187,2.12,0.2,4,"caa80","91540","8ba10","fcc40","62910","6e380","e1e10","72d80","63b40"],[188,2.49,0.24,4,"fce0b","9940e","63a0a","c770c","4ea04","8dd04","e8c07","41306","a2f06"],[189,3.35,0.2,4,"ce01f","7402a","4a045","e702c","7a048","6d014","cc047","96012","8a025"],[190,3.62,0.35,4,"e308e","56024","bc01a","ce017","6d083","ab024","cc02a","59018","93082"],[191,3.08,0.05,4,"f0b84","70348","8f301","60a4a","6fe05","00a8a","bf209","90e83","20246"],[192,2.85,0.04,4,"cce80","69440","a3420","eee40","3db20","dba80","c6e20","fcc80","39c40"],[193,2.41,0.24,4,"cc603","66803","a4e00","7e30c","87c08","f6f04","6aa07","36103","52b04"],[194,1.78,0.6,4,"c6e03","26a09","e040c","3e308","4af04","74c02","c770a","34a05","f3d0a"],[195,2.69,0.31,4,"64340","93180","f7210","ece80","73610","9f840","68f80","c6340","aec10"],[196,3.3,0.17,4,"c6306","4ec03","86f09","ff302","fc401","0c708","7fc04","60102","10d01"],[197,2.86,0.19,4,"cc120","e2110","ce010","a5a10","e2210","a7820","38e20","64210","2cc10"],[198,1.08,0.88,4,"c0944","10128","d0841","50622","20244","70428","80721","20522","a0244"],[199,5.08,0.18,4,"8cc08","66d01","e4102","9b704","2ae08","ba901","cfc01","24402","e4804"],[200,3.46,0.35,4,"ecf40","f2520","1e510","c8c40","62710","aa420","4cc10","f3640","bf420"],[201,1.74,1.11,5,"96c5e","18347","8ef4b","e3a49","6c31c","8f906","f8649","f2d4c","0ab46"],[202,2.58,0.44,5,"c6c4c","72223","44e1f","cf316","d344a","cc72c","6ec47","3a32b","24f1c"],[203,3.74,0.27,5,"c6448","13228","d5110","1a245","46111","5c824","8e12a","6f842","e1418"],[204,3.82,0.31,5,"26428","16411","86049","1cc13","83424","40847","6ea21","3a214","9a845"],[205,3.4,0.4,5,"c6449","39223","f014a","6c125","89842","e8447","8384c","2b446","a322a"],[206,2.81,0.65,5,"c6a44","4ce22","8aa11","77312","73c41","04028","ac741","29d18","85524"],[207,4.0,0.49,5,"c684c","49416","8f254","63416","6620c","05114","fc227","37143","cb863"],[208,3.63,0.5,5,"c6c45","ca184","02d21","7768e","c314a","b3724","6e34d","33429","52784"],[209,2.6,0.8,5,"cea48","45681","8be12","76314","3a548","4c781","f7b82","2cc14","dbf48"],[210,3.43,0.53,5,"acc2a","4464e","e831a","37325","e394f","f4c15","8fc2e","4c64b","c331a"],[211,2.91,0.33,5,"8c843","1442a","98212","45124","2584e","60414","ce243","37117","f9823"],[212,3.02,0.39,5,"c632c","ce94c","06c80","aac43","96682","32321","6398e","ccc42","a062c"],[213,3.18,0.91,5,"afa4e","5c257","f384b","6e725","8664a","e8105","5ce46","28563","74b49"],[214,4.48,0.52,5,"af94c","66322","c911e","37613","62e4a","5562b","ec32a","78915","9414f"],[215,1.89,1.09,5,"afa88","da244","75a22","cf522","b5281","7a748","9f348","26c24","b9f82"],[216,2.49,0.69,5,"eff29","7f641","bf989","ba346","d5283","e0127","bce8c","d642a","e4a4e"],[217,2.97,0.5,5,"caa1c","67644","32c2c","3ee43","96725","c6917","63429","36a14","92e4d"],[218,3.63,0.5,5,"eaa8c","64b09","8ea43","55403","4e346","1b08c","acc49","2b683","87406"],[219,4.04,0.58,5,"8ba4e","43616","23c58","26983","1ac80","82583","8562a","46c42","24a68"],[220,1.63,2.41,5,"acc21","26343","8ef11","65822","4224a","27a12","9a929","1434c","8ea18"]];
+const REAL_N = 28, REAL_MEAN = 115, REAL_SD = 15; // anchor: the average applicant = IQ 115
+const REAL_KINDS = ['cold', 'real'];
+const cellBits = h => parseInt(h, 16).toString(2).padStart(20, '0');
+const omibItem = it => ({ kind: 'omib', id: it[0], a: it[1], b: it[2], cells: it.slice(4).map(cellBits) });
+function realSet(seen = {}) { // 28 strata by difficulty, least-seen item per stratum, easy -> hard
+  const sorted = OMIB.slice().sort((x, y) => x[2] - y[2]), out = [];
+  for (let k = 0; k < REAL_N; k++) {
+    const pool = sorted.slice(Math.floor(k * sorted.length / REAL_N), Math.floor((k + 1) * sorted.length / REAL_N));
+    const m = Math.min(...pool.map(it => seen[it[0]] || 0));
+    out.push(pick(pool.filter(it => (seen[it[0]] || 0) === m)));
+  }
+  return out.map(omibItem);
+}
+function thetaEAP(res) { // res: [{a, b, ok}], prior N(0,1)
+  let num = 0, den = 0;
+  for (let t = -4; t <= 4.0001; t += 0.05) {
+    let l = Math.exp(-t * t / 2);
+    for (const r of res) { const p = 1 / (1 + Math.exp(-r.a * (t - r.b))); l *= r.ok ? p : 1 - p; }
+    num += t * l; den += l;
+  }
+  return num / den;
+}
+const realIQ = res => Math.round(REAL_MEAN + REAL_SD * thetaEAP(res));
+
+/* ---------- training grades (Outlast-Trials style) ---------- */
+const GRADES = [[10, 'A+'], [9, 'A'], [7, 'B'], [5, 'C'], [3, 'D'], [0, 'F']];
+const gradeOf = c => GRADES.find(g => c >= g[0])[1];
+const GRADE_RANK = { 'A+': 5, A: 4, B: 3, C: 2, D: 1, F: 0 };
+
+if (typeof module !== 'undefined') module.exports = { OMIB, realSet, thetaEAP, realIQ, cellBits, gradeOf, genCube, foldNet, ALL_ORIENT, matrixSet, reasonSet, MAX_LEVEL, genMatrix, genSeries, iqFrom, SET_LEVELS, RANGE, NLINES, genRotation, genOrder, genSyll, holds, MODELS, SA, SB, SC, rotKeys, mirror, keyOf, REASON_SET };
 </script>
 
 <script>
 /* ---------- rendering of matrix panels ---------- */
 const FILL = ['#ffffff', '#959595', '#111111'];
 const LINES = [[0, 50, 100, 50], [50, 0, 50, 100], [0, 0, 100, 100], [100, 0, 0, 100], [0, 18, 100, 18], [82, 0, 82, 100]];
-const POS = { 1: [[50, 50]], 2: [[30, 30], [70, 70]], 3: [[50, 27], [27, 71], [73, 71]], 4: [[29, 29], [71, 29], [29, 71], [71, 71]],
-  5: [[26, 26], [74, 26], [50, 50], [26, 74], [74, 74]], 6: [[22, 31], [50, 31], [78, 31], [22, 69], [50, 69], [78, 69]] };
-const BASE_R = { 1: 38, 2: 23, 3: 20, 4: 19, 5: 15, 6: 13 };
+// crowded panels spread their shapes so the large size can be big: size steps must read at a glance on a phone
+const POS = { 1: [[50, 50]], 2: [[29, 29], [71, 71]], 3: [[50, 27], [26, 72], [74, 72]], 4: [[27, 27], [73, 27], [27, 73], [73, 73]],
+  5: [[22, 22], [78, 22], [50, 50], [22, 78], [78, 78]], 6: [[18, 30], [50, 30], [82, 30], [18, 70], [50, 70], [82, 70]] };
+const BASE_R = { 1: 40, 2: 25, 3: 21, 4: 21, 5: 17, 6: 15 };
+const SIZE_K = [0.34, 0.64, 1];
 function shapeSVG(type, cx, cy, r, fill) {
   const st = `fill="${fill}" stroke="#111" stroke-width="2.2" stroke-linejoin="round"`;
   if (type === 4) return `<circle cx="${cx}" cy="${cy}" r="${r * .92}" ${st}/>`;
@@ -427,11 +486,22 @@ function shapeSVG(type, cx, cy, r, fill) {
 function panelSVG(p) {
   let s = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">';
   LINES.forEach((l, i) => { if (p.lines >> i & 1) s += `<line x1="${l[0]}" y1="${l[1]}" x2="${l[2]}" y2="${l[3]}" stroke="#555" stroke-width="2.4"/>`; });
-  if (p.nest) return s + shapeSVG(p.type, 50, 50, 44, '#ffffff') + shapeSVG(p.itype, 50, p.type === 0 ? 60 : 52, 44 * [0.24, 0.36, 0.48][p.isize] * (p.type === 0 ? .78 : 1), FILL[p.icolor]) + '</svg>';
-  const r = BASE_R[p.num] * [0.45, 0.72, 1][p.size];
+  if (p.nest) return s + shapeSVG(p.type, 50, 50, 44, '#ffffff') + shapeSVG(p.itype, 50, p.type === 0 ? 60 : 52, 44 * [0.2, 0.34, 0.5][p.isize] * (p.type === 0 ? .78 : 1), FILL[p.icolor]) + '</svg>';
+  const r = BASE_R[p.num] * SIZE_K[p.size];
   for (const [x, y] of POS[p.num]) s += shapeSVG(p.type, x, y, r, FILL[p.color]);
   return s + '</svg>';
 }
+
+// the 20 OMIB building blocks, same geometry as the original web version (osf.io/4km79): corners, diagonals, edge boxes, centre shapes, arrows
+const OB = [
+  ...['0,0 25,0 0,25', '25,100 0,100 0,75', '100,75 100,100 75,100', '75,0 100,0 100,25'].map(p => `<polygon points="${p}" fill="#111"/>`),
+  ...[[12.5, 50, 50, 12.5], [12.5, 50, 50, 87.5], [50, 87.5, 87.5, 50], [50, 12.5, 87.5, 50]].map(([a, b, c, d]) => `<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="#111" stroke-width="2.6" stroke-linecap="round"/>`),
+  ...['37.5,0 62.5,0 62.5,12.5 37.5,12.5', '0,37.5 0,62.5 12.5,62.5 12.5,37.5', '37.5,87.5 62.5,87.5 62.5,100 37.5,100', '87.5,37.5 87.5,62.5 100,62.5 100,37.5'].map(p => `<polygon points="${p}" fill="#111"/>`),
+  '<rect x="40" y="40" width="20" height="20" fill="#111"/>', '<rect x="41" y="41" width="18" height="18" fill="none" stroke="#111" stroke-width="2.4"/>',
+  '<circle cx="50" cy="50" r="10" fill="#111"/>', '<circle cx="50" cy="50" r="9" fill="none" stroke="#111" stroke-width="2.4"/>',
+  ...['50,12.5 37.5,25 62.5,25', '12.5,50 25,37.5 25,62.5', '50,87.5 37.5,75 62.5,75', '87.5,50 75,37.5 75,62.5'].map(p => `<polygon points="${p}" fill="#111"/>`)
+];
+const omibSVG = bits => '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' + [...bits].map((b, i) => b === '1' ? OB[i] : '').join('') + '</svg>';
 
 const CUBE_SYM = [
   '<circle cx=".5" cy=".5" r=".27" fill="#111"/>',
@@ -459,9 +529,17 @@ function polySVG(cs, span) {
 const KEY = 'iqm:v1';
 // hosted inside Gute Nudel (gute-nudel/iq/): show a way back, the installed app has no back button
 const FROM_GN = /\/gute-nudel\/iq\//.test(location.pathname) || /[?&]gn\b/.test(location.search);
-const fresh = () => ({ name: '', cold: null, sets: [], awards: {}, created: Date.now() });
+const fresh = () => ({ v: 2, name: '', cold: null, sets: [], awards: {}, created: Date.now() });
 let S;
 try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
+// v2 (11-08): the real IQ comes from the OMIB test only. Old generated "cold" sets were matrices, old Finanzamt sets were series:
+// both become training; the ID card is issued again by the first real test.
+function migrate() {
+  if (S.v >= 2) return;
+  if (S.sets.length) { for (const s of S.sets) { if (s.kind === 'cold') s.kind = 'daily'; else if (s.kind === 'audit') s.kind = 'series'; } S.cold = null; }
+  S.v = 2;
+}
+migrate();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 const dayOf = t => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const today = () => dayOf(Date.now());
@@ -480,36 +558,33 @@ const TIER_LINE = {
 };
 
 const AWARDS = [
-  { id: 'giga', ic: '⚡', n: 'Gigabrain', d: 'Ein Set im Gigabrain-Bereich (125–134).' },
-  { id: 'galaxy', ic: '🌌', n: 'Galaxybrain', d: 'Ein Set mit 135 oder mehr.' },
-  { id: 'iq125', ic: '🎖️', n: '125 IQ', d: 'Die 125 geknackt. Für immer.' },
-  { id: 'speed', ic: '⏱️', n: 'Speedrun', d: '10 von 10 in unter 3:20 Minuten.' },
-  { id: 'choke', ic: '😵', n: 'Choke', d: '20 Punkte an einem Tag verloren. Gehört dazu.' },
-  { id: 'audit', ic: '🧾', n: 'Steuerehrlich', d: 'Erste Prüfung vom Finanzamt für IQ abgeschlossen.' },
-  { id: 'perfect', ic: '💯', n: 'Fehlerfrei', d: 'Ein Set mit 10 von 10.' },
+  { id: 'giga', ic: '⚡', n: 'Gigabrain', d: 'Ein echter IQ im Gigabrain-Bereich (125–134).' },
+  { id: 'galaxy', ic: '🌌', n: 'Galaxybrain', d: 'Ein echter IQ von 135 oder mehr.' },
+  { id: 'iq125', ic: '🎖️', n: '125 IQ', d: 'Echte 125 geknackt. Für immer.' },
+  { id: 'speed', ic: '⏱️', n: 'Speedrun', d: 'A+ in unter 3:20 Minuten.' },
+  { id: 'choke', ic: '😵', n: 'Choke', d: 'An einem Tag um drei Noten abgestürzt. Gehört dazu.' },
+  { id: 'audit', ic: '🧪', n: 'Nachgemessen', d: 'Zweiter echter IQ-Test abgelegt.' },
+  { id: 'perfect', ic: '💯', n: 'Fehlerfrei', d: 'Ein Set mit A+.' },
   { id: 'double', ic: '🧠', n: 'Doppelhirn', d: 'Matrizen und Denksport am selben Tag.' },
   { id: 'top_daily', ic: '🏔️', n: 'Matrizen-Endgegner', d: 'Matrizen Stufe 4 erreicht.' },
   { id: 'top_reason', ic: '🌀', n: 'Denksport-Endgegner', d: 'Denksport Stufe 4 erreicht.' }
 ];
 
-const training = () => S.sets.filter(s => s.kind !== 'audit');
-function dailyBest() { // [{day, iq}] sorted
-  const m = {};
-  for (const s of training()) m[s.day] = Math.max(m[s.day] || 0, s.iq);
-  return Object.keys(m).sort().map(d => ({ day: d, iq: m[d] }));
-}
+const training = () => S.sets.filter(s => !REAL_KINDS.includes(s.kind));
+const realSets = () => S.sets.filter(s => REAL_KINDS.includes(s.kind));
+const gradeOfSet = s => s.grade || gradeOf(s.correct);
+const avgGrade = sets => { if (!sets.length) return null; const r = Math.round(sets.reduce((a, s) => a + GRADE_RANK[gradeOfSet(s)], 0) / sets.length); return Object.keys(GRADE_RANK).find(k => GRADE_RANK[k] === r); };
+const gradeChip = g => `<span class="gchip g${GRADE_RANK[g]}">${g}</span>`;
 function stats() {
-  const db = dailyBest(), t = today();
-  const td = db.find(x => x.day === t);
-  const prev = db.filter(x => x.day < t).pop();
+  const t = today(), real = realSets(), tr = training();
   const weekAgo = dayOf(Date.now() - 6 * 864e5);
-  const wk = db.filter(x => x.day >= weekAgo);
-  const peak = training().reduce((m, s) => Math.max(m, s.iq), 0);
-  return { today: td && td.iq, prev, delta: td && prev ? td.iq - prev.iq : null,
-    avg7: wk.length ? Math.round(wk.reduce((a, x) => a + x.iq, 0) / wk.length) : null,
-    peak: peak || null, sessions: training().length, doneToday: !!td };
+  return { last: real[real.length - 1] || null, prevReal: real[real.length - 2] || null, todaySets: tr.filter(s => s.day === t),
+    avg7: avgGrade(tr.filter(s => s.day >= weekAgo)), sessions: tr.length };
 }
-const auditDue = () => S.cold && !S.sets.some(s => s.kind === 'audit' && monthOf(s.t) === monthOf(Date.now())) && S.cold.day !== today();
+// one real test per calendar month; the first one (Erstmessung) any time
+const realDue = () => !realSets().some(s => monthOf(s.t) === monthOf(Date.now()));
+const nextRealDay = () => { const d = new Date(); return dayOf(new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()); };
+const realLabel = (kind, label) => S.pend && S.pend.kind === kind ? `Test fortsetzen · ${S.pend.ans.length}/${REAL_N}` : label;
 
 /* ---------- views ---------- */
 const $ = s => document.querySelector(s);
@@ -526,66 +601,67 @@ function render() {
   $('#app').innerHTML = (FROM_GN ? `<a class="gnback" href="../">← Gute Nudel</a>` : '') + `<h1>IQ <b>MaXxing</b></h1>` + v;
 }
 
+const REAL_ROWS = `<div class="card"><div class="row"><span>Aufgaben</span><b>${REAL_N} echte Matrizen</b></div><div class="row"><span>Zeit</span><b>keine Grenze · ca. 25 min</b></div><div class="row"><span>Ziel</span><b>Baue das fehlende Feld</b></div></div>`;
 function vHome() {
-  if (!S.cold) return `
+  if (!S.cold && !S.sets.length) return `
     <div class="card hero">
       <div style="font-size:64px">🧠🕸️</div>
-      <div class="msg">Willkommen. Bevor das Training beginnt, brauchen wir eine Erstmessung.</div>
-      <p class="sub">Dein Gehirn ist noch völlig unbehandelt. Wir messen, wo du startest, und stellen dir deinen Ausweis aus.</p>
-      <button class="btn" onclick="startSet('cold')">Erstmessung starten</button>
-    </div>
-    <div class="card"><div class="row"><span>Aufgaben</span><b>10</b></div><div class="row"><span>Zeit pro Aufgabe</span><b>40 Sekunden</b></div><div class="row"><span>Ziel</span><b>Finde das fehlende Feld</b></div></div>`;
+      <div class="msg">Willkommen. Bevor die Therapie beginnt, brauchen wir eine Erstmessung.</div>
+      <p class="sub">Dein Gehirn ist noch völlig unbehandelt. Ein echter IQ-Test aus der Forschung misst, wo du startest, und stellt dir deinen Ausweis aus.</p>
+      <button class="btn" onclick="startSet('cold')">${realLabel('cold', 'Erstmessung starten')}</button>
+    </div>${REAL_ROWS}`;
   const st = stats();
   let h = '';
-  if (auditDue()) h += `<div class="card mail"><b>📬 Post vom Finanzamt für IQ</b><p class="sub" style="margin:6px 0 0">Deine monatliche IQ-Prüfung ist fällig. Anderes Format, gleiche Gründlichkeit. Bitte erscheine pünktlich.</p><button class="btn small" onclick="startSet('audit')">Zur Prüfung</button></div>`;
-  if (st.today) {
-    const t = tierOf(st.today);
-    h += `<div class="card hero"><div class="sub">Dein IQ heute</div><div class="big">${st.today}</div><div class="tier">${t[2]} ${t[1]}</div>
-      ${st.delta === null ? '' : st.delta >= 0 ? `<div class="delta up">▲ +${st.delta} seit ${st.prev.day === dayOf(Date.now() - 864e5) ? 'gestern' : 'dem ' + fmtDay(st.prev.day)}</div>` : `<div class="delta down">▼ −${-st.delta} seit ${st.prev.day === dayOf(Date.now() - 864e5) ? 'gestern' : 'dem ' + fmtDay(st.prev.day)}</div>`}
-      <div class="sub" style="margin-top:8px">✅ Tägliche Dosis erledigt</div>
-      <button class="btn ghost" onclick="startSet('daily')">🧠 Noch ein Matrizen-Set${stufeTag('daily')}</button>
-      <button class="btn ghost" onclick="startSet('reason')">🌀 Denksport · Rotation & Logik${stufeTag('reason')}</button></div>`;
+  if (!st.last) {
+    h += `<div class="card hero"><div class="sub">Dein echter IQ</div><div class="big" style="color:var(--line)">???</div>
+      <p class="sub">Noch nicht gemessen. ${REAL_N} echte Aufgaben aus der Forschung, keine Zeitgrenze. Das Ergebnis kommt in deinen Ausweis.</p>
+      <button class="btn" onclick="startSet('cold')">${realLabel('cold', 'Erstmessung starten')}</button></div>`;
   } else {
-    h += `<div class="card hero"><div class="sub">Dein IQ heute</div><div class="big" style="color:var(--line)">???</div>
-      <p class="sub">Noch nicht gemessen. Dein Gehirn wartet.</p><button class="btn" onclick="startSet('daily')">Tägliche Dosis · 10 Matrizen${stufeTag('daily')}</button>
-      <button class="btn ghost" onclick="startSet('reason')">🌀 Denksport · Rotation & Logik${stufeTag('reason')}</button></div>`;
+    const t = tierOf(st.last.iq), d = st.prevReal ? st.last.iq - st.prevReal.iq : null;
+    h += `<div class="card hero"><div class="sub">Dein echter IQ</div><div class="big">${st.last.iq}</div><div class="tier">${t[2]} ${t[1]}</div>
+      ${d === null ? '' : d >= 0 ? `<div class="delta up">▲ +${d} seit dem letzten Test</div>` : `<div class="delta down">▼ −${-d} seit dem letzten Test</div>`}
+      <div class="sub" style="margin-top:8px">Gemessen am ${fmtDay(st.last.day)}</div>
+      ${realDue() || S.pend ? `<button class="btn" onclick="startSet('real')">${realLabel('real', `🧪 IQ-Test · ${REAL_N} Aufgaben`)}</button>` : `<div class="sub" style="margin-top:6px">Nächster Test ab ${fmtDay(nextRealDay())}. Bis dahin: Therapie.</div>`}</div>`;
   }
-  if (!auditDue()) h += `<div class="card mail"><b>🧾 Finanzamt für IQ · freiwillige Prüfung</b><p class="sub" style="margin:6px 0 0">Ein echter Test in einem Format, das du nie trainierst. Jederzeit. Das Finanzamt freut sich über Eigeninitiative.</p><button class="btn small ghost" onclick="startSet('audit')">Prüfung jetzt ablegen</button></div>`;
+  const ts = st.todaySets;
+  h += `<div class="card"><div class="sub">Therapie heute</div>
+    ${ts.length ? `<div style="margin:8px 0">${ts.map(s => gradeChip(gradeOfSet(s))).join(' ')}</div><div class="sub">✅ Tägliche Dosis erledigt</div>` : `<p class="sub" style="margin:6px 0 0">Noch keine Sitzung. Die Therapie wartet.</p>`}
+    <button class="btn${ts.length ? ' ghost' : ''}" onclick="startSet('daily')">🧠 Matrizen · 10 Aufgaben${stufeTag('daily')}</button>
+    <button class="btn ghost" onclick="startSet('reason')">🌀 Denksport · Rotation, Logik & Reihen${stufeTag('reason')}</button></div>`;
   h += `<div class="grid3">
-    <div class="metric"><div class="v">${st.avg7 ?? '–'}</div><div class="l"><b>Ø 7 Tage</b></div></div>
-    <div class="metric"><div class="v">${st.peak ?? '–'}</div><div class="l"><b>Höchstwert</b>Dein echter IQ</div></div>
-    <div class="metric"><div class="v">${st.sessions}</div><div class="l"><b>Trainings</b>Einheiten</div></div></div>`;
+    <div class="metric"><div class="v">${S.cold ? S.cold.iq : '–'}</div><div class="l"><b>Erstmessung</b>Ausweis</div></div>
+    <div class="metric"><div class="v">${st.avg7 ?? '–'}</div><div class="l"><b>Ø Note</b>7 Tage</div></div>
+    <div class="metric"><div class="v">${st.sessions}</div><div class="l"><b>Sitzungen</b>Therapie</div></div></div>`;
   return h;
 }
 
 function chartSVG() {
   const W = 340, H = 200, x0 = 30, y0 = 10, w = W - x0 - 8, h = H - y0 - 22;
   const lo = 70, hi = 160, Y = v => y0 + h - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * h;
-  const tr = training(), days = [...new Set(tr.map(x => x.day))].sort().slice(-60);
+  const rs = realSets();
   let s = `<svg viewBox="0 0 ${W} ${H}">`;
   const bands = [[70, 85, '#ff4d5e'], [85, 100, '#888'], [100, 115, '#6aa0ff'], [115, 125, '#49e07a'], [125, 135, '#c6ff3d'], [135, 160, '#c77dff']];
   for (const [a, b, c] of bands) s += `<rect x="${x0}" y="${Y(b)}" width="${w}" height="${Y(a) - Y(b)}" fill="${c}" opacity=".08"/>`;
   for (const v of [70, 85, 100, 115, 125, 135, 160]) s += `<text x="${x0 - 4}" y="${Y(v) + 4}" fill="#777" font-size="10" text-anchor="end">${v}</text>`;
   s += `<line x1="${x0}" x2="${x0 + w}" y1="${Y(130)}" y2="${Y(130)}" stroke="#fff" stroke-dasharray="4 4" opacity=".6"/><text x="${x0 + w - 2}" y="${Y(130) - 4}" fill="#ddd" font-size="10" text-anchor="end">Mensa (theoretisch)</text>`;
-  if (days.length) {
-    const X = d => x0 + (days.length === 1 ? w / 2 : days.indexOf(d) / (days.length - 1) * w), rr = days.length > 40 ? 1.8 : 3.2;
-    for (const [kinds, col] of [[['cold', 'daily'], '#c6ff3d'], [['reason'], '#c77dff']]) {
-      const pts = days.map(d => { const v = tr.filter(x => x.day === d && kinds.includes(x.kind)); return v.length ? [X(d), Y(Math.max(...v.map(x => x.iq)))] : null; }).filter(Boolean);
-      if (pts.length > 1) s += `<polyline fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
-      pts.forEach(p => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="${rr}" fill="${col}"/>`; });
-    }
-    s += `<text x="${x0}" y="${H - 4}" fill="#777" font-size="10">${fmtDay(days[0])}</text><text x="${x0 + w}" y="${H - 4}" fill="#777" font-size="10" text-anchor="end">${fmtDay(days[days.length - 1])}</text>`;
+  if (rs.length) {
+    const X = i => x0 + (rs.length === 1 ? w / 2 : i / (rs.length - 1) * w);
+    const pts = rs.map((r, i) => [X(i), Y(r.iq)]);
+    if (pts.length > 1) s += `<polyline fill="none" stroke="#c6ff3d" stroke-width="2.5" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+    pts.forEach((p, i) => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#c6ff3d"/><text x="${p[0]}" y="${p[1] - 9}" fill="#f2f2f2" font-size="11" font-weight="800" text-anchor="middle">${rs[i].iq}</text>`; });
+    s += `<text x="${x0}" y="${H - 4}" fill="#777" font-size="10">${fmtDay(rs[0].day)}</text>${rs.length > 1 ? `<text x="${x0 + w}" y="${H - 4}" fill="#777" font-size="10" text-anchor="end">${fmtDay(rs[rs.length - 1].day)}</text>` : ''}`;
   }
   return s + '</svg>';
 }
 
 function vHist() {
-  const db = dailyBest();
-  let h = `<div class="card chart">${chartSVG()}<div class="sub" style="display:flex;gap:16px;justify-content:center;margin-top:6px"><span><b style="color:#c6ff3d">●</b> Matrizen${stufeTag('daily')}</span><span><b style="color:#c77dff">●</b> Denksport${stufeTag('reason')}</span></div></div>`;
-  if (db.length < 2) h += `<p class="sub">Die Kurve entsteht ab dem zweiten Trainingstag.</p>`;
-  const audits = S.sets.filter(s => s.kind === 'audit');
-  if (audits.length) h += `<h2>Finanzamt für IQ</h2><div class="card">${audits.slice().reverse().map(a => `<div class="row"><span>🧾 ${fmtDay(a.day)}</span><b>${a.iq} · festgesetzt</b></div>`).join('')}</div>`;
-  h += `<h2>Letzte Sets</h2><div class="card">${S.sets.slice(-15).reverse().map(s => `<div class="row"><span>${s.kind === 'cold' ? '🪪' : s.kind === 'audit' ? '🧾' : s.kind === 'reason' ? '🌀' : '🧠'} ${fmtDay(s.day)} · ${s.correct}/10</span><b>${s.iq} ${tierOf(s.iq)[1]}</b></div>`).join('') || '<span class="sub">Noch nichts gemessen.</span>'}</div>`;
+  const rs = realSets(), tr = training();
+  let h = `<h2>Echter IQ</h2><div class="card chart">${chartSVG()}</div>`;
+  if (!rs.length) h += `<p class="sub">Noch kein echter IQ gemessen.</p>`;
+  else h += `<div class="card">${rs.slice().reverse().map(a => `<div class="row"><span>${a.kind === 'cold' ? '🪪' : '🧪'} ${fmtDay(a.day)} · ${a.correct}/${a.n || REAL_N}</span><b>${a.iq} ${tierOf(a.iq)[1]}</b></div>`).join('')}</div>`;
+  const days = [...new Set(tr.map(s => s.day))].sort().slice(-14).reverse();
+  h += `<h2>Therapie · Noten</h2><div class="card">${days.map(d => `<div class="row"><span>${fmtDay(d)}</span><span>${tr.filter(s => s.day === d).map(s => gradeChip(gradeOfSet(s))).join(' ')}</span></div>`).join('') || '<span class="sub">Noch keine Sitzung.</span>'}</div>`;
+  h += `<h2>Letzte Sitzungen</h2><div class="card">${tr.slice(-15).reverse().map(s => `<div class="row"><span>${s.kind === 'reason' ? '🌀' : s.kind === 'series' ? '🔢' : '🧠'} ${fmtDay(s.day)} · ${s.correct}/10${s.st ? ' · Stufe ' + s.st : ''}</span>${gradeChip(gradeOfSet(s))}</div>`).join('') || '<span class="sub">Noch nichts.</span>'}</div>`;
   return h;
 }
 
@@ -616,7 +692,7 @@ const BRAIN = `<svg viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
 </svg>`;
 
 function vId() {
-  if (!S.cold) return `<div class="card"><p>Noch kein Ausweis. Die Erstmessung stellt ihn aus.</p><button class="btn" onclick="go('home');startSet('cold')">Erstmessung starten</button></div>`;
+  if (!S.cold) return `<div class="card"><p>Noch kein Ausweis. Die Erstmessung, ein echter IQ-Test, stellt ihn aus.</p><button class="btn" onclick="go('home');startSet('cold')">Erstmessung starten</button></div>`;
   const nm = (S.name || 'Unbekannt').toUpperCase();
   const mrz = esc(('IDD<<' + nm.replace(/[^A-Z]/g, '<') + '<<UNTRAINIERT<<<<<<<<<<<<<<<<<<<<').slice(0, 44)) + '<br>' + esc((S.cold.iq + 'IQ<<' + S.cold.day.replace(/-/g, '') + '<<SMOOTH<<<<<<<<<<<<<<<<<<<<<<<').slice(0, 44));
   const st = stats();
@@ -629,7 +705,7 @@ function vId() {
       <div class="f">IQ (Erstmessung)</div><div class="v iq">${S.cold.iq}</div></div></div>
     <div class="stamp">UNTRAINIERT</div>
     <div class="mrz">${mrz}</div></div></div>
-    <div class="card"><div class="cmp"><div><div class="sub">Damals</div><div class="v" style="color:#c9b673">${S.cold.iq}</div></div><div><div class="sub">Höchstwert</div><div class="v" style="color:var(--acc)">${st.peak}</div></div></div>
+    <div class="card"><div class="cmp"><div><div class="sub">Damals</div><div class="v" style="color:#c9b673">${S.cold.iq}</div></div><div><div class="sub">Echter IQ heute</div><div class="v" style="color:var(--acc)">${st.last ? st.last.iq : S.cold.iq}</div></div></div>
     <p class="sub" style="text-align:center;margin:8px 0 0">Dieses Dokument wird nicht erneuert.</p></div>
     <button class="btn" onclick="shareCard()">📤 IQ-Karte teilen</button>`;
 }
@@ -647,7 +723,8 @@ function vMore() {
     <div id="imp" style="display:none;margin-top:10px"><textarea id="impt" placeholder="Export hier einfügen"></textarea><button class="btn small" onclick="importData()">Importieren</button></div>
     <button class="btn ghost small" id="rst" onclick="resetData(this)" style="color:var(--red)">Alles löschen</button>
     <div id="exp" class="sub" style="margin-top:8px;word-break:break-all"></div></div>
-    <h2>Tiers</h2><div class="card">${TIERS.map((t, i) => `<div class="row"><span>${t[2]} ${t[1]}</span><b>${i ? t[0] : '<85'}${TIERS[i + 1] ? '–' + (TIERS[i + 1][0] - 1) : '+'}</b></div>`).join('').replace('<85–84', '&lt;85')}</div>`;
+    <h2>Tiers</h2><div class="card">${TIERS.map((t, i) => `<div class="row"><span>${t[2]} ${t[1]}</span><b>${i ? t[0] : '<85'}${TIERS[i + 1] ? '–' + (TIERS[i + 1][0] - 1) : '+'}</b></div>`).join('').replace('<85–84', '&lt;85')}</div>
+    <p class="sub" style="margin-top:18px">Echter IQ-Test: Open Matrices Item Bank (Koch, Spinath, Greiff &amp; Becker, 2022, Journal of Intelligence 10(3):41), GPLv3, osf.io/4km79. Normstichprobe: 2.561 Bewerber für das Medizinstudium, Mittelwert als IQ 115 gesetzt. Stimme und Zeilen: Dr. Easterman, The Outlast Trials.</p>`;
   return h;
 }
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -657,7 +734,7 @@ function exportData() {
   if (navigator.clipboard) navigator.clipboard.writeText(t).then(done, () => $('#exp').textContent = t); else $('#exp').textContent = t;
 }
 function importData() {
-  try { const d = JSON.parse($('#impt').value); if (!Array.isArray(d.sets)) throw 0; S = d; save(); go('home'); }
+  try { const d = JSON.parse($('#impt').value); if (!Array.isArray(d.sets)) throw 0; S = d; migrate(); save(); go('home'); }
   catch (e) { $('#exp').textContent = 'Das sieht nicht nach einem Export aus.'; }
 }
 function resetData(b) {
@@ -675,20 +752,20 @@ document.addEventListener('visibilitychange', () => { // phone call / app switch
 const stufeOf = kind => (kind === 'daily' || kind === 'reason') ? ((S.stufe || {})[kind] || 0) : 0;
 const stufeTag = kind => stufeOf(kind) ? ` · Stufe ${stufeOf(kind)}` : '';
 function startSet(kind) {
+  if (REAL_KINDS.includes(kind)) return startReal(kind);
   const st = stufeOf(kind);
-  const items = kind === 'audit' ? Array.from({ length: 10 }, genSeries) : kind === 'reason' ? reasonSet(st) : matrixSet(st);
+  const items = kind === 'reason' ? reasonSet(st) : matrixSet(st);
   run = { kind, items, st, i: 0, res: [], t0: 0, raf: 0, lock: false };
   const d = document.createElement('div'); d.id = 'test'; document.body.appendChild(d);
   showItem();
 }
 function showItem() {
   const it = run.items[run.i], el = $('#test');
-  const title = run.kind === 'cold' ? '🪪 Erstmessung' : run.kind === 'audit' ? '🧾 Finanzamt für IQ' : run.kind === 'reason' ? '🌀 Denksport' : '🧠 Training';
+  const title = run.kind === 'reason' ? '🌀 Denksport' : '🧠 Matrizen';
   let h = `<div class="thead"><span>${title}</span><span>${run.st ? 'Stufe ' + run.st + ' · ' : ''}${run.i + 1}/10</span><button class="x" onclick="quitSet()">✕</button></div><div class="bar"><i id="tb"></i></div>`;
   if (it.kind === 'matrix') {
     h += `<div class="matrix">${it.panels.flat().map((p, k) => k === 8 ? '<div class="q">?</div>' : panelSVG(p)).join('')}</div>
       <div class="opts">${it.options.map((p, k) => `<button onclick="answer(${k},this)">${panelSVG(p)}</button>`).join('')}</div>`;
-    if (run.i === 0 && run.kind === 'cold') h += `<div class="hint">Jede Zeile folgt Regeln. Welches Feld gehört unten rechts hin?</div>`;
   } else if (it.kind === 'cube') {
     h += `<div class="rtarget net">${netSVG(it.net)}</div><div class="hint">Welcher Würfel lässt sich aus diesem Netz falten?</div>
       <div class="ropts cube">${it.options.map((c, k) => `<button onclick="answer(${k},this)">${cubeSVG(c)}</button>`).join('')}</div>`;
@@ -700,8 +777,8 @@ function showItem() {
       <div class="topts${it.wide ? ' wide' : ''}">${it.options.map((x, k) => `<button onclick="answer(${k},this)">${x}</button>`).join('')}</div>`;
   } else {
     h += `<div class="seq">${it.shown.map(x => `<b>${x}</b>`).join('')}<b class="q">?</b></div>
-      <div class="sopts">${it.options.map((x, k) => `<button onclick="answer(${k},this)">${x}</button>`).join('')}</div>`;
-    if (run.i === 0) h += `<div class="hint">Wie geht die Reihe weiter?</div>`;
+      <div class="sopts">${it.options.map((x, k) => `<button onclick="answer(${k},this)">${x}</button>`).join('')}</div>
+      <div class="hint">Wie geht die Reihe weiter?</div>`;
   }
   el.innerHTML = h;
   run.lock = false; run.t0 = performance.now();
@@ -725,9 +802,40 @@ function answer(k, btn) {
   if (!ok && btns[it.answer]) btns[it.answer].classList.add('ok');
   setTimeout(() => { run.i++; run.i < 10 ? showItem() : finish(); }, ok ? 380 : 900);
 }
-function quitSet() {
+function quitSet() { // a real test keeps its progress in S.pend and can be continued from Heute
   if (!run) return;
   cancelAnimationFrame(run.raf); run = null; $('#test').remove(); render();
+}
+
+/* ---------- the real test (OMIB): build the missing cell, no time limit, no feedback ---------- */
+function startReal(kind) {
+  if (!S.pend || S.pend.kind !== kind) { S.pend = { kind, ids: realSet(S.seen || {}).map(it => it.id), ans: [], time: 0 }; save(); }
+  const byId = new Map(OMIB.map(it => [it[0], it]));
+  run = { kind, real: true, items: S.pend.ids.map(id => omibItem(byId.get(id))), i: S.pend.ans.length, st: 0, t0: 0, raf: 0, lock: false, cur: '0'.repeat(20) };
+  const d = document.createElement('div'); d.id = 'test'; d.className = 'real'; document.body.appendChild(d);
+  run.i < run.items.length ? showReal() : finishReal();
+}
+function showReal() {
+  const it = run.items[run.i];
+  $('#test').innerHTML = `<div class="thead"><span>${run.kind === 'cold' ? '🪪 Erstmessung' : '🧪 IQ-Test'}</span><span>${run.i + 1}/${run.items.length}</span><button class="x" onclick="quitSet()">✕</button></div>
+    <div class="matrix omib">${it.cells.slice(0, 8).map(omibSVG).join('')}<div class="build" id="qb">${omibSVG(run.cur)}</div></div>
+    <div class="blocks">${OB.map((_, k) => `<button id="ob${k}" class="${run.cur[k] === '1' ? 'on' : ''}" onclick="toggleBlock(${k})">${omibSVG('0'.repeat(k) + '1' + '0'.repeat(19 - k))}</button>`).join('')}</div>
+    <button class="btn" onclick="submitReal()">✓ Weiter</button>
+    ${run.i === 0 ? `<div class="hint">Tippe die Bausteine an, die ins leere Feld gehören. Nochmal tippen nimmt sie weg. Keine Zeitgrenze. Fortschritt wird gespeichert.</div>` : ''}`;
+  run.lock = false; run.t0 = performance.now();
+}
+function toggleBlock(k) {
+  if (!run || run.lock) return;
+  run.cur = run.cur.slice(0, k) + (run.cur[k] === '1' ? '0' : '1') + run.cur.slice(k + 1);
+  $('#ob' + k).classList.toggle('on', run.cur[k] === '1');
+  $('#qb').innerHTML = omibSVG(run.cur);
+}
+function submitReal() {
+  if (!run || run.lock) return;
+  run.lock = true;
+  S.pend.ans.push(run.cur); S.pend.time += (performance.now() - run.t0) / 1000; save();
+  run.cur = '0'.repeat(20); run.i++;
+  run.i < run.items.length ? showReal() : finishReal();
 }
 
 function award(id, day, fresh) {
@@ -735,66 +843,101 @@ function award(id, day, fresh) {
   if (a) a.count++; else S.awards[id] = { first: day, count: 1 };
   fresh.push(id);
 }
-function finish() {
+const countUp = (el, to) => { const st = performance.now(); const f0 = () => { const f = Math.min(1, (performance.now() - st) / 1100); el.textContent = Math.round(to * (1 - Math.pow(1 - f, 3))); if (f < 1) requestAnimationFrame(f0); }; requestAnimationFrame(f0); };
+const awardChips = fresh => fresh.map(id => { const a = AWARDS.find(x => x.id === id); return `<span class="chip">${a.ic} ${a.n}</span>`; }).join('');
+const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+function finishReal() {
   const r = run; run = null;
-  const iq = iqFrom(r.res) + STUFE_IQ * r.st, correct = r.res.filter(x => x.ok).length, time = Math.round(r.res.reduce((a, x) => a + x.t, 0));
-  const now = Date.now(), day = dayOf(now);
-  const prevTraining = training().slice(-1)[0];
-  const peakBefore = training().reduce((m, s) => Math.max(m, s.iq), 0);
-  const firstToday = !training().some(s => s.day === day);
-  const lastDay = dailyBest().filter(x => x.day < day).pop();
-  const set = { t: now, day, kind: r.kind, iq, correct, time, st: r.st };
-  S.sets.push(set);
+  const p = S.pend; delete S.pend;
+  const res = r.items.map((it, k) => ({ a: it.a, b: it.b, ok: p.ans[k] === it.cells[8] }));
+  const iq = realIQ(res), correct = res.filter(x => x.ok).length, time = Math.round(p.time), now = Date.now(), day = dayOf(now);
+  S.seen = S.seen || {}; for (const it of r.items) S.seen[it.id] = (S.seen[it.id] || 0) + 1;
+  const prev = realSets().slice(-1)[0];
+  S.sets.push({ t: now, day, kind: r.kind, iq, correct, n: res.length, time, st: 0 });
   if (r.kind === 'cold') S.cold = { iq, day, correct };
   const fresh = [];
-  if (r.kind !== 'audit') {
-    if (iq >= 135) award('galaxy', day, fresh); else if (iq >= 125) award('giga', day, fresh);
-    if (iq >= 125 && !S.awards.iq125) award('iq125', day, fresh);
-    if (correct === 10 && time <= 200) award('speed', day, fresh);
-    const sameDayBest = Math.max(0, ...S.sets.filter(s => s !== set && s.kind !== 'audit' && s.day === day).map(s => s.iq));
-    if (sameDayBest && sameDayBest - iq >= 20) award('choke', day, fresh);
-  } else if (!S.awards.audit) award('audit', day, fresh);
-  let stufeMsg = '';
-  if (r.kind === 'daily' || r.kind === 'reason') {
-    S.stufe = S.stufe || {};
-    if (correct >= 9 && r.st < MAX_STUFE) { S.stufe[r.kind] = r.st + 1; stufeMsg = `⬆️ Stufe ${r.st + 1} freigeschaltet. Schwerere Aufgaben, +${STUFE_IQ} IQ pro Stufe. Dein Gehirn ist bereit.`; }
-    else if (correct <= 4 && r.st > 0) { S.stufe[r.kind] = r.st - 1; stufeMsg = `Stufe ${r.st - 1}. Kurz Anlauf nehmen.`; }
-    if (S.stufe[r.kind] === MAX_STUFE && !S.awards['top_' + r.kind]) award('top_' + r.kind, day, fresh);
-    if (correct === 10) award('perfect', day, fresh);
-    const other = r.kind === 'daily' ? 'reason' : 'daily', mine = S.sets.filter(x => x.day === day && x.kind === r.kind).length;
-    if (mine === 1 && S.sets.some(x => x.day === day && x.kind === other)) award('double', day, fresh);
-  }
+  if (iq >= 135) award('galaxy', day, fresh); else if (iq >= 125) award('giga', day, fresh);
+  if (iq >= 125 && !S.awards.iq125) award('iq125', day, fresh);
+  if (realSets().length === 2 && !S.awards.audit) award('audit', day, fresh);
   save();
   const t = tierOf(iq);
-  let msg = '', extra = '';
-  if (r.kind === 'cold') { msg = 'Erstmessung abgeschlossen. Dein Ausweis wurde ausgestellt.'; extra = 'Ab jetzt geht es nur noch nach oben.'; }
-  else if (r.kind === 'audit') {
-    msg = 'Bescheid vom Finanzamt für IQ';
-    extra = `Festgesetzter IQ: ${iq}. Die Prüfung ist abgeschlossen. Dein IQ ist ordnungsgemäß gemeldet.`;
-  } else {
-    const base = firstToday ? lastDay && lastDay.iq : prevTraining && prevTraining.iq;
-    const when = firstToday ? 'heute' : 'seit dem letzten Set';
-    if (base == null) msg = 'Gemessen.';
-    else if (iq > base) msg = `Glückwunsch! Dein IQ ist ${when} um ${iq - base} Punkte gestiegen!`;
-    else if (iq < base) msg = `Dein IQ ist ${when} um ${base - iq} Punkte gesunken. Tagesform. Das holst du dir zurück.`;
-    else msg = 'Dein IQ ist exakt gleich geblieben. Stabil wie ein Fels.';
-    if (peakBefore && iq > peakBefore) extra = 'Neuer Höchstwert! Das ist jetzt offiziell dein IQ.';
-  }
-  const chips = fresh.map(id => { const a = AWARDS.find(x => x.id === id); return `<span class="chip">${a.ic} ${a.n}</span>`; }).join('');
+  let msg, extra;
+  if (r.kind === 'cold') { msg = 'Erstmessung abgeschlossen. Dein Ausweis wurde ausgestellt.'; extra = 'Das ist dein echter IQ. Ab jetzt geht es nur noch nach oben.'; }
+  else if (!prev || iq === prev.iq) { msg = 'Dein echter IQ wurde bestätigt.'; extra = 'Stabil wie ein Fels.'; }
+  else if (iq > prev.iq) { msg = `Glückwunsch! Dein echter IQ ist um ${iq - prev.iq} Punkte gestiegen!`; extra = 'Die Therapie wirkt.'; }
+  else { msg = `Dein echter IQ ist um ${prev.iq - iq} Punkte gesunken.`; extra = 'Die Therapie wird intensiviert.'; }
+  const ac = awardChips(fresh);
+  $('#test').className = '';
   $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding-top:6vh">
-    <div class="sub">${correct}/10 richtig · ${Math.floor(time / 60)}:${String(time % 60).padStart(2, '0')} min</div>
+    <div class="sub">${correct}/${res.length} richtig · ${mmss(time)} min</div>
+    <div class="sub" style="margin-top:14px">Dein echter IQ</div>
     <div class="big" id="cnt" style="font-size:120px">0</div>
     <div class="tier">${t[2]} ${t[1]}</div>
-    <div class="msg">${msg}</div>${stufeMsg ? `<div class="chip" style="margin-top:12px;border-radius:14px;padding:10px 14px;display:block">${stufeMsg}</div>` : ''}
-    <p class="sub">${extra || TIER_LINE[t[1]]}</p>
-    ${chips ? `<div style="margin:10px 0">${chips}</div>` : ''}
+    <div class="msg">${msg}</div>
+    <p class="sub">${extra}</p>
+    ${ac ? `<div style="margin:10px 0">${ac}</div>` : ''}
     <button class="btn" onclick="closeResult()">${r.kind === 'cold' ? 'Ausweis ansehen' : 'Fertig'}</button>
-    ${correct < 10 ? `<button class="btn ghost" onclick="review()">🔍 Fehler ansehen (${10 - correct})</button>` : ''}
-    ${r.kind === 'daily' || r.kind === 'reason' ? `<button class="btn ghost" onclick="$('#test').remove();startSet('${r.kind}')">Noch ein Set</button>` : ''}
+    <p class="sub" style="margin-top:14px">Lösungen bleiben unter Verschluss. Echte Aufgaben verrät man nicht.</p>
   </div>`;
-  const c = $('#cnt'), st = performance.now();
-  const anim = () => { const f = Math.min(1, (performance.now() - st) / 1100); c.textContent = Math.round(iq * (1 - Math.pow(1 - f, 3))); if (f < 1) requestAnimationFrame(anim); };
-  requestAnimationFrame(anim);
+  countUp($('#cnt'), iq);
+  closeResult.kind = r.kind;
+}
+
+/* ---------- training: grade + Dr. Easterman (Outlast Trials evaluation chamber) ----------
+   say = his spoken line (voice file in voice/, he provides them), note = a written solo evaluation note.
+   Lines from outlast.fandom.com (Hendrick_Joliet_Easterman/Dialogues, Template:Performance_Evaluation_-_Summary_Report). */
+const DOC = {
+  'A+': { f: 'VO Scripted East TrialGradeAplus03.ogg', say: "Damn near perfect. I'd almost think you're the one teaching me.",
+    de: 'Beinahe perfekt. Fast glaube ich, du bist derjenige, der mich unterrichtet.', note: 'This one scares me.' },
+  A: { f: 'VO Scripted East TrialGradeA07.ogg', say: 'So slightly shy of perfection. Those tiny mistakes like the craqueler on the surface of a Vermeer only highlighting your beauty. You grow stronger every day.',
+    de: 'So knapp an der Perfektion vorbei. Diese winzigen Fehler, wie die Craquelé auf einem Vermeer, betonen nur deine Schönheit. Du wirst jeden Tag stärker.', note: 'Strong performance, consistently committed effort. Patient shows real dedication to therapy.' },
+  B: { f: 'VO Scripted East TrialGradeB08.ogg', say: "Grade B. Passing. But if it was a steak, I wouldn't eat it. If it was milk, I wouldn't drink it. Are you happy with Grade B?",
+    de: 'Note B. Bestanden. Aber wäre es ein Steak, ich würde es nicht essen. Wäre es Milch, ich würde sie nicht trinken. Bist du zufrieden mit einer B?', note: 'Progress, but slow. Mark the chart for next stage of osmosis.' },
+  C: { f: 'VO Scripted East TrialGradeC08.ogg', say: 'Mediocre. I hate that word. So flaccid, damp. A bruised word the texture of dog shit. Like you. Me. D. Ochre. Me. D. Ochre.',
+    de: 'Mittelmäßig. Ich hasse dieses Wort. So schlaff, so feucht. Ein zerquetschtes Wort mit der Konsistenz von Hundescheiße. Wie du. Mit. Tel. Maß.', note: 'The curious masochism of the perversely mediocre.' },
+  D: { f: 'VO Scripted East TrialGradeD08.ogg', say: "I'm not angry. Just... disappointed.", de: 'Ich bin nicht wütend. Nur ... enttäuscht.', note: 'Easterman will not be pleased.' },
+  F: { f: 'VO Scripted East TrialFail02.ogg', say: 'You have earned nothing, you have learned nothing.', de: 'Du hast nichts verdient. Du hast nichts gelernt.', note: 'Diagnosis: Dog Food.' }
+};
+let docAudio = null;
+function playDoc(g) { // the public Gute Nudel copy has no voice files
+  if (FROM_GN) return;
+  try { if (docAudio) docAudio.pause(); docAudio = new Audio('voice/' + encodeURIComponent(DOC[g].f)); docAudio.onerror = () => { const b = $('#docplay'); if (b) b.remove(); }; docAudio.play().catch(() => {}); } catch (e) {}
+}
+
+function finish() {
+  const r = run; run = null;
+  const correct = r.res.filter(x => x.ok).length, time = Math.round(r.res.reduce((a, x) => a + x.t, 0)), g = gradeOf(correct);
+  const now = Date.now(), day = dayOf(now);
+  const set = { t: now, day, kind: r.kind, correct, grade: g, time, st: r.st };
+  const earlierToday = training().filter(s => s.day === day);
+  S.sets.push(set);
+  const fresh = [];
+  if (g === 'A+') award('perfect', day, fresh);
+  if (g === 'A+' && time <= 200) award('speed', day, fresh);
+  if (earlierToday.some(s => GRADE_RANK[gradeOfSet(s)] - GRADE_RANK[g] >= 3)) award('choke', day, fresh);
+  let stufeMsg = '';
+  S.stufe = S.stufe || {};
+  if (correct >= 9 && r.st < MAX_STUFE) { S.stufe[r.kind] = r.st + 1; stufeMsg = `⬆️ Stufe ${r.st + 1} freigeschaltet. Schwerere Aufgaben. Die Therapie wird intensiviert.`; }
+  else if (correct <= 4 && r.st > 0) { S.stufe[r.kind] = r.st - 1; stufeMsg = `Stufe ${r.st - 1}. Die Dosis wird angepasst.`; }
+  if (S.stufe[r.kind] === MAX_STUFE && !S.awards['top_' + r.kind]) award('top_' + r.kind, day, fresh);
+  const other = r.kind === 'daily' ? 'reason' : 'daily';
+  if (earlierToday.every(s => s.kind !== r.kind) && earlierToday.some(s => s.kind === other)) award('double', day, fresh);
+  save();
+  const d = DOC[g], ac = awardChips(fresh);
+  $('#test').innerHTML = `<div style="width:100%;max-width:440px;text-align:center;padding-top:4vh">
+    <div class="sub">Evaluation · ${correct}/10 richtig · ${mmss(time)} min</div>
+    <div class="grade g${GRADE_RANK[g]}">${g}</div>
+    ${stufeMsg ? `<div class="chip" style="margin:4px 0 10px;border-radius:14px;padding:10px 14px;display:block">${stufeMsg}</div>` : ''}
+    <div class="doc"><div class="who">Dr. H. J. Easterman${FROM_GN ? '' : ` <button id="docplay" onclick="playDoc('${g}')">▶</button>`}</div>
+      <div class="say">„${d.say}“</div><div class="de">${d.de}</div></div>
+    <div class="memo"><b>Aktennotiz</b>${d.note}</div>
+    ${ac ? `<div style="margin:10px 0">${ac}</div>` : ''}
+    <button class="btn" onclick="closeResult()">Fertig</button>
+    ${correct < 10 ? `<button class="btn ghost" onclick="review()">🔍 Fehler ansehen (${10 - correct})</button>` : ''}
+    <button class="btn ghost" onclick="$('#test').remove();startSet('${r.kind}')">Noch eine Sitzung</button>
+  </div>`;
+  playDoc(g);
   closeResult.kind = r.kind; review.run = r;
 }
 /* ---------- mistake review ---------- */
@@ -844,7 +987,7 @@ function closeResult() { $('#test').remove(); tab = closeResult.kind === 'cold' 
 
 /* ---------- share card ---------- */
 function shareCard() {
-  const st = stats(), iq = st.peak || S.cold.iq, t = tierOf(iq);
+  const iq = (stats().last || S.cold).iq, t = tierOf(iq);
   const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
   const g = c.getContext('2d');
   g.fillStyle = '#0b0b0c'; g.fillRect(0, 0, 1080, 1350);
