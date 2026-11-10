@@ -1226,3 +1226,42 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .mx-jar .chips { flex-wrap: wrap; overflow: visible; }
 .mx-name { width: 100%; font: 700 24px Caveat, cursive; border: 0; border-bottom: 2px solid var(--line); background: transparent; color: var(--ink); padding: 6px 2px; margin-bottom: 4px; }
 .snparty .snjar { width: 130px; display: block; margin: 0 auto; }
+/* 💡 KNIFFlicheNudel (2026-11-10): workshop yellow + pencil grey, a light bulb with ten rays (one per routine tried) */
+:root { --kn1: #fffbe8; --kn2: #fdf1c9; --knink: #3d3a2e; --kngold: #c9900f; --kngold2: #fff1c2; --kngreen: #4f8f5b; --kngrey: #8c8778; --kntile: rgba(255, 255, 255, .75); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --kn1: #2f2b1d; --kn2: #28261c; --knink: #f4ecd2; --kngold: #f0c14b; --kngold2: rgba(240, 193, 75, .16); --kngreen: #9cc98a; --kngrey: #a59f8c; --kntile: rgba(255, 255, 255, .07); } }
+:root[data-theme="dark"] { --kn1: #2f2b1d; --kn2: #28261c; --knink: #f4ecd2; --kngold: #f0c14b; --kngold2: rgba(240, 193, 75, .16); --kngreen: #9cc98a; --kngrey: #a59f8c; --kntile: rgba(255, 255, 255, .07); }
+.kncard { display: grid; justify-items: center; text-align: center; width: 100%; color: var(--knink); position: relative; overflow: hidden; padding: 12px 16px 18px;
+  background: repeating-linear-gradient(0deg, transparent 0 27px, rgba(201, 144, 15, .12) 27px 28px), linear-gradient(160deg, var(--kn1), var(--kn2)); }
+.knbulb { width: 120px; height: auto; }
+.kb-ray { stroke: var(--kngrey); stroke-width: 4; stroke-linecap: round; opacity: .35; }
+.kb-ray.on { stroke: var(--kngold); opacity: 1; animation: knray .5s ease-out both; }
+@keyframes knray { from { opacity: 0; } to { opacity: 1; } }
+.kb-glass { fill: var(--kntile); stroke: var(--kngrey); stroke-width: 3; } .kb-glass.lit { fill: var(--kngold2); stroke: var(--kngold); }
+.kb-fil { fill: none; stroke: var(--kngold); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; } .kb-base { fill: var(--kngrey); }
+.kb-t { font: 800 13px Nunito, sans-serif; fill: var(--knink); text-anchor: middle; }
+.kn-eye { display: block; font: 700 21px/1.1 Caveat, cursive; color: var(--kngreen); margin: 0; }
+.kn-t { display: block; font: 700 34px/1.15 Caveat, cursive; color: var(--kngold); margin: 2px 0 8px; overflow-wrap: anywhere; }
+.kn-info { display: block; font-size: 14.5px; line-height: 1.45; max-width: 34em; opacity: .92; }
+.kn-made { display: block; margin-top: 10px; font-size: 15px; font-weight: 800; color: var(--kngreen); }
+.kn-until { display: block; font: 700 19px/1.2 Caveat, cursive; margin-top: 6px; opacity: .8; }
+.kn-n { font: 800 14px Nunito, sans-serif; color: var(--kngold); background: var(--kngold2); border-radius: 99px; padding: 2px 10px; vertical-align: middle; }
+.knsetup, .kngroup { --tn: var(--kngold); --tn2: var(--kngold2); padding: 10px 10px 8px; }
+.kn-row { flex-wrap: nowrap; align-items: flex-start; }
+.kn-row .bchk { margin-top: 2px; }
+.kn-rt { flex: 1; min-width: 0; display: grid; gap: 2px; text-align: left; } .kn-rt b { font-size: 16px; line-height: 1.25; } .kn-rt small { font-size: 14px; color: var(--ink2); line-height: 1.35; }
+.kn-row.done .kn-rt b { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--ink2); }
+.kn-buy { flex: none; margin: 0; } .kn-buy.on { box-shadow: 0 0 0 2px var(--kngreen) inset; }
+.kn-rules { margin: 0; padding-left: 26px; display: grid; gap: 8px; } .kn-rules li { line-height: 1.4; } .kn-rules li::marker { font-weight: 800; color: var(--kngold); }
+.kn-rules span { color: var(--ink2); }
+.kn-tr { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 8px 4px; border: 0; border-top: 1px dashed var(--line); background: transparent; color: inherit; font: inherit; text-align: left; }
+.kn-tr .kn-st { width: 26px; flex: none; text-align: center; font-size: 18px; line-height: 1.3; }
+.kn-tr.open { opacity: .55; } .kn-tr.open.next { opacity: 1; } .kn-tr.open.next .kn-rt small { color: var(--kngold); font-weight: 700; }
+.kn-tr.nope .kn-rt b { text-decoration: line-through; color: var(--ink2); } .kn-tr.nope .kn-rt small { display: none; }
+.kngroup.tried { box-shadow: 0 0 0 2px var(--kngreen), var(--shadow); }
+.knbtn.new { background: var(--kngold2); color: var(--knink); box-shadow: 0 0 0 2px var(--kngold) inset; }
+.kn-trick { text-align: left; background: var(--kngold2); border-left: 4px solid var(--kngold); border-radius: 12px; padding: 10px 12px; margin: 8px 0; display: grid; gap: 4px; }
+.kn-trick b { font-size: 17px; line-height: 1.25; } .kn-trick span { font-size: 15px; line-height: 1.4; }
+.kn-trick.kept { border-left-color: var(--kngreen); }
+.kn-ask .kn-eye, .modal > .kn-eye { text-align: left; font-size: 20px; margin-top: 8px; }
+.kn-late { margin: -2px 0 10px; } .kn-late .btn { padding: 6px 10px; font-size: 14px; min-height: 38px; }
+.kn-party .knbulb { width: 130px; display: block; margin: 0 auto; }

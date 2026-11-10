@@ -13,6 +13,7 @@ import { carDay, carDayLabel, carRange, isCar, newForMe } from './termine.js';
 import { myStats } from './home.js';
 import { babyParty, babyReconcile, gbParty, gbReconcile, snParty, snReconcile } from './events.js';
 import * as SN from './snacks.js';
+import { knParty, knReconcile } from './kniff.js';
 
 // ---------- the shared shopping list (2026-10-19.5) ----------
 // Both phones keep the whole list in S.shop and post it (+ what they deleted, S.shopGone) in their post file; reading the
@@ -73,6 +74,7 @@ export function postObj() { // what the partner reads: my handed-over tasks and 
     cooked: (S.cookLog || []).slice(-300),
     dishPics: (S.dishPics || []).filter(x => x.up).slice(-300),   // 📷 photos of the cooked dishes (the files: gerichte/<id>.jpg)
     baby: S.babyMine || {},
+    kn: S.knMine || {},   // 💡 KNIFFlicheNudel: my verdicts + setup ticks
     ...(picLS.tok ? { pic: S.picNext || null } : {}),
     plan: S.plan || null,   // 🗓️ the Wochenplan, the newer `u` wins on both phones   // the Picnic slot, only from a phone that's logged in to Picnic
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
@@ -226,6 +228,7 @@ export async function syncPost() {
     if (p.dishPics && JSON.stringify(p.dishPics) !== JSON.stringify(S.partnerDishPics)) { S.partnerDishPics = p.dishPics; changed = true; }
     let babyNews = 0;
     if (p.baby && JSON.stringify(p.baby) !== JSON.stringify(S.partnerBaby || {})) { S.partnerBaby = p.baby; babyNews = babyReconcile().add; changed = true; }
+    if (p.kn && JSON.stringify(p.kn) !== JSON.stringify(S.partnerKn || {})) { S.partnerKn = p.kn; changed = true; knReconcile(); }   // 💡 shared Kniff verdicts + setup ticks
     const pc = Car.raw(p.car);
     if (JSON.stringify(pc) !== JSON.stringify(Car.raw(S.partnerCar))) { S.partnerCar = pc; changed = true; }
     const fresh = newForMe(); if (fresh.length) changed = true;
@@ -245,7 +248,7 @@ export async function syncPost() {
     if (S.sent.length !== before) changed = true;
     if (changed) commit();
     if (babyNews) toast(`🍼 ${pn()} hat ${babyNews === 1 ? 'eine Sache' : babyNews + ' Sachen'} für den kleinen Menschen abgehakt · +${babyNews} ⭐`);
-    babyParty(); gbParty(); snParty();
+    babyParty(); gbParty(); snParty(); knParty();
     if (pulled.length) toast(pn() + ' hat zurückgenommen: ' + pulled.map(i => i.text).join(', '));
     if (back.length) modal(`<h2>Kommt zurück</h2><p>${esc(pn())} kann das gerade nicht übernehmen:</p><div style="text-align:left">${back.map(x => `<p><b>${esc(x.text)}</b><br><span class="muted">„${esc(x.reason)}“</span></p>`).join('')}</div><p class="muted">${back.length > 1 ? 'Die Aufgaben sind' : 'Die Aufgabe ist'} wieder auf deiner Liste.</p><div class="row"><button class="btn" data-a="close">Okay</button></div>`);
     else if (done.length) doneModal(done);

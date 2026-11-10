@@ -33,7 +33,7 @@ export function mergeStates(local, remote, base = null) {
     m.stars = Math.max(0, (newer.stars || 0) + (older.stars || 0) - (base.stars || 0));
     m.earned = Math.max(0, (newer.earned || 0) + (older.earned || 0) - (base.earned || 0));
     // 🍼 a baby tick credited (or taken back) on BOTH devices counted twice above → once
-    const bids = x => new Map((x.log || []).filter(e => e.kind === 'baby' || e.kind === 'event').map(e => [e.id, e.stars || 1])), bA = bids(newer), bB = bids(older), bZ = bids(base);
+    const bids = x => new Map((x.log || []).filter(e => e.kind === 'baby' || e.kind === 'event' || e.kind === 'kniff').map(e => [e.id, e.stars || 1])), bA = bids(newer), bB = bids(older), bZ = bids(base);
     let fix = 0; bA.forEach((n, id) => { if (bB.has(id) && !bZ.has(id)) fix -= n; }); bZ.forEach((n, id) => { if (!bA.has(id) && !bB.has(id)) fix += n; });
     m.stars = Math.max(0, m.stars + fix); m.earned = Math.max(0, m.earned + fix);
   } else {
@@ -51,6 +51,7 @@ export function mergeStates(local, remote, base = null) {
   m.thanksSeen = [...new Set([].concat(newer.thanksSeen || [], older.thanksSeen || []))].slice(-200);
   m.cook = Object.assign({}, older.cook || {}, newer.cook || {});
   m.babyMine = B.mergeMine(older.babyMine, newer.babyMine);
+  m.knMine = B.mergeMine(older.knMine, newer.knMine);   // 💡 Kniff verdicts + setup ticks: per id the newer one
   m.answered = Object.assign({}, older.answered || {}, newer.answered || {});
   const gA = newer.game || {}, gB = older.game || {}, lv = { ...(gB.levels || {}) };
   for (const [k, v] of Object.entries(gA.levels || {})) lv[k] = Math.max(v, lv[k] || 0);

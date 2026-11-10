@@ -24,6 +24,7 @@ import { allDishPics, backToList, loadDishPics } from './recipes.js';
 import { NEWS, ZETTEL, deck, newsAll, newsRead, swipeSet } from './home.js';
 import { planNow } from './wochenplan.js';
 import { babyLive, gbParty, gbReconcile, snParty, snReconcile } from './events.js';
+import { knLive } from './kniff.js';
 import * as SN from './snacks.js';
 import { render, tabChip } from './app.js';
 
@@ -724,5 +725,5 @@ Object.assign(A, {
     location.replace(location.pathname);
   },
   rank: rankModal,
-  stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>${babyLive() ? '🍼 1 pro Haken bei der Babyerstausstattung – für euch beide, ohne Tageslimit<br>' : ''}⭐ 2 fürs Genießen eines Gemütlichkeits-Rezepts, einer fertigen Vorbereitung oder einer Belohnung nach der Hausarbeit</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
+  stars() { modal(`<h2>Gute Nudel Sterne</h2><p>⭐ 1 pro erledigter Aufgabe (bis ${C.CAP} am Tag)<br>${babyLive() ? '🍼 1 pro Haken bei der Babyerstausstattung – für euch beide, ohne Tageslimit<br>' : ''}${knLive() ? '💡 2 pro ausprobiertem Kniff (KNIFFlicheNudel), ohne Tageslimit<br>' : ''}⭐ 2 fürs Genießen eines Gemütlichkeits-Rezepts, einer fertigen Vorbereitung oder einer Belohnung nach der Hausarbeit</p><p>Ausgeben kannst du sie bei <b>Schätze</b>.</p><div class="row"><button class="btn" data-a="go" data-tab="schaetze">Zu den Schätzen</button></div>`); },
 });

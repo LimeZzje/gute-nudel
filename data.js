@@ -58,6 +58,8 @@ export function freshState() {
     thanksSeen: [],        // ids of the partner's thank-yous already shown (flying emojis once)
     babyMine: {},          // 🍼 my own ticks on the shared baby list: item id -> [on 0/1, ts]
     partnerBaby: {},       // the partner's (from their post)
+    knMine: {},            // 💡 KNIFFlicheNudel: my own actions, id -> [v, ts] (W1…: 1 behalten / 0 nö · E1…: 1 eingerichtet / 0 nicht)
+    partnerKn: {},         // the partner's (from their post)
     events: [],            // finished events with their fun statistics (Home → Vergangene Events)
     partnerName: '', postedName: null,
   };

@@ -123,7 +123,7 @@ function weekPlanner() {
     h += `<div class="sec-title" style="font-size:24px">Deine Aufgaben & ihre Tage</div><div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span class="cw"><span class="cwtop"><b>${esc(c.icon)} ${esc(c.name)}</b><span><button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></span></span>
       ${c.week && c.week.length ? `<span class="days">${C.WEEK_ORDER.map(d => `<button class="dayt ${c.week.includes(d) ? 'on' : ''} ${d === tdow ? 'today' : ''}" data-a="cday" data-id="${c.id}" data-v="${d}">${C.DOW[d]}</button>`).join('')}</span>`
         : `<label class="nextrow"><span>Nächstes Mal</span><input type="date" class="nextdate" data-ch="chorenext" data-id="${c.id}" min="${today()}" value="${choreNext(c)}"></label>`}
-      <span class="muted">${c.week && c.week.length ? esc(choreWhen(c)) : esc(choreRhythm(c)) + ' ab da'}${c.reward ? ' · 🎁 ' + esc(c.reward) : ''}</span>${(c.tools || []).length ? '<span>' + toolBtns(c) + '</span>' : ''}</span></li>`).join('')}</ul>
+      <span class="muted">${c.week && c.week.length ? esc(choreWhen(c)) : esc(choreRhythm(c)) + ' ab da'}${c.reward ? ' · 🎁 ' + esc(c.reward) : ''}</span>${(tb => tb ? '<span>' + tb + '</span>' : '')(toolBtns(c))}</span></li>`).join('')}</ul>
       <p class="hint">Wochentags-Aufgaben: Tipp auf einen Tag legt sie dorthin (oder nimmt sie weg), gilt ab morgen. „Alle paar Tage“: Datum antippen – dann ist sie an dem Tag dran und läuft von da an weiter.</p></div>`;
   }
   const ex = C.EXAMPLE_WEEK.filter(e => C.CHORE_TEMPLATES.some(t => t.name === e.name));

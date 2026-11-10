@@ -8,14 +8,16 @@ import { checkPromotion } from './rank.js';
 import { myStats } from './home.js';
 import { render } from './app.js';
 import { dueTag, pushSync } from './faellig.js';
+import { knBtn } from './kniff.js';
 
-export const VERSION = '2026-11-07.2';
+export const VERSION = '2026-11-10.1';
 
 export const $ = s => document.querySelector(s);
 export const tags = (i, tap) => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '') + dueTag(i, tap);
 const choreTag = i => { const c = S.chores.find(x => x.id === i.chore); return c ? `<span class="tag">🔁${c.reward ? ' 🎁' : ''}</span>` + toolBtns(c, i) : ''; };
 // a chore's helpers as small buttons; a handed-over shopping list travels on the item itself
 export const toolBtns = (c, i) => (c && c.tools || []).filter(t => C.TOOLS[t]).map(t => `<button class="toolbtn" data-a="tool" data-t="${t}" data-c="${c.id}" aria-label="${C.TOOLS[t][1]}">${C.TOOLS[t][0]}</button>`).join('')
+  + knBtn(c)   // 💡 KNIFFlicheNudel: today's Kniff / the kept ones (kniff.js)
   + (i && i.list ? `<button class="toolbtn" data-a="itemlist" data-id="${i.id}" aria-label="Einkaufsliste">🛒 ${i.list.filter(x => !x.done).length}</button>` : '');
 export const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);

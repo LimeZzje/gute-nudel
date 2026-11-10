@@ -21,6 +21,7 @@ import { deck, game, viewHome, wireDeck } from './home.js';
 import { planNow } from './wochenplan.js';
 import { babyParty, babyReconcile, gbParty, gbReconcile, hnDeckClose, snParty, snReconcile } from './events.js';
 import { mergeStates } from './merge.js';
+import { knParty, knReconcile } from './kniff.js';   // 💡 KNIFFlicheNudel (also fills A with kniff / knv / …)
 import { pushSync } from './faellig.js';   // due dates: fills A with duepick / snooze / push* ...
 import './actions.js';   // fills the action table A (exports nothing)
 
@@ -150,11 +151,11 @@ A.welcomego = () => { const n = $('#w-name').value.trim(); S.name = n; S.welcome
 
 function takeRemote(remote, adopt, base) {
   setS(adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote, base)); shopSnapNow();
-  const br = babyReconcile(); if (br.add + br.sub | gbReconcile() | snReconcile()) S.updatedAt = Date.now();
+  const br = babyReconcile(); if (br.add + br.sub | gbReconcile() | snReconcile() | knReconcile()) S.updatedAt = Date.now();
   D.saveLocal(S);
   rollover(); scheduleChores(); render();
   toast(adopt ? '🔄 Auf dem neuesten Stand' : '🔄 Mit dem anderen Gerät zusammengeführt');
-  babyParty(); gbParty(); snParty();
+  babyParty(); gbParty(); snParty(); knParty();
   return S;
 }
 async function syncDevices() { await D.pull(S); }
@@ -219,7 +220,7 @@ export async function start() {
   shopSnapNow();   // from here on, what leaves the shopping list was deleted on this phone
   rollover();
   scheduleChores();
-  babyReconcile(); gbReconcile(); snReconcile();
+  babyReconcile(); gbReconcile(); snReconcile(); knReconcile();
   if (applyFixes()) { S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); }
   D.setRemoteHandler(takeRemote);
   bind();

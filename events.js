@@ -5,6 +5,8 @@ import * as G from './geburtstag.js';
 import * as HN from './hellonudel.js';
 import * as SL from './hn_slides.js';
 import * as SN from './snacks.js';
+import * as KN from './kniffe.js';
+import { knCounts } from './kniff.js';
 import { $, closeModal, commit, confetti, esc, floatStar, key, lockScroll, longDate, modal, toast, today, uid, unlockScroll } from './core.js';
 import { A, S, ui } from './state.js';
 import { earn, pn, vorrat } from './sync.js';
@@ -102,6 +104,7 @@ export function pastEvents() {
       ['🧺', 'Hello Nudel bleibt – unten im Tab 🧺 Hello Nudel.']] });
   }
   if (!has(SN.ID) && now >= SN.END) { const m = snMade(); out.push({ id: SN.ID, icon: '🥜', title: SN.TITLE, done: SN.END, ended: true, lines: [...(m.length ? [['🥜', `${m.length === 1 ? 'Ein Snack' : m.length + ' Snacks'} zusammen gemacht.`]] : []), ['📖', 'Alle Snacks stehen jetzt im Kochbuch unter 🥜 Snacks.']] }); }
+  if (!has(KN.ID) && now >= KN.END) { const c = knCounts(); out.push({ id: KN.ID, icon: '💡', title: KN.TITLE, done: KN.END, ended: true, lines: [...(c.tested ? [['💡', `${c.tested === 1 ? 'Ein Kniff' : c.tested + ' Kniffe'} zusammen ausprobiert.`]] : []), ...(c.kept ? [['💚', `${c.kept === 1 ? 'Einer bleibt' : c.kept + ' bleiben'} – als 💡 bei euren Routinen.`]] : []), ['📖', 'Alle Kniffe stehen weiter unter 💡 bei den Routinen.']] }); }
   if (!has(B.ID) && now >= B.END) {
     const n = B.ITEMS.filter(it => babyOn(it.id)).length;
     out.push({ id: B.ID, icon: '🍼', title: B.TITLE, done: B.END, ended: true, lines: [['🍼', `${n} von ${B.ITEMS.length} Sachen zusammen vorbereitet.`], ['⭐', `${n} Sterne für jeden von euch.`]] });

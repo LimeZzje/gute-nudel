@@ -7,6 +7,7 @@ import { answerDone, earn, pn } from './sync.js';
 import { choreDone, choreRhythm } from './chores.js';
 import { carToday } from './termine.js';
 import { dueBtns, dueCard, dueField, dueSort, dueDays, SOON } from './faellig.js';
+import { knAsk, knChoreTrick } from './kniff.js';
 
 // ---------- HEUTE ----------
 export function viewHeute() {
@@ -100,8 +101,12 @@ export function tick(id, el) {
     if (combo) S.combo.phase = 'reward';
     afterWork(n + 1, answerDone(it));
     askMood(S.log[S.log.length - 1]);
+    const kid = ch && knChoreTrick(ch);   // 💡 the chore carried a Kniff: ask first, then what comes next
+    const next = () => {
     if (ch && ch.reward) modal(`<h2>${esc(ch.icon)} Erledigt!</h2><p><b>${esc(ch.name)}</b> ist für ${esc(choreRhythm(ch))} erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">🎁 ${esc(ch.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
     if (combo) modal(`<h2>Teil 1 geschafft!</h2><p><b>${esc(combo.work)}</b> ist erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">${combo.icon} ${esc(combo.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
+    };
+    if (kid) knAsk(kid, next); else next();
   }, 650);
 }
 // "wie war's?": five faces under the screen for a few seconds — one tap, or just ignore it
