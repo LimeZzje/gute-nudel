@@ -16,7 +16,7 @@ import { relaxHomeCard } from './relax.js';
 import { picNow } from './einkauf.js';
 import { fixRec, flavor, isBake, isCodex, isHerb, kidStars, loveTag, pregLater, recipeById, seasonTag, vorratRecipes, vrNew, vrSeenAdd } from './kochbuch.js';
 import { carAll, carDay, carDayLabel, carTime, forMe, isCar, shared } from './termine.js';
-import { PLAN_N, dayStart, planNow, viewPlan, viewSwipe } from './wochenplan.js';
+import { PLAN_N, planNow, viewPlan, viewSwipe } from './wochenplan.js';
 import { babyLive, gbLive, hnUnwrapped, pastEvents, snLive, viewBaby, viewEvents, viewHello, viewKuchen, viewSnacks } from './events.js';
 import * as SN from './snacks.js';
 import * as KN from './kniffe.js';
@@ -98,9 +98,8 @@ function bubbles() {
   if (knLive()) b.push({ a: 'kniff', ic: '💡', l: 'Kniffe', on: true, t0: KN.START, t1: KN.END });
   if (picNow()) { const t = new Date(picNow().start); b.push({ a: 'picdeliv', ic: '🚚', l: 'Picnic', n: t.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + t.getHours(), on: true }); }
   if (babyLive()) b.push({ a: 'baby', ic: '👶', l: 'Baby', on: true, t0: B.START, t1: B.END });
-  const pl = planNow();   // 🗓️ the running week as a story ring; a finished one asks for the next week for 3 days
-  if (pl && !pl.over) b.push({ a: 'plan', ic: '🗓️', l: 'Wochenplan', t0: dayStart(pl.start), t1: dayStart(addDays(pl.start, PLAN_N)) });
-  else if (pl && today() <= addDays(pl.end, 3)) b.push({ a: 'plan', ic: '🗓️', l: 'Neu planen?', on: true });
+  const pl = planNow();   // 🗓️ rolling plan (2026-11-14): no end any more, so no story ring; lit ring = the new 7th day is still empty
+  if (pl) b.push({ a: 'plan', ic: '🗓️', l: 'Wochenplan', on: !pl.days[PLAN_N - 1] });
   if (pastEvents().length) b.push({ a: 'events', ic: '🗓️', l: 'Vergangen', past: true });   // always last, grey ring (user)
   if (!b.length) return '';
   return `<div class="bubs" role="list">${b.map(x => { const tm = x.t1 ? storyLeft(x.t0, x.t1) : null, n = tm ? tm.txt : x.n;

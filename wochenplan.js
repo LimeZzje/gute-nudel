@@ -8,34 +8,42 @@ import { shopModal } from './einkauf.js';
 import { deckCard, viewHome } from './home.js';
 import { render, start } from './app.js';
 
-// ---------- 🗓️ Wochenplan (Julia 2026-10-30): up to 7 recipes, each on a day, from the day the first one is pinned ----------
-// Cooking a planned dish (either phone, any day of the plan) ticks it. Over after its 7th day, or when all 7 days are planned
-// and cooked → "Neue Woche planen" / "Gleiche nochmal". Edits never move the start (user's pick). Shared like the Picnic slot:
-// post.plan, the newer `u` wins (both phones may plan); a reset is {start: null}, so it travels too.
+// ---------- 🗓️ Wochenplan (Julia 2026-10-30): up to 7 recipes, each on a day ----------
+// Rolling since 2026-11-14 (his pick): the window is always today + 6 days. Each morning yesterday drops off the left and a
+// new 7th day appears on the right, so you plan one new day daily; it never "ends". Stored as {start, days[], s}; reading
+// rebases it onto today (planRoll), writing stores it with start = today. Cooking a planned dish (either phone, any day in
+// the window) ticks it. Shared like the Picnic slot: post.plan, the newer `u` wins (both phones may plan).
 export const PLAN_N = 7;
 export const dayStart = k => parse(k).getTime() + 3 * 3600e3;   // a day runs until 3 am, like today()
 // a slot value (plan.s["<day><f|b|r>"]) is a string (free text) or {r: recipeId} (a recipe from the Kochbuch, G18)
 export const slotRec = v => v && typeof v === 'object' && v.r ? v.r : null;
 const slotText = v => typeof v === 'string' ? v : '';
-export function planNow() {   // → null (no plan) or {start, end, days[7], s, done[7], sdone{key}, n, cooked, over}
+function planRoll(p) {   // the stored plan seen from today: day i of the window = stored day i + o, slot keys "<i><k>" shift too
+  const t = today(), o = Math.round((parse(t) - parse(p.start)) / 864e5);
+  const days = Array.from({ length: PLAN_N }, (_, i) => (p.days || [])[i + o] || null), s = {};
+  for (const [key, v] of Object.entries(p.s || {})) { const j = parseInt(key, 10) - o; if (j >= 0 && j < PLAN_N) s[j + key.replace(/^\d+/, '')] = v; }
+  return { start: t, days, s };
+}
+export function planNow() {   // → null (nothing planned from today on) or {start = today, end, days[7], s, done[7], sdone{key}, n, cooked, over: false}
   const p = S.plan; if (!p || !p.start) return null;
-  const end = addDays(p.start, PLAN_N - 1), days = Array.from({ length: PLAN_N }, (_, i) => (p.days || [])[i] || null), s = p.s || {};
-  const left = cookedLog().filter(x => x.day >= p.start && x.day <= end).map(x => x.rid);   // the same dish twice needs cooking twice
+  const { start, days, s } = planRoll(p); if (!days.some(Boolean) && !Object.keys(s).length) return null;
+  const end = addDays(start, PLAN_N - 1);
+  const left = cookedLog().filter(x => x.day >= start && x.day <= end).map(x => x.rid);   // the same dish twice needs cooking twice
   const done = days.map(id => { const i = id ? left.indexOf(id) : -1; if (i >= 0) left.splice(i, 1); return i >= 0; });
   const sdone = {}; for (const [key, v] of Object.entries(s)) { const rid = slotRec(v); if (!rid) continue; const i = left.indexOf(rid); sdone[key] = i >= 0; if (i >= 0) left.splice(i, 1); }   // slot recipes tick too
   const n = days.filter(Boolean).length, cooked = done.filter(Boolean).length;
-  return { start: p.start, end, days, s, done, sdone, n, cooked, over: today() > end || (n === PLAN_N && cooked === n) };
+  return { start, end, days, s, done, sdone, n, cooked, over: false };
 }
-export const planLive = () => { const p = planNow(); return p && !p.over ? p : { start: today(), days: Array(PLAN_N).fill(null), s: {}, done: [], sdone: {} }; };   // where a new pin goes
+export const planLive = () => planNow() || { start: today(), days: Array(PLAN_N).fill(null), s: {}, done: [], sdone: {} };   // where a new pin goes
 export const planDayName = (start, i) => { const k = addDays(start, i); return k === today() ? 'Heute' : k === addDays(today(), 1) ? 'Morgen' : C.DAYNAMES[parse(k).getDay()]; };
 function planWrite(days, s) {   // plan.s = optional slots {"<day><f|b|r>": text | {r: id}}; the whole plan travels, the newer `u` wins
-  S.plan = days.some(Boolean) || Object.keys(s).length ? { start: planLive().start, days, ...(Object.keys(s).length ? { s } : {}), u: Date.now() } : { start: null, days: [], u: Date.now() };   // emptied = gone; the next pin starts a new week
+  S.plan = days.some(Boolean) || Object.keys(s).length ? { start: today(), days, ...(Object.keys(s).length ? { s } : {}), u: Date.now() } : { start: null, days: [], u: Date.now() };   // days/s come from planLive(), already rebased onto today
 }
 function planSet(i, rid) { const p = planLive(), days = p.days.slice(); days[i] = rid; planWrite(days, { ...(p.s || {}) }); }
 function planSlotSet(i, k, v) { const p = planLive(), s = { ...(p.s || {}) }; if (v) s[i + k] = v; else delete s[i + k]; planWrite(p.days.slice(), s); }
 export function planCard() {   // on the Kochbuch's "Kochen" page
-  const p = planNow(), live = p && !p.over, i = live ? Math.round((parse(today()) - parse(p.start)) / 864e5) : -1, r = live && p.days[i] && recipeById(p.days[i]);
-  return `<button class="card hcard plan-card" data-a="plan"><span class="hc-txt"><b>🗓️ Wochenplan</b><span class="muted">${r ? `Heute: ${r.icon} ${esc(r.title)}${p.done[i] ? ' ✅' : ''}` : live ? `${p.cooked} von ${p.n} gekocht` : 'Plan dir bis zu 7 Gerichte für die Woche'}</span></span><span class="hc-go">›</span></button>`;
+  const p = planNow(), r = p && p.days[0] && recipeById(p.days[0]);
+  return `<button class="card hcard plan-card" data-a="plan"><span class="hc-txt"><b>🗓️ Wochenplan</b><span class="muted">${r ? `Heute: ${r.icon} ${esc(r.title)}${p.done[0] ? ' ✅' : ''}` : p ? `${p.n} von 7 Tagen geplant` : 'Plan dir die nächsten 7 Tage'}</span></span><span class="hc-go">›</span></button>`;
 }
 // slots of a day: m = Hauptgericht (days[i], a recipe), f / b / r = text or a recipe in plan.s["<i><k>"]
 const SLOTS = [
@@ -52,11 +60,10 @@ function vorratPicks(q) {   // 🥡 Rest / Vorrat (his answer 2026-11-04): up to
   return c.all.concat(c.almost).filter(r => !used.has(r.id)).slice(0, 3);
 }
 export function viewPlan() {
-  const p = planNow(), over = p && p.over, q = over ? p : planLive(), t = today(), s = q.s || {}, sdone = q.sdone || {};
-  const cur = Math.round((parse(t) - parse(q.start)) / 864e5), di = Math.max(0, Math.min(PLAN_N - 1, ui.planDay != null ? ui.planDay : cur));   // today first, or the day he tapped
+  const p = planNow(), over = false, q = planLive(), t = today(), s = q.s || {}, sdone = q.sdone || {};
+  const di = Math.max(0, Math.min(PLAN_N - 1, ui.planDay != null ? ui.planDay : 0));   // today (far left) first, or the day he tapped
   let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button><div class="sec-title" style="margin-top:0">🗓️ Wochenplan</div>`;
-  if (over) h += `<div class="card"><h3>Die Woche ist rum 🎉</h3><p style="margin:4px 0 10px">${p.cooked} von ${p.n} ${p.n === 1 ? 'Gericht' : 'Gerichten'} gekocht.</p><div class="row"><button class="btn soft" data-a="planagain">🔁 Gleiche nochmal</button><button class="btn" data-a="plannew">🗓️ Neue Woche planen</button></div></div>`;
-  else h += `<p class="muted" style="margin:0 4px 10px">${p ? `${shortDate(q.start)} – ${shortDate(q.end)} · ${p.cooked} von ${p.n} gekocht. Gekocht ist gekocht – egal an welchem Tag.` : 'Plan dir die Woche: Frühstück, Backen, Hauptgericht und was von gestern übrig ist. Die Woche startet mit dem ersten Eintrag.'}</p>`;
+  h += `<p class="muted" style="margin:0 4px 10px">${p ? `Heute bis ${shortDate(q.end)} · ${p.cooked} von ${p.n} gekocht. Jeden Morgen rückt hinten ein neuer Tag nach.` : 'Plan dir die nächsten 7 Tage: Frühstück, Backen, Hauptgericht und was von gestern übrig ist. Jeden Morgen rückt hinten ein neuer Tag nach.'}</p>`;
   h += `<div class="pw-strip">` + q.days.map((id, i) => {
     const r = id && recipeById(id), k = addDays(q.start, i), d = parse(k), done = !!(q.done || [])[i], extra = SLOTS.filter(x => x.k !== 'm' && s[i + x.k]);
     const sr = !r && extra.map(x => slotRec(s[i + x.k])).filter(Boolean).map(recipeById).find(Boolean);   // no main dish: a slot recipe's icon
@@ -139,8 +146,6 @@ Object.assign(A, {
     commit(); shopModal();
     toast(r ? (n ? n + ' Sachen dazugekommen 🛒' : 'Steht schon alles drauf 🛒') : 'Steht auf dem Zettel 🛒');
   },
-  plannew() { ui.planDay = null; S.plan = { start: null, days: [], u: Date.now() }; commit(true); },
-  planagain() { const p = planNow(); if (!p) return; S.plan = { start: today(), days: p.days, ...(p.s && Object.keys(p.s).length ? { s: p.s } : {}), u: Date.now() }; commit(true); toast('🔁 Gleiche Woche nochmal – ab heute'); },
 });
 // 🍽️ the deck, full screen like Tinder (from its bubble); empty → back home
 export function viewSwipe() {
