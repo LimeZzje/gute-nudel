@@ -44,10 +44,11 @@ const FOOD = [
   // --- meat, fish ---
   ['hackfleisch|hack|rinderhack|rinderhackfleisch|gemischtes hackfleisch', 250, 20, 0, 18, { pck: 500 }],
   ['kottbullar|frikadelle|fleischball', 230, 16, 7, 14, { pck: 500, stk: 15 }],
-  ['hahnchenbrust|hahnchenbruste|hahnchen|hahnchenfilet|putenbrust', 110, 1.5, 0, 23, { stk: 150 }],
+  ['hahnchenbrust|hahnchenbruste|hahnchen|hahnchenfilet|hahnchenbrustfilet|hahnchengeschnetzeltes|putenbrust', 110, 1.5, 0, 23, { stk: 150 }],
   ['hahnchenbrust aufschnitt|gegrillte hahnchenbrust|hahnchenbrust gegrillt', 110, 2, 1, 22, { sch: 10, pck: 100 }],
   ['hahnchenschenkel|hahnchenkeule', 190, 12, 0, 19, { stk: 180 }],
   ['schnitzel', 220, 10, 12, 20, { stk: 150 }],
+  ['minutensteak|minutensteaks', 125, 3.5, 0, 23, { stk: 100 }],   // lean pork cutlets (2026-11-14, 🧾 receipt)
   ['cordon bleu', 250, 14, 13, 18, { stk: 150 }],
   ['rindergulasch|gulasch|rindfleisch', 140, 6, 0, 21, {}],
   ['schweinebraten|schweinenacken|schweinefleisch|nacken', 230, 17, 0, 18, {}],
