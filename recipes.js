@@ -16,7 +16,7 @@ import { readDue } from './faellig.js';
 
 // ---------- 📷 photographed recipes + ✏️ own recipes ----------
 // Photos are shrunk on the phone (long side 2000 px, JPEG) – sharp enough to read, small enough to upload.
-function shrink(file, max = 2000) {
+export function shrink(file, max = 2000) {
   return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => { const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');

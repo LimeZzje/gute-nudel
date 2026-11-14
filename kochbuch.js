@@ -17,6 +17,7 @@ import { dishPicsOf, loadDishPics, loadRecPhotos } from './recipes.js';
 import { nopes } from './home.js';
 import { planBanner, planCard, planDayName, planLive, planPickSlot } from './wochenplan.js';
 import { render } from './app.js';
+import { bonBtn, bonHint } from './bon.js';
 
 // ---------- the cookbook (cookbook.js): suggestions that learn, the plate check, cooking mode ----------
 // every recipe: built-in (cookbook.js) + the shared book (photographed pages, written by Claude) + my own ones.
@@ -282,14 +283,14 @@ export function viewDaheim() {
   const V = vorratGroups();
   const use = ui.vuse; // 🍳 "Ich hab gebraucht…": tick what she used for cooking off-book (no stars)
   let h = `<form class="add" data-f="vorratadd"><input name="t" placeholder="Hab ich daheim… z.B. 500 g Nudeln" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Zum Vorrat">+</button></form>`;
-  if (!V.length) return h + `<div class="card"><p style="margin:0">Noch nichts eingetragen.</p><p class="muted">Nach dem Einkaufen in der Einkaufsliste „✅ Alles eingekauft!“ drücken – dann ist alles hier. Oder oben eintragen, was eh da ist.</p></div>`;
+  if (!V.length) return h + `<div class="card"><p style="margin:0">Noch nichts eingetragen.</p><p class="muted">Nach dem Einkaufen in der Einkaufsliste „✅ Alles eingekauft!“ drücken – dann ist alles hier. Oder oben eintragen, was eh da ist.</p><div class="row" style="justify-content:flex-start">${bonBtn()}</div><p class="muted" style="margin-bottom:0">Spontan eingekauft? Fotografier den Kassenzettel – Claude trägt alles ein.</p></div>` + bonHint();
   for (const [k, ic, l] of PLACES) {
     const xs = V.filter(x => placeOf(x) === k).sort((a, b) => a.name.localeCompare(b.name, 'de'));
     if (!xs.length) continue;
     h += `<div class="card vplace"><h3>${ic} ${l} <span class="muted">(${xs.length})</span></h3>${xs.map(x => use ? `<div class="shoprow"><button class="pick ${use.has(x.id) ? 'on' : ''}" data-a="vusetick" data-id="${esc(x.id)}"><span class="box">${use.has(x.id) ? '✓' : ''}</span><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button></div>` : `<div class="vswipe"><span class="vs-bg" aria-hidden="true">Ist alle! 🧊</span><div class="shoprow vrow" data-id="${esc(x.id)}"><button class="pick" data-a="vorratqty" data-id="${esc(x.id)}"><span style="flex:1">${esc(x.name)}</span>${groupQty(x) ? `<b class="qty">${esc(groupQty(x))}</b>` : ''}</button><button class="mini-btn vcart${onList(x.name) ? ' on' : ''}" data-a="vcart" data-id="${esc(x.id)}" aria-label="${onList(x.name) ? 'Steht schon auf der Einkaufsliste' : 'Auf die Einkaufsliste'}">🛒</button></div></div>`).join('')}</div>`;
   }
   if (use) return h + `<div class="row"><button class="btn soft" data-a="vuse">Abbrechen</button><button class="btn green" data-a="vusedone"${use.size ? '' : ' disabled'}>Fertig${use.size ? ' (' + use.size + ')' : ''}</button></div><p class="hint">Antippen, was du gebraucht hast – „Fertig“ nimmt es aus dem Vorrat. Gibt keine Sterne.</p>`;
-  return h + `<div class="row"><button class="btn soft" data-a="vuse">🍳 Ich hab gebraucht…</button></div><p class="hint">Tippen = Menge ändern oder umräumen · 🛒 = auf die Einkaufsliste · zur Seite wischen = ist alle. „Jetzt kochen“ nimmt raus, was ein Rezept braucht.</p>`;
+  return h + `<div class="row"><button class="btn soft" data-a="vuse">🍳 Ich hab gebraucht…</button>${bonBtn()}</div>${bonHint()}<p class="hint">🧾 = Kassenzettel vom spontanen Einkauf fotografieren, Claude trägt alles ein. Tippen = Menge ändern oder umräumen · 🛒 = auf die Einkaufsliste · zur Seite wischen = ist alle. „Jetzt kochen“ nimmt raus, was ein Rezept braucht.</p>`;
 }
 // 🧊 swipe a Daheim row sideways = "Ist alle!" (user 2026-11-06; undo in the toast). Vertical drags stay scrolling.
 export function wireVSwipe() {

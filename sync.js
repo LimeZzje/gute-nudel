@@ -14,6 +14,7 @@ import { myStats } from './home.js';
 import { babyParty, babyReconcile, gbParty, gbReconcile, snParty, snReconcile } from './events.js';
 import * as SN from './snacks.js';
 import { knParty, knReconcile } from './kniff.js';
+import { retryBons } from './bon.js';
 
 // ---------- the shared shopping list (2026-10-19.5) ----------
 // Both phones keep the whole list in S.shop and post it (+ what they deleted, S.shopGone) in their post file; reading the
@@ -112,7 +113,7 @@ export const itemQty = x => x.qty !== undefined ? x.qty : splitAmount(x.text).qt
 // (older records were {id: <item id>, ts} = all gone)
 // one Picnic delivery = one set in the Vorrat: when both phones moved the same delivery in (2026-10-20: both opened the app
 // in the same minute and everything was there twice), only the person who added it first counts — same answer on both phones
-export const vorratAdds = () => [...(S.vorratAdd || []), ...((S.partnerVorrat || {}).add || [])].filter(Boolean);
+export const vorratAdds = () => [...(S.vorratAdd || []), ...((S.partnerVorrat || {}).add || []), ...((S.claudeVorrat || {}).add || [])].filter(Boolean);   // + 🧾 Claude's receipt adds (G23)
 export function picOwners(adds) {
   const o = {};
   for (const x of adds) {
@@ -211,7 +212,7 @@ let syncing = false;
 export async function syncPost() {
   if (syncing || !D.canPost() || !navigator.onLine) return;
   syncing = true;
-  syncBook(); retryInbox(); retryDish();   // the shared recipe book + photos still waiting for their upload
+  syncBook(); retryInbox(); retryDish(); retryBons();   // the shared recipe book + photos (recipes, dishes, 🧾 receipts) still waiting for their upload
   try {
     const p = (await D.readPartnerPost()) || { out: [], replies: [] };
     if (p.me && p.me === D.me()) return;              // never treat my own mailbox as the partner's
@@ -223,6 +224,7 @@ export async function syncPost() {
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
     if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; if (picCheer()) changed = true; }
     if (shopMerge(p.shop)) changed = true;
+    try { const c = await D.readClaudePost(); if (c && c.vorrat && JSON.stringify(c.vorrat) !== JSON.stringify(S.claudeVorrat)) { S.claudeVorrat = c.vorrat; changed = true; } } catch (e) {}   // 🧾 G23
     if (p.plan && (p.plan.u || 0) > ((S.plan || {}).u || 0)) { S.plan = p.plan; changed = true; }
     if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); if (snReconcile()) toast(`🥜 Snack-Labor geschafft · +${SN.STARS} ⭐`); }
     if (p.dishPics && JSON.stringify(p.dishPics) !== JSON.stringify(S.partnerDishPics)) { S.partnerDishPics = p.dishPics; changed = true; }

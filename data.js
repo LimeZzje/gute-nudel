@@ -249,6 +249,7 @@ export async function flushPost() {
   finally { postRunning = false; if (postPending) { clearTimeout(postTimer); postTimer = setTimeout(flushPost, 1500); } }
 }
 export const readPartnerPost = () => getJSON('post/' + partner() + '.json');
+export const readClaudePost = () => getJSON('post/claude.json');   // 🧾 G23: Claude's receipt adds (add-only, written by tools/rezepte.py einkauf)
 
 // ---------- photos ----------
 const pad = n => String(n).padStart(2, '0');
