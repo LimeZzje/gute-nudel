@@ -203,7 +203,11 @@ Object.assign(A, {
     const rep = repRule(f);
     const rule = { start, end, ...rep, ...(f.rep && f.until ? { until: f.until } : {}), ...(f.rep && was0 && was0.skip ? { skip: was0.skip } : {}) };
     const dates = Car.live([{ id: 'neu', ...rule }]);
+    // a series whose single date lasts as long as the gap between dates covers every day (2026-11-16: the course's last
+    // day went into the top "Bis" = the end of ONE date → every weekly date ran 3 weeks, the car looked booked daily)
+    const gapMin = rep.everyM ? 28 * 1440 : (+rep.every || 0) * 1440, lenMin = (new Date(end) - new Date(start)) / 6e4;
     f.err = !f.sd || !f.st || !f.ed || !f.et ? 'Bitte Datum und Uhrzeit ausfüllen.' : end <= start ? 'Das Ende muss nach dem Anfang liegen.'
+      : gapMin && lenMin >= gapMin ? 'Oben bei „Bis“ steht das Ende von EINEM Termin (meist derselbe Tag). Den letzten Tag der Serie trägst du unten bei „Bis (optional)“ ein.'
       : f.rep && f.until && f.until < f.sd ? 'Das „Bis“ liegt vor dem ersten Termin.' : !dates.length ? 'Das liegt schon in der Vergangenheit.'
       : !f.car && !f.note ? 'Was ist es denn? Ein Wort reicht.' : '';   // the car alone needs no title
     if (f.err) { carModal(true); return; }
