@@ -17,6 +17,7 @@ import { picNow } from './einkauf.js';
 import { fixRec, flavor, isBake, isCodex, isHerb, kidStars, loveTag, pregLater, recipeById, seasonTag, vorratRecipes, vrNew, vrSeenAdd } from './kochbuch.js';
 import { carAll, carDay, carDayLabel, carTime, forMe, isCar, shared } from './termine.js';
 import { PLAN_N, planNow, viewPlan, viewSwipe } from './wochenplan.js';
+import { entCard, viewEnt } from './entdecker.js';
 import { babyLive, gbLive, hnUnwrapped, pastEvents, snLive, viewBaby, viewEvents, viewHello, viewKuchen, viewSnacks } from './events.js';
 import * as SN from './snacks.js';
 import * as KN from './kniffe.js';
@@ -209,6 +210,7 @@ export function viewHome() {
   if (ui.sub === 'baby') return viewBaby();
   if (ui.sub === 'kuchen') return viewKuchen();
   if (ui.sub === 'snack') return viewSnacks();
+  if (ui.sub === 'ent') { const v = viewEnt(); if (v) return v; }
   if (ui.sub === 'kniff') return viewKniffe();
   if (ui.sub === 'events') return viewEvents();
   if (ui.sub === 'plan') return viewPlan();
@@ -229,7 +231,7 @@ export function viewHome() {
     ${heute.slice(0, 3).map(i => { const c = i.chore && S.chores.find(x => x.id === i.chore);
       return `<div class="item home-item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt"><span>${c ? c.icon + ' ' : ''}${esc(i.text)}</span></div></div>`; }).join('')}
     ${heute.length > 3 ? `<button class="more-link" data-a="go" data-tab="heute">+ ${heute.length - 3} weitere ›</button>` : ''}</div>`;
-  h += relaxHomeCard();
+  h += relaxHomeCard() + entCard();
   // at home today: routines due, the shopping list, something to cook
   // the last dish that was shopped for: time to go shopping again (user's wording, 2026-10-08)
   if ((S.dishes || []).filter(x => recipeById(x.id)).length === 1) h += `<button class="last-dish" data-a="go" data-tab="ruhe" data-q="einkauf"><span class="ld-t">ZEIT FÜR EINEN WEITEREN VERDAMMTEN EINKAUF!</span> <span class="ld-e">😡</span></button>`;

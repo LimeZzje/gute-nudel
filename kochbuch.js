@@ -18,6 +18,7 @@ import { nopes } from './home.js';
 import { planBanner, planCard, planDayName, planLive, planPickSlot } from './wochenplan.js';
 import { render } from './app.js';
 import { bonBtn, bonHint } from './bon.js';
+import { entById, entCard } from './entdecker.js';
 
 // ---------- the cookbook (cookbook.js): suggestions that learn, the plate check, cooking mode ----------
 // every recipe: built-in (cookbook.js) + the shared book (photographed pages, written by Claude) + my own ones.
@@ -60,7 +61,8 @@ const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['J
 // but the diary and old ratings still find it
 export const recipeById = id => allRecipes().find(r => r.id === id) || (r => r && fixRec({ ...r, vr: true }))(vorratRecipes().concat(archRecipes()).find(r => r.id === id))
   || (r => r && fixRec({ ...r, gb: true }))(G.CAKES.find(r => r.id === id))   // (🎂 the birthday cakes: only in their event)
-  || (r => r && fixRec({ ...r }))(SN.RECIPES.find(r => r.id === id));   // (🥜 the snacks: in their event until it is done)
+  || (r => r && fixRec({ ...r }))(SN.RECIPES.find(r => r.id === id))   // (🥜 the snacks: in their event until it is done)
+  || (r => r && fixRec({ ...r, ent: true }))(entById(id));   // (🧭 the Entdecker dishes: on their own shelf)
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
 // how much she'd want it: her favourites and what she rated well count more (and their kind), what she just had less,
 // and what she didn't like never comes up again
@@ -168,7 +170,7 @@ export function viewCook() {
 function sectionPage(k) {
   if (k === 'codex') return viewShelf('codex');
   if (k === 'herb') return viewShelf('herb');
-  const body = k === 'next' ? viewNext() : k === 'gekocht' ? viewGekocht() : planCard() + viewJetzt();
+  const body = k === 'next' ? viewNext() : k === 'gekocht' ? viewGekocht() : planCard() + entCard() + viewJetzt();
   return `<div class="sec-head"><h2>${SEC_TITLE[k]}</h2>${Bk.sectionArt(k)}</div>` + body;
 }
 // the list for the swipe-through: every recipe row on the page, in order
@@ -325,6 +327,13 @@ function nutriLine(r) {
   const g = x => Math.round(x) + ' g', per = n.guess ? `pro ${n.label}, bei ca. ${n.n} ${PLURAL[n.label] || n.label}` : 'pro ' + n.label;
   return `<p class="bp-nutri">ca. ${Math.round(n.kcal / 10) * 10} kcal · ${g(n.f)} Fett · ${g(n.kh)} KH · ${g(n.ew)} Eiweiß <span class="muted">${per}${n.missing.length ? ' · ohne ' + esc(n.missing.join(', ')) : ''}</span></p>`;
 }
+// long ingredient lists (7+) come in three blocks: to buy / at home / spices & basics (user 2026-11-24). Short ones and
+// an empty Vorrat keep the recipe's own order.
+function ingGrouped(ing, row, grp, V) {
+  if (ing.length < 7 || !V.length) return ing.map(row).join('');
+  const T = { b: '🛒 Einkaufen', h: '🧊 Daheim', g: 'Gewürze & Basics' };
+  return ['b', 'h', 'g'].map(g => { const xs = ing.filter(a => grp(a) === g); return xs.length ? `<div class="ing-h ing-${g}">${T[g]}</div>` + xs.map(row).join('') : ''; }).join('');
+}
 // one recipe as a book page: the style's head + the working parts (plate check, ingredients → list, steps → Jetzt kochen)
 export function recipePage(r) {
   const theme = styleOf(r), sides = sidesOf(), c = S.cook[r.id], cooked = !!(c && c.n) || cookedLog().some(x => x.rid === r.id), V = vorrat();
@@ -354,11 +363,11 @@ export function recipePage(r) {
   const VG = vorratGroups(V), vg = t => t && !isPantry(t) && VG.find(y => vMatch(t, y.name));
   const anyV = ing.some(([, t]) => vg(t));
   h += `<div class="card" style="clear:both"><h3>${him ? 'Opfergaben' : 'Was du brauchst'}</h3><p class="muted" style="margin-top:0">Was du gerade noch daheim hast, einfach abwählen.${anyV ? ' 🧊 = liegt im Vorrat – antippen, wenn’s doch alle ist.' : ''}</p>
-    <div class="steps">${ing.map(([q, t, from]) => { const on = t && ingWanted(t, q), why = canAddUp(t, q) ? '+ zur Menge auf der Liste' : onList(t) ? 'steht schon drauf' : isPantry(t) ? 'Vorrat?' : '';
+    <div class="steps">${ingGrouped(ing, ([q, t, from]) => { const on = t && ingWanted(t, q), why = canAddUp(t, q) ? '+ zur Menge auf der Liste' : onList(t) ? 'steht schon drauf' : isPantry(t) ? 'Vorrat?' : '';
       const row = `<button class="pick ${on ? 'on' : ''}" data-a="ingtoggle" data-v="${esc(t)}" data-q="${esc(q || '')}"><span class="box">${on ? '✓' : ''}</span><span style="flex:1">${esc(t)}${from ? ` <span class="tag">${esc(from)}</span>` : ''}${why && (!on || canAddUp(t, q)) ? ` <span class="tag">${why}</span>` : ''}</span><span class="muted">${esc(q)}</span></button>`;
       const g = vg(t); if (!g) return row;
       const rq = parseQty(q || ''), low = g.left && rq && qtyOk(g.left, rq) && g.left.n < rq.n - 1e-6;
-      return `<div class="shoprow ingrow">${row}<button class="vhave${low ? ' low' : ''}" data-a="vhave" data-id="${esc(g.id)}" data-v="${esc(t)}" data-q="${esc(q || '')}" aria-label="Im Vorrat: ${esc(g.name)} – antippen, wenn es alle ist">🧊${low ? ' nur ' + esc(groupQty(g)) : ''}</button></div>`; }).join('')}</div>
+      return `<div class="shoprow ingrow">${row}<button class="vhave${low ? ' low' : ''}" data-a="vhave" data-id="${esc(g.id)}" data-v="${esc(t)}" data-q="${esc(q || '')}" aria-label="Im Vorrat: ${esc(g.name)} – antippen, wenn es alle ist">🧊${low ? ' nur ' + esc(groupQty(g)) : ''}</button></div>`; }, a => !a[1] || vg(a[1]) ? 'h' : isPantry(a[1]) ? 'g' : 'b', V)}</div>
     ${(ui.ingExtra || []).length ? `<div class="steps">${ui.ingExtra.map((t, i) => `<div class="shoprow"><span class="pick on" style="cursor:default"><span class="box">✓</span><span style="flex:1">${esc(t)} <span class="tag">dazu</span></span></span><button class="mini-btn" data-a="ingextradel" data-i="${i}" aria-label="Entfernen">✕</button></div>`).join('')}</div>` : ''}
     <form class="add" data-f="ingextra"><input name="t" placeholder="Noch was dazu? (z.B. Getränke)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Dazu">+</button></form>
     <div class="row"><button class="btn soft" data-a="cookshop2" ${sel + (ui.ingExtra || []).length ? '' : 'disabled'}>🛒 ${total ? total + (total === 1 ? ' Sache' : ' Sachen') + ' auf die Liste' : 'Alles da'}</button></div></div>`;

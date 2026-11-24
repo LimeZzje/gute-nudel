@@ -62,6 +62,8 @@ export async function syncBook() {
   const va = await D.readVorratArchiv();
   if (va) { const j = JSON.stringify(va); if (j !== localStorage.getItem('gn_varch')) { localStorage.setItem('gn_varch', j); if (inQ('kochbuch') && ui.cstep == null) render(); } }
   if (!S.vrSeen && localStorage.getItem('gn_varch') && localStorage.getItem('gn_vbook')) vrSeenAdd(archRecipes().map(r => r.id), true);
+  const en = await D.readEntdecker();   // 🧭 Über den Tellerrand: its own shelf, never in the book's lists
+  if (en) { const j = JSON.stringify(en); if (j !== localStorage.getItem('gn_ent')) { const first = !localStorage.getItem('gn_ent'); localStorage.setItem('gn_ent', j); if (first && ui.tab === 'home' && !ui.sub) render(); } }
   const b = await D.readBook(); if (!b) return;
   const j = JSON.stringify(b); if (j === localStorage.getItem('gn_book')) return;
   localStorage.setItem('gn_book', j);

@@ -60,6 +60,9 @@ export function freshState() {
     partnerBaby: {},       // the partner's (from their post)
     knMine: {},            // 💡 KNIFFlicheNudel: my own actions, id -> [v, ts] (W1…: 1 behalten / 0 nö · E1…: 1 eingerichtet / 0 nicht)
     partnerKn: {},         // the partner's (from their post)
+    entMine: {},           // 🧭 Entdecker: my swipes onto "Das kochen wir", rid -> [1 on / 0 off, ts]
+    partnerEnt: {},        // the partner's (from their post); entNo = my "no" pile (never posted), entSeen = kitchens counted for stars
+    entNo: {},
     events: [],            // finished events with their fun statistics (Home → Vergangene Events)
     partnerName: '', postedName: null,
   };
@@ -296,6 +299,10 @@ export async function readVorratRezepte() {   // Claude's 5 easy + 5 fancy recip
 export async function readVorratArchiv() {   // every set of those ever written ("Hätten wir kochen können"); null when offline
   if (!configured(getCfg()) || !navigator.onLine) return null;
   try { return (await getJSON('rezepte/vorrat-archiv.json')) || { sets: [] }; } catch (e) { return null; }
+}
+export async function readEntdecker() {   // 🧭 the Entdecker recipes (kitchens + spice jars); null when offline
+  if (!configured(getCfg()) || !navigator.onLine) return null;
+  try { return (await getJSON('rezepte/entdecker.json')) || { recipes: [] }; } catch (e) { return null; }
 }
 export async function readBook() {   // the shared recipe book Claude writes; null when offline/not set up
   if (!configured(getCfg()) || !navigator.onLine) return null;

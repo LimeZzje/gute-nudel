@@ -12,6 +12,7 @@ import { retryDish, retryInbox, syncBook } from './recipes.js';
 import { carDay, carDayLabel, carRange, isCar, newForMe } from './termine.js';
 import { myStats } from './home.js';
 import { babyParty, babyReconcile, gbParty, gbReconcile, snParty, snReconcile } from './events.js';
+import { entReconcile } from './entdecker.js';
 import * as SN from './snacks.js';
 import { knParty, knReconcile } from './kniff.js';
 import { retryBons } from './bon.js';
@@ -75,6 +76,7 @@ export function postObj() { // what the partner reads: my handed-over tasks and 
     cooked: (S.cookLog || []).slice(-300),
     dishPics: (S.dishPics || []).filter(x => x.up).slice(-300),   // 📷 photos of the cooked dishes (the files: gerichte/<id>.jpg)
     baby: S.babyMine || {},
+    ent: S.entMine || {},   // 🧭 Entdecker: what I swiped onto "Das kochen wir"
     kn: S.knMine || {},   // 💡 KNIFFlicheNudel: my verdicts + setup ticks
     ...(picLS.tok ? { pic: S.picNext || null } : {}),
     plan: S.plan || null,   // 🗓️ the Wochenplan, the newer `u` wins on both phones   // the Picnic slot, only from a phone that's logged in to Picnic
@@ -226,10 +228,11 @@ export async function syncPost() {
     if (shopMerge(p.shop)) changed = true;
     try { const c = await D.readClaudePost(); if (c && c.vorrat && JSON.stringify(c.vorrat) !== JSON.stringify(S.claudeVorrat)) { S.claudeVorrat = c.vorrat; changed = true; } } catch (e) {}   // 🧾 G23
     if (p.plan && (p.plan.u || 0) > ((S.plan || {}).u || 0)) { S.plan = p.plan; changed = true; }
-    if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); if (snReconcile()) toast(`🥜 Snack-Labor geschafft · +${SN.STARS} ⭐`); }
+    if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; entReconcile(); if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); if (snReconcile()) toast(`🥜 Snack-Labor geschafft · +${SN.STARS} ⭐`); }
     if (p.dishPics && JSON.stringify(p.dishPics) !== JSON.stringify(S.partnerDishPics)) { S.partnerDishPics = p.dishPics; changed = true; }
     let babyNews = 0;
     if (p.baby && JSON.stringify(p.baby) !== JSON.stringify(S.partnerBaby || {})) { S.partnerBaby = p.baby; babyNews = babyReconcile().add; changed = true; }
+    if (p.ent && JSON.stringify(p.ent) !== JSON.stringify(S.partnerEnt || {})) { S.partnerEnt = p.ent; changed = true; }   // 🧭 the shared "Das kochen wir" list
     if (p.kn && JSON.stringify(p.kn) !== JSON.stringify(S.partnerKn || {})) { S.partnerKn = p.kn; changed = true; knReconcile(); }   // 💡 shared Kniff verdicts + setup ticks
     const pc = Car.raw(p.car);
     if (JSON.stringify(pc) !== JSON.stringify(Car.raw(S.partnerCar))) { S.partnerCar = pc; changed = true; }

@@ -1265,3 +1265,99 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .kn-ask .kn-eye, .modal > .kn-eye { text-align: left; font-size: 20px; margin-top: 8px; }
 .kn-late { margin: -2px 0 10px; } .kn-late .btn { padding: 6px 10px; font-size: 14px; min-height: 38px; }
 .kn-party .knbulb { width: 130px; display: block; margin: 0 auto; }
+
+/* ---------- 🧭 Über den Tellerrand (entdecker.js): a dark dinner table, white plates, silver domes ---------- */
+body.ent-on { background: radial-gradient(120% 70% at 50% 28%, #5a4330 0, #33251b 55%, #1f1611 100%) fixed #1f1611; }
+.ent { --e-cream: #fbf3e2; --e-dim: #c9b9a0; --e-accent: #e0864a; --e-green: #5fae6c; --e-gold: #e9b949; --e-card: #fffdf8; --e-ink: #2b2a33; --e-ink2: #6b6676;
+  --e-china: radial-gradient(circle, #fffdf8 0 68%, #e9dfcc 69.5% 71.5%, #fffdf8 73% 95%, #d8ccb6 100%);
+  color: var(--e-cream); max-width: 430px; margin: 0 auto; padding-bottom: 60px; }   /* no entrance animation: every swipe redraws the view, and a transform would trap the fixed stack */
+.ent button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; -webkit-tap-highlight-color: transparent; }
+.ent h1 { font: 700 36px/1 'Caveat', cursive; margin: 10px 0 2px; text-align: center; color: var(--e-cream); }
+.ent h3 { font: 700 24px/1 'Caveat', cursive; margin: 20px 0 8px; color: var(--e-dim); text-align: center; }
+.ent .e-sub { text-align: center; color: var(--e-dim); margin: 0 0 4px; }
+.ent .e-head { display: flex; align-items: center; gap: 6px; }
+.ent .e-tabs { display: flex; gap: 6px; flex: 1; justify-content: flex-end; }
+.ent .e-tabs button { padding: 4px 11px; border-radius: 99px; background: rgba(255, 255, 255, .09); color: var(--e-dim); white-space: nowrap; }
+.ent .e-tabs button.on { background: var(--e-cream); color: var(--e-ink); }
+.ent .e-back { color: var(--e-dim); font-size: 17px; padding: 4px 8px 4px 0; white-space: nowrap; }
+.ent .e-best { display: inline-block; font-style: normal; background: var(--e-accent); color: #fff; border-radius: 99px; padding: 0 8px; font-size: 13px; line-height: 1.35; margin: 3px 0 1px; }
+.ent .e-table { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 8px; }
+.ent .e-spot { text-align: center; }
+.ent .e-spot .e-best { display: table; margin: 3px auto 1px; }
+.ent .e-pl { position: relative; display: block; width: 84%; margin: 0 auto; aspect-ratio: 1; border-radius: 50%; background: var(--e-china); box-shadow: 0 7px 16px rgba(0, 0, 0, .5); }
+.ent .e-hero { position: absolute; inset: 17%; border-radius: 50%; overflow: hidden; display: grid; place-items: center; font-size: 30px; }
+.ent .e-hero img, .ent .e-bite img, .ent .e-ic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ent .e-n { position: absolute; right: -2%; top: -2%; min-width: 24px; height: 24px; border-radius: 99px; background: var(--e-accent); color: #fff; font-size: 15px; line-height: 24px; padding: 0 6px; }
+.ent .e-flag { display: block; font-size: 19px; line-height: 1; margin-top: 5px; letter-spacing: 2px; }
+.ent .e-spot b { display: block; font-weight: 400; margin-top: 2px; line-height: 1.05; }
+.ent .e-spot small { color: var(--e-dim); font-size: 13.5px; }
+.ent .e-spot.dark svg { width: 84%; overflow: visible; display: block; margin: 0 auto; filter: drop-shadow(0 6px 7px rgba(0, 0, 0, .5)); }
+.ent .e-spot.dark b { color: var(--e-dim); }
+.ent .e-cl { transform-origin: 56px 44px; transition: transform .5s cubic-bezier(.3, 1.5, .5, 1); }
+.ent .open .e-cl { transform: translate(9px, -19px) rotate(27deg); }
+.ent .e-wob { animation: e-wob 7s ease-in-out infinite; animation-delay: var(--d, 0s); transform-origin: 32px 44px; }
+.ent .open .e-wob { animation: none; }
+@keyframes e-wob { 0%, 88%, 100% { transform: rotate(0); } 91% { transform: rotate(-5deg); } 94% { transform: rotate(4deg); } 97% { transform: rotate(-2deg); } }
+.ent .e-stage { position: relative; width: 100%; aspect-ratio: 1 / .98; margin-top: 2px; }
+.ent .e-big { position: absolute; left: 50%; bottom: 0; width: 76%; aspect-ratio: 1; border-radius: 50%; transform: translateX(-50%); background: var(--e-china); box-shadow: 0 12px 28px rgba(0, 0, 0, .55); }
+.ent .e-bite { position: absolute; width: 25%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); background: #f6ecd8; display: grid; place-items: center; font-size: 30px; overflow: hidden; }
+.ent .e-bite.more { background: none; color: var(--e-ink2); font-size: 19px; }
+.ent .e-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #b3a892; font-size: 18px; }
+.ent .e-dome { position: absolute; left: 84%; top: 17%; width: 30%; transform: translate(-50%, -50%); text-align: center; z-index: 2; }
+.ent .e-dome svg { width: 100%; overflow: visible; display: block; filter: drop-shadow(0 5px 6px rgba(0, 0, 0, .5)); }
+.ent .e-dome b { display: block; font-weight: 400; font-size: 15px; line-height: 1.05; margin-top: 1px; text-shadow: 0 1px 3px #000; color: var(--e-gold); }
+.ent .e-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; width: 100%; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, .07); }
+.ent .e-rowb { display: flex; align-items: center; gap: 10px; text-align: left; flex: 1; min-width: 0; }
+.ent .e-ic { width: 40px; height: 40px; border-radius: 50%; flex: none; background: rgba(255, 255, 255, .1); display: grid; place-items: center; font-size: 21px; overflow: hidden; }
+.ent .e-row small { color: var(--e-dim); display: block; line-height: 1.15; font-size: 14px; }
+.ent .e-go { margin-left: auto; color: var(--e-dim); }
+.ent .e-shelf { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 6px; padding: 10px 6px 0; border-bottom: 9px solid #6b4a2c; border-radius: 3px; box-shadow: 0 9px 10px -4px rgba(0, 0, 0, .6); margin-bottom: 20px; }
+.ent .e-jar { text-align: center; padding-bottom: 2px; }
+.ent .e-jar svg { width: 72%; display: block; margin: 0 auto; }
+.ent .e-jar b { display: block; font-weight: 400; font-size: 13.5px; line-height: 1; height: 28px; margin-top: 2px; }
+.ent .e-jar.empty b { color: var(--e-dim); }
+.ent .e-jar small { position: relative; top: -3px; color: var(--e-gold); font-size: 13px; }
+.ent .e-jar:disabled { opacity: .45; }
+.ent .e-chips { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+.ent .e-chip { padding: 3px 12px; border-radius: 99px; background: rgba(95, 174, 108, .25); border: 1px solid var(--e-green); }
+.ent .e-chip small { color: var(--e-dim); }
+.ent .e-chip.soon { background: rgba(233, 185, 73, .12); border-color: #8a7436; color: var(--e-dim); }
+.ent .e-chip.off { background: none; border-color: #5a4b3c; color: #8d7d68; }
+.ent .e-box { background: rgba(255, 255, 255, .08); border-radius: 14px; padding: 10px 14px; margin: 8px 0; }
+.ent .e-btn { border-radius: 99px; padding: 6px 13px; background: var(--e-accent); color: #fff; flex: none; }
+.ent .e-btn.ghost { background: rgba(255, 255, 255, .12); color: var(--e-cream); }
+.ent .e-pill { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 20; background: var(--e-green); color: #fff; border-radius: 99px; padding: 9px 20px; font-size: 18px; box-shadow: 0 6px 16px rgba(0, 0, 0, .5); white-space: nowrap; }
+.ent .e-stack { position: fixed; inset: 0; z-index: 96; background: rgba(20, 13, 9, .95); display: flex; flex-direction: column; align-items: center; padding: calc(10px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)); }
+.ent .e-top { width: 100%; max-width: 430px; display: flex; align-items: center; gap: 8px; }
+.ent .e-top b { font: 700 27px/1 'Caveat', cursive; flex: 1; }
+.ent .e-top span { color: var(--e-dim); }
+.ent .e-top button { font-size: 26px; padding: 0 8px; color: var(--e-dim); }
+.ent .e-tip { width: 100%; max-width: 430px; color: var(--e-dim); font-size: 15px; line-height: 1.2; margin: 2px 0 8px; min-height: 18px; }
+.ent .e-deck { position: relative; width: 100%; max-width: 400px; flex: 1; min-height: 0; }
+.ent .e-sw { position: absolute; inset: 0; background: var(--e-card); color: var(--e-ink); border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, .6); padding: 14px 16px; overflow-y: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; will-change: transform; }
+.ent .e-sw.under { transform: scale(.95) translateY(10px); filter: brightness(.8); pointer-events: none; }
+.ent .e-em { font-size: 62px; line-height: 1; text-align: center; margin: 4px 0 2px; }
+.ent .e-from { color: var(--e-accent); letter-spacing: .1em; text-transform: uppercase; font-size: 13.5px; text-align: center; }
+.ent .e-sw h2 { font: 700 31px/1 'Caveat', cursive; margin: 3px 0 6px; text-align: center; color: var(--e-ink); }
+.ent .e-sw p { margin: 6px 0; }
+.ent .e-meta { color: var(--e-ink2); font-size: 15px; text-align: center; }
+.ent .e-trick { border-left: 3px solid var(--e-gold); padding-left: 9px; font-size: 15.5px; color: #4a4653; }
+.ent .e-buy { background: #f6ecd8; border-radius: 12px; padding: 7px 12px; margin: 9px 0 4px; }
+.ent .e-tags { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+.ent .e-tags span { border-radius: 99px; padding: 0 9px; font-size: 14px; background: #efe6d4; }
+.ent .e-tags .now { background: #d9efd9; color: #2c6b38; } .ent .e-tags .later { background: #f3e2c2; color: #7a5a1c; }
+.ent .e-more { display: block; margin: 8px auto 0; color: var(--e-accent); }
+.ent .e-full ul, .ent .e-full ol { margin: 6px 0; padding-left: 20px; font-size: 15.5px; }
+.ent .e-grp { margin: 8px 0; } .ent .e-grp > b { font-weight: 400; color: var(--e-ink2); font-size: 14px; letter-spacing: .06em; text-transform: uppercase; }
+.ent .e-grp.buy { background: #f6ecd8; border-radius: 12px; padding: 6px 12px; } .ent .e-grp.buy > b { color: var(--e-accent); }
+.ent .e-grp.basics p { margin: 1px 0 0; font-size: 14.5px; color: var(--e-ink2); line-height: 1.3; }
+.ent .e-stamp { position: absolute; top: 18px; font: 700 30px 'Caveat', cursive; padding: 0 10px; border: 3px solid; border-radius: 10px; opacity: 0; pointer-events: none; }
+.ent .e-stamp.y { left: 14px; color: var(--e-green); transform: rotate(-14deg); } .ent .e-stamp.n { right: 14px; color: #c0533f; transform: rotate(14deg); }
+.ent .e-acts { display: flex; gap: 26px; margin-top: 12px; }
+.ent .e-acts button { width: 62px; height: 62px; border-radius: 50%; font-size: 28px; background: var(--e-card); box-shadow: 0 4px 12px rgba(0, 0, 0, .5); }
+.ent .e-acts .y { background: var(--e-green); color: #fff; } .ent .e-acts .n { color: #c0533f; }
+.ent .e-done { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--e-dim); font-size: 19px; }
+/* the Kochbuch's grouped ingredient lists (7+ things): to buy / at home / spices & basics */
+.ing-h { font-size: 13.5px; letter-spacing: .06em; text-transform: uppercase; opacity: .7; margin: 10px 0 2px; }
+.ing-h:first-child { margin-top: 0; }
+.ing-h.ing-b { color: var(--accent); opacity: 1; }

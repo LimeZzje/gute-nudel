@@ -24,6 +24,7 @@ import { allDishPics, backToList, loadDishPics } from './recipes.js';
 import { NEWS, ZETTEL, deck, newsAll, newsRead, swipeSet } from './home.js';
 import { planNow } from './wochenplan.js';
 import { babyLive, gbParty, gbReconcile, snParty, snReconcile } from './events.js';
+import { entReconcile } from './entdecker.js';
 import { knLive } from './kniff.js';
 import * as SN from './snacks.js';
 import { render, tabChip } from './app.js';
@@ -350,6 +351,7 @@ Object.assign(A, {
     (S.cookLog = S.cookLog || []).push({ id: uid(), rid: r.id, title: r.title, icon: r.icon, day: today(), ts: Date.now(), taste: v });
     if (G.isCake(r.id)) gbReconcile();   // 🎂 the first cake ends the event: +5 ⭐ each
     if (SN.counts(r.id)) snReconcile();   // 🥜 the third different snack ends the Snack-Labor: +5 ⭐ each
+    entReconcile();   // 🧭 a kitchen cooked from for the first time: +3 ⭐
     let qc = null;   // ✅ "Schon gekocht": what it used leaves the Vorrat now (cooking mode did that at its start)
     if (ui.quick) { ui.quick = false; S.dishes = (S.dishes || []).filter(x => x.id !== r.id); qc = consumeFor(r); }
     endCookMode(); closeModal();

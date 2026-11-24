@@ -20,6 +20,7 @@ import { FORMS, backToList, loadDishPics, loadRecPhotos } from './recipes.js';
 import { deck, game, viewHome, wireDeck } from './home.js';
 import { planNow } from './wochenplan.js';
 import { babyParty, babyReconcile, gbParty, gbReconcile, hnDeckClose, snParty, snReconcile } from './events.js';
+import { entReconcile, wireEntSwipe } from './entdecker.js';
 import { mergeStates } from './merge.js';
 import { knParty, knReconcile } from './kniff.js';   // 💡 KNIFFlicheNudel (also fills A with kniff / knv / …)
 import { pushSync } from './faellig.js';   // due dates: fills A with duepick / snooze / push* ...
@@ -63,6 +64,7 @@ export function render() {
     if (ui.tab === 'hello') try { localStorage.setItem('gn_hq', ui.qtab); } catch (e) {}
   }
   $('#main').innerHTML = VIEWS[ui.tab]();
+  document.body.classList.toggle('ent-on', ui.tab === 'home' && ui.sub === 'ent' && !ui.rid);   // 🧭 the Entdecker's dark table
   renderTop();
   loadRecPhotos(); loadDishPics();
   if (inQ('kochbuch') && ui.sub !== 'hello') Bk.mount(bookApi);
@@ -90,6 +92,7 @@ function goBack() {
     backToList(); return;
   }
   if ((ui.sub === 'kuchen' || ui.sub === 'snack') && ui.rid) { if (ui.cstep != null) endCookMode(); else { ui.rid = null; ui.sides = []; } render(); scrollTo(0, 0); return; }
+  if (ui.sub === 'ent') { A.entback(); return; }
   if (ui.sub) { A.babyback(); return; }
   if (inQ('relax') && !S.ritual && ui.rx.size) { A.rxback(); return; }
   if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
@@ -121,7 +124,7 @@ function bind() {
   });
   $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.tab === 'heute') ui.htab = 'heute'; ui.tab = b.dataset.tab; ui.sub = null; tabChip(); render(); scrollTo(0, 0); });
   $('#cloud').addEventListener('click', settings);
-  wireDeck(); wireVSwipe();
+  wireDeck(); wireVSwipe(); wireEntSwipe();
   $('#refresh').addEventListener('click', refreshAll);
   $('#stars').addEventListener('click', A.stars);
   $('#rankbtn').addEventListener('click', rankModal);
@@ -220,7 +223,7 @@ export async function start() {
   shopSnapNow();   // from here on, what leaves the shopping list was deleted on this phone
   rollover();
   scheduleChores();
-  babyReconcile(); gbReconcile(); snReconcile(); knReconcile();
+  babyReconcile(); gbReconcile(); snReconcile(); knReconcile(); entReconcile();
   if (applyFixes()) { S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); }
   D.setRemoteHandler(takeRemote);
   bind();

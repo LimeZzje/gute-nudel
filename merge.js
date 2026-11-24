@@ -51,6 +51,7 @@ export function mergeStates(local, remote, base = null) {
   m.thanksSeen = [...new Set([].concat(newer.thanksSeen || [], older.thanksSeen || []))].slice(-200);
   m.cook = Object.assign({}, older.cook || {}, newer.cook || {});
   m.babyMine = B.mergeMine(older.babyMine, newer.babyMine);
+  m.entMine = B.mergeMine(older.entMine, newer.entMine); m.entNo = B.mergeMine(older.entNo, newer.entNo);   // 🧭 Entdecker swipes: per recipe the newer one
   m.knMine = B.mergeMine(older.knMine, newer.knMine);   // 💡 Kniff verdicts + setup ticks: per id the newer one
   m.answered = Object.assign({}, older.answered || {}, newer.answered || {});
   const gA = newer.game || {}, gB = older.game || {}, lv = { ...(gB.levels || {}) };
