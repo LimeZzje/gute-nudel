@@ -141,9 +141,9 @@ function plate(X) {
 }
 function jarSvg(j, n) {
   const h = 30 * Math.min(1, n / 4);
-  return `<svg viewBox="0 0 40 56" aria-hidden="true"><rect x="9" y="2" width="22" height="8" rx="2" fill="${n ? '#c9b48a' : '#6d5d4b'}"/>
-    <path d="M7,13 q0,-3 4,-3 h18 q4,0 4,3 v36 q0,5 -5,5 h-16 q-5,0 -5,-5 z" fill="rgba(255,255,255,${n ? .16 : .06})" stroke="rgba(255,255,255,${n ? .55 : .25})" stroke-width="1.2"/>
-    ${n ? `<path d="M9,${50 - h} h22 v${h - 1} q0,3 -3,3 h-16 q-3,0 -3,-3 z" fill="${j.col}"/>` : ''}<rect x="11" y="16" width="3" height="${n ? 14 : 26}" rx="1.5" fill="rgba(255,255,255,.35)"/></svg>`;
+  return `<svg viewBox="0 0 40 56" aria-hidden="true"><rect x="9" y="2" width="22" height="8" rx="2" fill="${n ? '#c9b48a' : '#b9ab97'}"/>
+    <path d="M7,13 q0,-3 4,-3 h18 q4,0 4,3 v36 q0,5 -5,5 h-16 q-5,0 -5,-5 z" fill="rgba(140,130,118,${n ? .2 : .08})" stroke="rgba(140,130,118,${n ? .8 : .5})" stroke-width="1.2"/>
+    ${n ? `<path d="M9,${50 - h} h22 v${h - 1} q0,3 -3,3 h-16 q-3,0 -3,-3 z" fill="${j.col}"/>` : ''}<rect x="11" y="16" width="3" height="${n ? 14 : 26}" rx="1.5" fill="rgba(255,255,255,.5)"/></svg>`;
 }
 function regal(X) {
   const used = j => X.cooked.filter(c => c.jars.includes(j.id)).length, wait = j => X.pool.filter(r => (r.gewuerze || []).includes(j.id)).length;
