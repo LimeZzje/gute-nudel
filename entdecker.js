@@ -112,7 +112,7 @@ function ingHtml(r, VG) {
 }
 
 // ---------- the views ----------
-const E = () => ui.ent || (ui.ent = { tab: 'teller', k: null, stack: null, more: false });
+const E = () => ui.ent || (ui.ent = { tab: 'tisch', k: null, stack: null, more: false, domes: null });
 const CLOCHE = `<svg viewBox="0 0 64 54" aria-hidden="true"><defs><linearGradient id="e-silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".45" stop-color="#c3c9d1"/><stop offset="1" stop-color="#8f97a3"/></linearGradient></defs>
   <ellipse cx="32" cy="46" rx="30" ry="6" fill="#fffdf8" stroke="#d8ccb6"/><g class="e-cl"><g class="e-wob"><path d="M7,44 A25,25 0 0 1 57,44 Z" fill="url(#e-silver)" stroke="#8d949e" stroke-width=".8"/>
   <path d="M15,36 A19,19 0 0 1 30,22" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".8"/><circle cx="32" cy="17" r="3.6" fill="#dfe3e8" stroke="#8d949e" stroke-width=".8"/></g></g></svg>`;
@@ -122,11 +122,52 @@ const hasPic = c => dishPicsOf(c.r.id).length > 0;
 function table(X) {
   const ks = Object.keys(KN), of = k => X.cooked.filter(c => c.k === k), wait = k => X.pool.filter(r => r.kueche === k).length;
   const seen = ks.filter(k => of(k).length).sort((a, b) => of(b).length - of(a).length), dark = ks.filter(k => !of(k).length);
-  return `<h1>Über den Tellerrand</h1><p class="e-sub">Jede Küche ist ein Teller. <b>Tippt einen an</b> und schaut, was dort noch wartet.</p>
+  return `<h1>Die Küchen</h1><p class="e-sub">Jede Küche ist ein Teller. <b>Tippt einen an</b> und schaut, was dort noch wartet.</p>
     ${seen.length ? `<h3>Hier wart ihr schon · ${seen.length} Küchen</h3><div class="e-table">` + seen.map(k => { const cs = of(k), hero = cs.find(hasPic) || cs[0];
       return `<button class="e-spot" data-a="entk" data-v="${k}"><span class="e-pl"><span class="e-hero">${pic(hero)}</span><span class="e-n">${cs.length}</span></span><span class="e-flag">${KF[k]}</span><b>${KN[k]}</b><i class="e-best">★ ${KB[k]}</i><small>${wait(k)} neue warten</small></button>`; }).join('') + '</div>' : ''}
     ${dark.length ? `<h3>Noch unter der Haube · ${dark.length} Küchen</h3><div class="e-table">` + dark.map((k, i) =>
       `<button class="e-spot dark" data-a="entk" data-v="${k}" style="--d:${(i * 1.7 % 7).toFixed(1)}s">${CLOCHE}<span class="e-flag">${KF[k]}</span><b>${KN[k]}</b><i class="e-best">★ ${KB[k]}</i><small>${wait(k)} Gerichte</small></button>`).join('') + '</div>' : ''}`;
+}
+// 🛎 the bell (2026-11-24): nobody has to choose a country. Ring → three domes, each with ONE reason to try what is under
+// it (a relative of a dish we cook / nearly all at home / in season / one new trick). Lift one, the others leave.
+// Nothing arrives unasked; the plates, jars and season chips stay behind the "mutige Entdecker" door.
+const KA = { daheim: 'von hier', ital: 'italienisch', usa: 'amerikanisch', brit: 'britisch', tuerk: 'türkisch-griechisch', frank: 'französisch', osteu: 'osteuropäisch',
+  span: 'iberisch', viet: 'südostasiatisch', mex: 'mexikanisch', jap: 'japanisch', kor: 'koreanisch', chi: 'chinesisch', ind: 'indisch', mag: 'nordafrikanisch', lev: 'levantinisch' };
+const TK = { sieden: 'sanft sieden statt sprudelnd kochen', binden: 'eine Soße binden', ueberb: 'knusprig überbacken', ofen: 'den Ofen die Arbeit machen lassen', ausb: 'knusprig ausbacken',
+  einl: 'einlegen und ziehen lassen', teig: 'ein einfacher Teig', schmor: 'schmoren, bis es zerfällt', wok: 'heiß und schnell im Wok', kurz: 'kurz und heiß braten',
+  pfsosse: 'die Soße gleich aus der Pfanne', dampf: 'schonend dämpfen' };
+const COMMON = /zwiebel|knoblauch|butter|^eier?$|milch|sahne|zitrone|brühe|petersilie|tomatenmark|wasser/i;
+const real = r => (r.ing || []).map(a => a[1]).filter(t => t && !isPantry(t) && !COMMON.test(t));
+const short = t => t.split(/ mit | – | - | \(| aus | auf | in /)[0].trim();
+function pickThree(X) {
+  const sh = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  let pool = X.pool.filter(inSeason); if (pool.length < 3) pool = X.pool;
+  pool = sh(pool);
+  const mine = sh(X.cooked).map(c => ({ c, ing: real(c.r) })), N = now();
+  const H = {
+    cousin: r => { const a = real(r), m = mine.find(x => x.c.k !== r.kueche && x.c.r.cat === r.cat && a.filter(t => x.ing.some(u => vMatch(t, u))).length >= 2);
+      return m ? `💛 Verwandt mit „${short(m.c.r.title)}“, nur ${KA[r.kueche]}` : ''; },
+    home: r => { const all = (r.ing || []).filter(a => a[1] && !isPantry(a[1])).length, m = missing(r, X.VG).length;
+      return all < 3 || m > 2 ? '' : m ? `🧊 Nur ${m === 1 ? 'eine Sache' : 'zwei Sachen'} einkaufen, der Rest ist daheim` : '🧊 Alles dafür ist schon daheim'; },
+    season: r => { const f = (r.frisch || []).find(x => Object.entries(SEASON).some(([w, m]) => x.toLowerCase().includes(w) && m.includes(N)));
+      return f ? `🌱 ${f} hat gerade Saison` : ''; },
+    trick: r => TK[r.technik] ? `💡 Ein Kniff zum Mitnehmen: ${TK[r.technik]}` : '',
+  };
+  const out = [];
+  const take = (kind, anyK) => { for (const r of pool) { if (out.some(o => o.id === r.id || (!anyK && o.k === r.kueche))) continue; const why = H[kind](r); if (why) { out.push({ id: r.id, k: r.kueche, why }); return true; } } return false; };
+  for (const kind of sh(Object.keys(H)).concat(sh(Object.keys(H)))) if (out.length < 3) take(kind);   // (one of each kind first, then whatever still has a reason)
+  while (out.length < 3 && (take('trick') || take('trick', true)));
+  return sh(out);
+}
+function tisch(X) {
+  const d = E().domes, ks = new Set(X.cooked.map(c => c.k)).size;
+  return `<h1>Über den Tellerrand</h1>` + (!X.pool.length ? '<p class="e-sub">Die Küche ist leer: ihr habt alles gesehen.</p>'
+    : d && d.length ? `<p class="e-sub">Drei Hauben, drei Hinweise. <b>Hebt eine.</b> Die anderen gehen zurück in die Küche.</p>
+      <div class="e-three">${d.map((x, i) => `<button class="e-pick" data-a="entlift" data-v="${i}" style="--i:${i};--d:${(i * 2.3 + 1).toFixed(1)}s">${CLOCHE}<span class="e-why">${esc(x.why)}</span></button>`).join('')}</div>
+      <button class="e-again" data-a="entring">🛎 andere bringen</button>`
+    : `<p class="e-sub">Keine Lust zu suchen? <b>Klingelt.</b><br>Es kommen drei Gerichte unter der Haube, eins deckt ihr auf.</p>
+      <button class="e-bell" data-a="entring"><span aria-hidden="true">🛎</span><b>Bring mir was</b></button>`)
+    + `<button class="e-door" data-a="enttab" data-v="teller"><span aria-hidden="true">🧭</span><span><b>Nur für mutige Entdecker</b><small>Küchen, Gewürze und Saison selbst durchstöbern · ${ks} von ${Object.keys(KN).length} Küchen entdeckt</small></span><span class="e-go">›</span></button>`;
 }
 function plate(X) {
   const k = E().k, cs = X.cooked.filter(c => c.k === k), show = cs.length > 7 ? cs.slice(0, 6) : cs, n = show.length + (cs.length > 7 ? 1 : 0), w = X.pool.filter(r => r.kueche === k).length;
@@ -194,8 +235,8 @@ function swCard(r, X, under) {
 function stack(X) {
   const s = E().stack, [t, v] = [s.key.slice(0, 1), s.key.slice(2)], j = JARS.find(x => x.id === v);
   const a = entById(s.ids[s.i]), b = entById(s.ids[s.i + 1]);
-  return `<div class="e-stack"><div class="e-top"><b>${t === 'k' ? KF[v] + ' ' + KN[v] : t === 'j' ? j.name : cap(v) + '…'}</b><span>${a ? s.i + 1 + ' / ' + s.ids.length : ''}</span><button data-a="entclose" aria-label="Schließen">✕</button></div>
-    <div class="e-tip">${t === 'j' ? '🫙 ' + j.how : t === 'f' ? 'Gerichte, die das jetzt frisch verwenden.' : 'Nach rechts = kochen wir. Nach links = weg damit.'}</div>
+  return `<div class="e-stack"><div class="e-top"><b>${t === 'd' ? '🛎 Für euch aufgedeckt' : t === 'k' ? KF[v] + ' ' + KN[v] : t === 'j' ? j.name : cap(v) + '…'}</b><span>${a ? s.i + 1 + ' / ' + s.ids.length : ''}</span><button data-a="entclose" aria-label="Schließen">✕</button></div>
+    <div class="e-tip">${t === 'd' ? esc(s.why) : t === 'j' ? '🫙 ' + j.how : t === 'f' ? 'Gerichte, die das jetzt frisch verwenden.' : 'Nach rechts = kochen wir. Nach links = weg damit.'}</div>
     <div class="e-deck">${a ? (b ? swCard(b, X, true) : '') + swCard(a, X) : `<div class="e-done">Stapel durch.<br>${X.liked.length ? '♥ ' + X.liked.length + ' gemerkt.' : ''}<br><button class="e-btn" data-a="entclose" style="margin-top:14px">Fertig</button></div>`}</div>
     ${a ? '<div class="e-acts"><button class="n" data-a="entfly" data-v="-1" aria-label="Nein">✕</button><button class="y" data-a="entfly" data-v="1" aria-label="Das kochen wir">♥</button></div>' : ''}</div>`;
 }
@@ -205,16 +246,16 @@ export function viewEnt() {
   if (r && ui.cstep != null) return viewCookMode();
   if (r) return `<button class="btn soft" data-a="entback" style="margin:4px 0 12px">← Zurück</button>
     <div class="cbook cb-top gb-cbook"><div class="cb-body"><div class="bk-stage"><div class="bk-page cur bp-${styleOf(r)}" data-key="r-${esc(r.id)}"><div class="bp">${recipePage(r)}</div></div></div></div></div>`;
-  const X = ctx(), tabs = [['teller', '🍽 Teller'], ['regal', '🫙 Gewürze'], ['saison', '🌱 Saison']];
-  const body = e.tab === 'liste' ? liste(X) : e.tab === 'regal' ? regal(X) : e.tab === 'saison' ? saison(X) : e.k ? plate(X) : table(X);
-  return `<div class="ent"><div class="e-head"><button class="e-back" data-a="entexit">‹ Home</button><div class="e-tabs">${tabs.map(([t, n]) => `<button class="${e.tab === t ? 'on' : ''}" data-a="enttab" data-v="${t}">${n}</button>`).join('')}</div></div>
+  const X = ctx(), tabs = [['teller', '🍽 Teller'], ['regal', '🫙 Gewürze'], ['saison', '🌱 Saison']], brave = tabs.some(t => t[0] === e.tab);
+  const body = e.tab === 'liste' ? liste(X) : e.tab === 'regal' ? regal(X) : e.tab === 'saison' ? saison(X) : e.tab === 'tisch' ? tisch(X) : e.k ? plate(X) : table(X);
+  return `<div class="ent"><div class="e-head">${brave ? `<button class="e-back" data-a="enttab" data-v="tisch">‹ Tisch</button><div class="e-tabs">${tabs.map(([t, n]) => `<button class="${e.tab === t ? 'on' : ''}" data-a="enttab" data-v="${t}">${n}</button>`).join('')}</div>` : '<button class="e-back" data-a="entexit">‹ Home</button>'}</div>
     ${body}${X.liked.length && e.tab !== 'liste' && !e.stack ? `<button class="e-pill" data-a="enttab" data-v="liste">♥ ${X.liked.length} gemerkt · ansehen</button>` : ''}${e.stack ? stack(X) : ''}</div>`;
 }
 // the way in (Home + the Kochbuch's "Kochen" page)
 export function entCard() {
   const n = entRecipes().length; if (!n) return '';
   const X = ctx(), ks = new Set(X.cooked.map(c => c.k)).size;
-  return `<div class="card e-entry"><button class="hcard" data-a="ent"><span class="vn-ic" aria-hidden="true">🧭</span><span class="hc-txt"><b>Über den Tellerrand</b><span class="muted">${ks} von ${Object.keys(KN).length} Küchen entdeckt · ${X.pool.length} neue Gerichte${X.liked.length ? ' · ♥ ' + X.liked.length : ''}</span></span><span class="hc-go">›</span></button></div>`;
+  return `<div class="card e-entry"><button class="hcard" data-a="ent"><span class="vn-ic" aria-hidden="true">🧭</span><span class="hc-txt"><b>Über den Tellerrand</b><span class="muted">🛎 Klingeln, eine Haube heben · ${ks} von ${Object.keys(KN).length} Küchen entdeckt${X.liked.length ? ' · ♥ ' + X.liked.length : ''}</span></span><span class="hc-go">›</span></button></div>`;
 }
 // ⭐ a kitchen cooked from for the first time: +3 for me (the partner's phone gives them theirs). The kitchens we
 // had before the shelf existed are the silent baseline.
@@ -231,9 +272,15 @@ export function entReconcile() {
 
 // ---------- actions ----------
 const go = () => { render(); scrollTo(0, 0); };
-A.ent = () => { ui.tab = 'home'; ui.sub = 'ent'; ui.rid = null; ui.cstep = null; ui.ent = null; go(); };   // from outside: always the table
+A.ent = () => { ui.tab = 'home'; ui.sub = 'ent'; ui.rid = null; ui.cstep = null; ui.ent = null; go(); };   // from outside: always the empty table with the bell
 A.entexit = () => { ui.sub = null; ui.rid = null; go(); };
 A.enttab = el => { const e = E(); e.tab = el.dataset.v; e.k = null; e.stack = null; go(); };
+A.entring = () => { E().domes = pickThree(ctx()); go(); };
+A.entlift = el => {   // one dome is lifted: its dish is shown, the other two go back to the kitchen
+  const d = (E().domes || [])[+el.dataset.v]; if (!d || el.classList.contains('open')) return;
+  el.classList.add('open'); document.querySelectorAll('.e-pick:not(.open)').forEach(x => x.classList.add('gone'));
+  setTimeout(() => { const e = E(); e.stack = { key: 'd:', ids: [d.id], i: 0, why: d.why }; e.domes = null; e.more = false; render(); }, 520);
+};
 A.entk = el => { const open = () => { E().k = el.dataset.v; go(); }; if (el.classList.contains('dark')) { el.classList.add('open'); setTimeout(open, 480); } else open(); };
 A.entstack = el => {
   const key = el.dataset.v, open = () => { const e = E(); e.stack = { key, ids: stackIds(key, ctx()), i: 0 }; e.more = false; render(); };
@@ -245,7 +292,9 @@ A.entsw = el => {   // the card is decided: right = onto the shared list, left =
   const e = E(), s = e.stack; if (!s || !s.ids[s.i]) return;
   const id = s.ids[s.i], yes = +el.dataset.v > 0;
   if (yes) (S.entMine = S.entMine || {})[id] = [1, Date.now()]; else (S.entNo = S.entNo || {})[id] = [1, Date.now()];
-  s.i++; e.more = false; commit(yes);
+  s.i++; e.more = false;
+  if (s.key[0] === 'd') { e.stack = null; if (yes) toast('♥ Gemerkt: steht unter „Das kochen wir“'); }
+  commit(yes);
 };
 A.entfly = el => fly(+el.dataset.v);
 A.entopen = el => { E().stack = null; ui.rid = el.dataset.id; ui.sides = []; ui.cstep = null; ui.ingPick = {}; ui.ingExtra = []; go(); };
@@ -253,8 +302,9 @@ A.entback = () => {   // one step back inside the shelf (also Android's back but
   const e = E();
   if (ui.rid) { if (ui.cstep != null) endCookMode(); ui.rid = null; ui.sides = []; go(); return true; }
   if (e.stack) { e.stack = null; render(); return true; }
-  if (e.tab === 'liste') { e.tab = 'teller'; go(); return true; }
   if (e.k) { e.k = null; go(); return true; }
+  if (e.tab !== 'tisch') { e.tab = 'tisch'; go(); return true; }
+  if (e.domes) { e.domes = null; go(); return true; }
   A.entexit(); return true;
 };
 A.entshop = el => {

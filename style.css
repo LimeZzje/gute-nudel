@@ -1306,6 +1306,24 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .ent .e-dome { position: absolute; left: 84%; top: 17%; width: 30%; transform: translate(-50%, -50%); text-align: center; z-index: 2; }
 .ent .e-dome svg { width: 100%; overflow: visible; display: block; filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .3)); }
 .ent .e-dome b { display: block; font-weight: 400; font-size: 15px; line-height: 1.05; margin-top: 1px; color: var(--e-accent); }
+/* 🛎 the bell table: one big bell, then three domes with one hint each; the browse tabs sit behind the door */
+.ent .e-bell { display: block; margin: 26px auto 8px; width: 190px; height: 190px; border-radius: 50%; background: var(--e-china); box-shadow: 0 8px 16px rgba(0, 0, 0, .16); text-align: center; }
+.ent .e-bell span { display: block; font-size: 70px; line-height: 1.1; animation: e-ring 5s ease-in-out infinite; transform-origin: 50% 20%; }
+.ent .e-bell b { display: block; font: 700 27px/1 'Caveat', cursive; color: var(--e-accent); }
+.ent .e-bell:active { transform: scale(.96); }
+@keyframes e-ring { 0%, 84%, 100% { transform: rotate(0); } 87% { transform: rotate(-14deg); } 90% { transform: rotate(12deg); } 93% { transform: rotate(-8deg); } 96% { transform: rotate(5deg); } }
+.ent .e-three { display: grid; gap: 12px; margin: 16px 0 6px; }
+.ent .e-pick { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--e-card); border-radius: 18px; padding: 10px 14px 10px 8px; box-shadow: 0 3px 8px rgba(0, 0, 0, .1);
+  animation: e-serve .45s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: calc(var(--i) * .13s); transition: opacity .3s, transform .3s; }
+.ent .e-pick svg { width: 96px; flex: none; overflow: visible; filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .25)); }
+.ent .e-pick .e-why { font-size: 18px; line-height: 1.25; color: var(--e-ink); }
+.ent .e-pick.gone { opacity: 0; transform: translateX(40px); }
+@keyframes e-serve { from { opacity: 0; transform: translateY(26px); } }
+.ent .e-again { display: block; margin: 12px auto 0; color: var(--e-dim); font-size: 16px; padding: 6px 12px; }
+.ent .e-door { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin-top: 34px; padding: 10px 12px; border: 1.5px dashed rgba(128, 128, 128, .4); border-radius: 14px; color: var(--e-dim); }
+.ent .e-door > span:first-child { font-size: 26px; } .ent .e-door > span:nth-child(2) { flex: 1; }
+.ent .e-door b { display: block; font: 700 22px/1 'Caveat', cursive; color: var(--e-cream); } .ent .e-door small { display: block; font-size: 13.5px; line-height: 1.25; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .ent .e-bell span, .ent .e-pick { animation: none; } }
 .ent .e-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; width: 100%; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, .16); }
 .ent .e-rowb { display: flex; align-items: center; gap: 10px; text-align: left; flex: 1; min-width: 0; }
 .ent .e-ic { width: 40px; height: 40px; border-radius: 50%; flex: none; background: rgba(128, 128, 128, .16); display: grid; place-items: center; font-size: 21px; overflow: hidden; }
