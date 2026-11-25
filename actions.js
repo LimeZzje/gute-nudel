@@ -8,7 +8,7 @@ import * as G from './geburtstag.js';
 import * as Bk from './book.js';
 import { $, addDays, closeModal, commit, confetti, esc, floatStar, longDate, modal, parse, pick, toast, today, uid, undoToast, weekDays } from './core.js';
 import { A, S, ui } from './state.js';
-import { askVorrat, consumeFor, earn, fmtQty, groupQty, itemName, itemQty, parseQty, pn, splitAmount, useGroup, vGroup, vaskDone } from './sync.js';
+import { askVorrat, mineOn, shopList, shopMine, consumeFor, earn, fmtQty, groupQty, itemName, itemQty, parseQty, pn, splitAmount, useGroup, vGroup, vaskDone } from './sync.js';
 import { rankModal } from './rank.js';
 import { ceRead, choreDone, choreDue, choreItemId, choreModal, choreNext, choreRhythm, delegateModal, guessIcon, planChanged, scheduleChores, setChoreNext } from './chores.js';
 import { tick } from './heute.js';
@@ -19,7 +19,7 @@ import { plantGrams, plantNorm, plantRipe } from './plant.js';
 import { story, weekLogModal, weekStats } from './woche.js';
 import { applyRestore, exportFile, saveCfgAndTest, settings } from './settings.js';
 import { PIC_MAX, cookModal, phoneTimer, pic, picDelivModal, picFail, picLS, picModal, picN, picSearchAll, picSend, picSum, picWorry, picnicAppLink, shopAgain, shopModal, shopOrder } from './einkauf.js';
-import { KTABS, PLACES, addToShop, onList,cookSteps, endCookMode, ingKey, ingWanted, kpage, ksec, placeOf, recipeById, sidesOf, vorratRecipes, vrSeenAdd } from './kochbuch.js';
+import { KTABS, askList, withList, PLACES, addToShop, onList,cookSteps, endCookMode, ingKey, ingWanted, kpage, ksec, placeOf, recipeById, sidesOf, vorratRecipes, vrSeenAdd } from './kochbuch.js';
 import { allDishPics, backToList, loadDishPics } from './recipes.js';
 import { NEWS, ZETTEL, deck, newsAll, newsRead, swipeSet } from './home.js';
 import { planNow } from './wochenplan.js';
@@ -70,7 +70,7 @@ Object.assign(A, {
   dsend() {
     const picked = S.items.filter(i => ui.dpicks.has(i.id)); if (!picked.length) return;
     S.items = S.items.filter(i => !ui.dpicks.has(i.id));
-    const listOf = i => { const c = i.chore && S.chores.find(x => x.id === i.chore); return c && (c.tools || []).includes('list') && S.shop.some(x => !x.done) ? S.shop.filter(x => !x.done).map(x => x.text) : (i.list ? i.list.filter(x => !x.done).map(x => x.text) : null); };
+    const listOf = i => { const c = i.chore && S.chores.find(x => x.id === i.chore); return c && (c.tools || []).includes('list') && shopList(false).some(x => !x.done) ? shopList(false).filter(x => !x.done).map(x => x.text) : (i.list ? i.list.filter(x => !x.done).map(x => x.text) : null); };
     picked.forEach(i => { const list = listOf(i); S.sent.push({ id: uid(), text: i.text, today: !!ui.dtoday, ts: Date.now(), status: 'wartet', ...(list ? { list } : {}) }); });
     picked.forEach(i => { const c = i.chore && S.chores.find(x => x.id === i.chore); if (c) choreDone(c, today()); });   // handed over counts as handled
     S.log.push({ id: uid(), text: picked.length + (picked.length === 1 ? ' Aufgabe' : ' Aufgaben') + ' an ' + pn() + ' abgegeben', kind: 'delegate', n: picked.length, day: today(), ts: Date.now(), stars: 1 }); earn(1);
@@ -206,7 +206,8 @@ Object.assign(A, {
   ingextradel(el) { ui.ingExtra.splice(+el.dataset.i, 1); render(); },
   ingtoggle(el) { const t = el.dataset.v; ui.ingPick = ui.ingPick || {}; ui.ingPick[ingKey(t)] = !ingWanted(t, el.dataset.q); render(); },
   side(el) { const id = el.dataset.id, a = ui.sides || (ui.sides = []); a.includes(id) ? a.splice(a.indexOf(id), 1) : a.push(id); render(); },
-  cookshop2() {
+  cookshop2(el) { if (!askList(el, 'cookshop2')) withList(el, () => A.cookshop2run()); },
+  cookshop2run() {
     const r = recipeById(ui.rid), all = r.ing.concat(...sidesOf().map(s => s.ing)).filter(([, t]) => t);
     const add = all.filter(([q, t]) => ingWanted(t, q));
     add.forEach(([q, t]) => addToShop(t, parseQty(q), q, r.title));
@@ -256,7 +257,7 @@ Object.assign(A, {
   },
   picsec() { ui.picOpen = !ui.picOpen; render(); },
   shopdoneask() {   // "Fertig eingekauft" asks once: what goes into the Vorrat, what stays on the list (user 2026-10-20)
-    const got = S.shop.filter(x => x.done), rest = S.shop.filter(x => !x.done), pic = rest.filter(x => x.pic).length; if (!got.length) return;
+    const L = shopList(shopMine()), got = L.filter(x => x.done), rest = L.filter(x => !x.done), pic = rest.filter(x => x.pic).length; if (!got.length) return;
     modal(`<h2>🧊 Ab in den Vorrat?</h2><p>Diese ${got.length === 1 ? 'Sache kommt' : got.length + ' Sachen kommen'} von der Einkaufsliste in den Vorrat:</p>
       <p style="text-align:left"><b>${got.map(x => esc(itemName(x)) + (itemQty(x) ? ' ' + esc(fmtQty(itemQty(x))) : '')).join(' · ')}</b></p>
       ${rest.length ? `<p class="muted">${rest.length - pic ? `${rest.length - pic} nicht abgehakte ${rest.length - pic === 1 ? 'bleibt' : 'bleiben'} auf der Liste.` : ''}${pic ? ` ${pic} 🧺 im Picnic-Warenkorb ${pic === 1 ? 'kommt' : 'kommen'} mit der Lieferung.` : ''}</p>` : ''}
@@ -264,9 +265,9 @@ Object.assign(A, {
   },
   shopdone() {
     closeModal();
-    const got = S.shop.filter(x => x.done); if (!got.length) return;
+    const got = shopList(shopMine()).filter(x => x.done); if (!got.length) return;
     S.vorratAdd = (S.vorratAdd || []).concat(got.map(x => ({ id: uid(), text: itemName(x), qty: itemQty(x) || null, ...(x.q && !itemQty(x) ? { q: x.q } : {}), ts: Date.now(), by: D.me() })));
-    S.shop = S.shop.filter(x => !x.done); commit(true); confetti(50);
+    const gone = new Set(got.map(x => x.id)); S.shop = S.shop.filter(x => !gone.has(x.id)); commit(true); confetti(50);
     toast('🧊 ' + got.length + (got.length === 1 ? ' Sache' : ' Sachen') + ' im Vorrat');
   },
   vorratdel(el) { useGroup(el.dataset.id); commit(true); },
@@ -401,8 +402,9 @@ Object.assign(A, {
     x.sec = el.dataset.v; S.shopLearn = Object.assign({}, S.shopLearn, { [Sh.norm(x.text)]: el.dataset.v }); ui.tagId = null; commit(); shopAgain();
   },
   shopwipe() { ui.shopWipe = !ui.shopWipe; shopAgain(); },
-  shopwipeyes() { S.shop = []; ui.shopWipe = false; commit(); shopAgain(); toast('Einkaufsliste geleert 🛒'); },
-  shopclear() { S.shop = S.shop.filter(x => !x.done); commit(); shopModal(null, true); },
+  shoptab(el) { ui.shopTab = el.dataset.v; ui.shopWipe = false; try { localStorage.setItem('gn_shoptab', ui.shopTab); } catch (e) {} shopAgain(); },   // 🙋 G28
+  shopwipeyes() { const keep = mineOn() ? new Set(shopList(!shopMine()).map(x => x.id)) : new Set(); S.shop = S.shop.filter(x => keep.has(x.id)); ui.shopWipe = false; commit(); shopAgain(); toast('Einkaufsliste geleert 🛒'); },
+  shopclear() { const gone = new Set(shopList(shopMine()).filter(x => x.done).map(x => x.id)); S.shop = S.shop.filter(x => !gone.has(x.id)); commit(); shopModal(null, true); },
   picnic() { ui.picShown = false; ui.picOpen = null; if (picLS.tok) picSearchAll(); else { ui.pic = { step: 'login' }; picModal(); } },
   async piclogin() {
     const email = $('#pic-mail').value.trim(), password = $('#pic-pw').value;
@@ -468,7 +470,7 @@ Object.assign(A, {
         if (!ok) { bad.push(itemName(x0) + (r.extra ? ' (' + r.pick.name + ')' : '')); continue; }
         let x = x0;
         if (r.extra) {   // the second sort gets its own list entry right under the first, so the delivery can tick it off on its own
-          x = { id: uid(), text: itemName(x0), qty: null, done: false, ...(x0.sec ? { sec: x0.sec } : {}), ...(x0.from ? { from: x0.from } : {}) };
+          x = { id: uid(), text: itemName(x0), qty: null, done: false, ...(x0.sec ? { sec: x0.sec } : {}), ...(x0.from ? { from: x0.from } : {}), ...(x0.me ? { me: 1 } : {}) };
           S.shop.splice(S.shop.indexOf(x0) + 1 + S.shop.filter(y => y.sortOf === x0.id).length, 0, Object.assign(x, { sortOf: x0.id }));
         }
         x.pic = { id: r.pick.id, name: r.pick.name, ts: now, ...(r.n > 1 ? { n: r.n } : {}) };
@@ -491,10 +493,12 @@ Object.assign(A, {
   },
   cookdel(el) { S.recipes = S.recipes.filter(x => x.id !== el.dataset.id); ui.cookEdit = false; commit(); cookModal(); },
   cookshop(el) {
+    if (askList(el, 'cookshop')) return;
     const r = S.recipes.find(x => x.id === el.dataset.id); if (!r) return;
-    const have = new Set(S.shop.filter(x => !x.done).map(x => x.text.toLowerCase()));
+    const me = mineOn() && el.dataset.to === 'me'; if (el.dataset.to) closeModal();
+    const have = new Set(shopList(me).filter(x => !x.done).map(x => x.text.toLowerCase()));
     const add = r.ingredients.filter(x => !have.has(x.toLowerCase()));
-    add.forEach(t => S.shop.push({ id: uid(), text: t, done: false, from: r.title }));
+    add.forEach(t => S.shop.push({ id: uid(), text: t, done: false, from: r.title, ...(me ? { me: 1 } : {}) }));
     commit(); toast(add.length ? add.length + ' Zutaten auf der Einkaufsliste 🛒' : 'Steht schon alles drauf 🛒');
   },
   mood(el) {
@@ -711,6 +715,10 @@ Object.assign(A, {
     const v = ($('#s-link').value || '').trim(), i = v.indexOf('#setup=');
     if (i < 0) { $('#s-msg').textContent = '❌ Das ist kein Einrichtungs-Link.'; return; }
     location.replace(location.pathname + v.slice(i)); location.reload();
+  },
+  mypictoggle() {   // 🙋 G28: his own list + own Picnic account, carried by his backup to all his devices
+    const on = !mineOn(); S.myPic = { on, tok: '', u: Date.now() }; if (!on) ui.shopTab = 'wir';
+    commit(true); settings(); toast(on ? '🙋 „Nur ich“ ist an – auf der Einkaufsliste oben' : '„Nur ich“ ist aus');
   },
   async backupnow() { D.scheduleBackup(S, 0); await D.flushBackup(); settings(); },
   restore() {

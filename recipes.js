@@ -5,7 +5,7 @@ import * as D from './data.js';
 import * as Bk from './book.js';
 import { $, closeModal, commit, esc, floatStar, modal, pick, shortDate, toast, today, uid, workToday } from './core.js';
 import { A, S, ui } from './state.js';
-import { earn, parseQty, pn, splitAmount, useGroup, vaskDone } from './sync.js';
+import { earn, parseQty, pn, shopMine, splitAmount, useGroup, vaskDone } from './sync.js';
 import { firstEmoji } from './chores.js';
 import { afterWork, askMood } from './heute.js';
 import { inQ } from './daheim.js';
@@ -247,7 +247,7 @@ export const FORMS = {
     budgetSet(c); closeModal(); commit(true); render(); toast(`💶 Wochenbudget: ${euroR(c)}`);
   },
   ingextra(t) { ui.ingExtra = (ui.ingExtra || []).concat(t.split(',').map(x => x.trim()).filter(Boolean)); render(); const i = document.querySelector('form[data-f="ingextra"] input'); if (i) i.focus(); },
-  shopadd(t) { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const a = splitAmount(x); addToShop(a.name, a.qty, a.qty ? '' : '', null); }); commit(); shopModal(null, true); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
+  shopadd(t) { ui.shopTo = shopMine() ? 'me' : ''; try { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const a = splitAmount(x); addToShop(a.name, a.qty, a.qty ? '' : '', null); }); } finally { ui.shopTo = ''; } commit(); shopModal(null, true); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
   decline(t, form) {
     const id = form.dataset.id, x = S.incoming.find(y => y.id === id); if (!x) return;
     S.answered[id] = { status: 'nein', reason: t, ts: Date.now() }; S.incoming = S.incoming.filter(y => y !== x); ui.declining = null;

@@ -7,9 +7,9 @@ import * as D from './data.js';
 import * as G from './geburtstag.js';
 import * as SN from './snacks.js';
 import * as Bk from './book.js';
-import { esc, key, shortDate, tags, today, uid } from './core.js';
+import { closeModal, esc, key, modal, shortDate, tags, today, uid } from './core.js';
 import { A, S, ui } from './state.js';
-import { fmtQty, groupQty, itemName, itemQty, parseQty, qtyOk, vorrat, vorratGroups } from './sync.js';
+import { fmtQty, groupQty, itemName, itemQty, mineOn, parseQty, qtyOk, vorrat, vorratGroups } from './sync.js';
 import { daysBetween } from './chores.js';
 import { dayIndex, inQ } from './daheim.js';
 import { pic } from './einkauf.js';
@@ -89,14 +89,29 @@ function cookSuggest(n) { // weighted, no repeats; ui.sugSeed changes with "ande
 // which ingredients go on the list: her choice for this recipe, else — not already on the list and not a pantry staple
 // (salt/oil/spices: marked "Vorrat?" so she can tick them when they're empty). Nothing is remembered — things run out.
 export const ingKey = t => Sh.norm(t);
-const onListItem = t => S.shop.find(x => !x.done && Sh.norm(itemName(x)) === ingKey(t));
+// 🙋 G28: mine = which list (undefined = either one, for the "steht schon drauf" look); the target of an add is ui.shopTo
+const onListItem = (t, mine) => S.shop.find(x => !x.done && (mine === undefined || !mineOn() || !!x.me === mine) && Sh.norm(itemName(x)) === ingKey(t));
 export const onList = t => !!onListItem(t);
+const toMine = () => mineOn() && ui.shopTo === 'me';
+// a recipe 🛒 on his devices first asks which list (his pick: every time). Returns true when it asked; the button in the
+// question calls the same action again with data-to, and the caller runs with ui.shopTo set (withList).
+export function askList(el, a) {
+  if (!mineOn() || el.dataset.to) return false;
+  const ds = Object.entries(el.dataset).filter(([k]) => k !== 'a').map(([k, v]) => ` data-${k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${esc(v)}"`).join('');
+  modal(`<h2>🛒 Auf welche Liste?</h2><div class="row listpick"><button class="btn" data-a="${a}"${ds} data-to="wir">🏠 Für uns</button><button class="btn me" data-a="${a}"${ds} data-to="me">🙋 Nur für mich</button></div>
+    <div class="row"><button class="btn soft" data-a="close">Abbrechen</button></div>`);
+  return true;
+}
+export function withList(el, run) {
+  const to = el.dataset.to; if (to) { closeModal(); ui.shopTab = to === 'me' ? 'me' : 'wir'; }   // the list then opens where it went
+  ui.shopTo = to || ''; try { return run(); } finally { ui.shopTo = ''; }
+}
 const canAddUp = (t, q) => { const x = onListItem(t), a = parseQty(q); return !!(x && a && qtyOk(itemQty(x), a)); };   // already on the list, amounts add up
 export function addToShop(name, qty, raw, from) {
-  const x = onListItem(name);
+  const me = toMine(), x = onListItem(name, mineOn() ? me : undefined);
   if (x && qty && qtyOk(itemQty(x), qty)) { const had = itemQty(x); x.text = itemName(x); x.qty = { ...had, n: had.n + qty.n }; if (from && !(x.from || '').includes(from)) x.from = x.from ? x.from + ' + ' + from : from; return; }
   if (x && !qty) return;                                                    // "Salz" twice = once
-  S.shop.push({ id: uid(), text: name, qty: qty || null, ...(raw && !qty ? { q: raw } : {}), done: false, ...(from ? { from } : {}) });
+  S.shop.push({ id: uid(), text: name, qty: qty || null, ...(raw && !qty ? { q: raw } : {}), done: false, ...(from ? { from } : {}), ...(me ? { me: 1 } : {}) });
 }
 export const isPantry = t => Sh.classify(t, S.shopLearn || {}) === 'backen';
 export const ingWanted = (t, q) => { const k = ingKey(t); return ui.ingPick && k in ui.ingPick ? ui.ingPick[k] : !isPantry(t) && (!onList(t) || canAddUp(t, q)); };

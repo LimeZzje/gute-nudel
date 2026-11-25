@@ -1389,3 +1389,14 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .wb-list li { display: flex; gap: 6px; align-items: baseline; }
 .wb-list li b { margin-left: auto; font-weight: 600; }
 .wb-why { font-size: 13px; }
+
+/* 🙋 G28 "Nur ich": his own list, violet so it can't be mixed up with the shared one */
+:root { --me: #7a55b8; --me-bg: #f1eafb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --me: #c3a6f0; --me-bg: #2f2940; } }
+:root[data-theme="dark"] { --me: #c3a6f0; --me-bg: #2f2940; }
+.shoptabs { margin-bottom: 6px; }
+.shoptabs .chip.me.on, .listpick .btn.me { background: var(--me); border-color: var(--me); color: #fff; }
+.me-hint { color: var(--me); margin: 0 0 6px; }
+.shop-me { background: var(--me-bg); border-left: 4px solid var(--me); border-radius: 12px; padding: 6px 8px 8px; }
+.shop-me .sechead { color: var(--me); }
+.shoptabs .chip.me.on .muted { color: #fff; opacity: .85; }

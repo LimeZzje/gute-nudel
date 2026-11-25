@@ -4,7 +4,7 @@ import * as Sh from './shop.js';
 import * as D from './data.js';
 import { $, commit, confetti, esc, modal, toast, uid } from './core.js';
 import { S, ui } from './state.js';
-import { fmtQty, groupQty, itemName, itemQty, parseQty, picOwners, pn, vorratAdds, vorratGroups } from './sync.js';
+import { fmtQty, groupQty, itemName, itemQty, mineOn, parseQty, picKey, picOwners, pn, shopList, shopMine, vorratAdds, vorratGroups } from './sync.js';
 import { inQ } from './daheim.js';
 import { hnUnwrapped } from './events.js';
 import { render } from './app.js';
@@ -24,7 +24,15 @@ export function phoneTimer(mins) {
 // the password is never stored – only Picnic's login token, on THIS phone (localStorage, not in S, so it never syncs).
 // Her picks are remembered per item name (gn_picnic_map), so "Zwiebeln" finds the same product next time. Ordering stays in the Picnic app.
 const PICNIC = localStorage.getItem('gn_picnic_api') || 'https://gute-nudel-picnic.gutenudel.workers.dev';   // tests point it at a fake worker
-export const picLS = { get tok() { return localStorage.getItem('gn_picnic_tok') || ''; }, set tok(v) { v ? localStorage.setItem('gn_picnic_tok', v) : localStorage.removeItem('gn_picnic_tok'); },
+// 🙋 G28: with his own account on (S.myPic.on) the token lives in S.myPic instead, so it travels to his other devices.
+let tokSave = 0;
+export const picLS = { get tok() { return mineOn() ? S.myPic.tok || '' : localStorage.getItem('gn_picnic_tok') || ''; },
+  set tok(v) {
+    if (!mineOn()) { v ? localStorage.setItem('gn_picnic_tok', v) : localStorage.removeItem('gn_picnic_tok'); return; }
+    if ((S.myPic.tok || '') === (v || '')) return;
+    S.myPic = { ...S.myPic, tok: v || '', u: Date.now() };
+    clearTimeout(tokSave); tokSave = setTimeout(() => commit(true), 50);   // into his backup → his other devices log in too
+  },
   get map() { try { return JSON.parse(localStorage.getItem('gn_picnic_map') || '{}'); } catch { return {}; } }, set map(v) { localStorage.setItem('gn_picnic_map', JSON.stringify(v)); },
   get q() { try { return JSON.parse(localStorage.getItem('gn_picnic_q') || '{}'); } catch { return {}; } }, set q(v) { localStorage.setItem('gn_picnic_q', JSON.stringify(v)); },
   get cache() { try { return JSON.parse(localStorage.getItem('gn_picnic_cache') || '{}'); } catch { return {}; } },
@@ -137,8 +145,9 @@ let picDelivAt = 0;
 // the next delivery for THIS person (2026-10-30, user: the time wasn't on his Home): own phone's if it's logged in to Picnic,
 // else the partner's (post `pic`). Gone 3 h after the slot ends, in case nobody opened the app since.
 export function picNow() {
-  const n = picLS.tok ? S.picNext : S.partnerPic, end = n && Date.parse(n.end || n.start);
-  return n && !isNaN(new Date(n.start)) && !(end && Date.now() > end + 3 * 36e5) ? n : null;
+  const ok = n => { const end = n && Date.parse(n.end || n.start); return n && !isNaN(new Date(n.start)) && !(end && Date.now() > end + 3 * 36e5) ? n : null; };
+  if (mineOn()) return picLS.tok && ok(S.picNext) || ok(S.partnerPic);   // 🙋 G28: his own delivery first, else the household one
+  return ok(picLS.tok ? S.picNext : S.partnerPic);
 }
 export async function picDeliveries(force) {
   if (!picLS.tok || (!force && Date.now() - picDelivAt < 10 * 60e3)) return;
@@ -165,15 +174,15 @@ export const picQty = a => {
   return q ? { ...q, n: q.n * (m ? +m[1] : 1) * (a.n || 1) } : (a.n > 1 ? { n: a.n, unit: 'stk' } : null);
 };
 function picArrived(d, items) {
-  const byId = new Map(Object.entries(picLS.map).map(([k, v]) => [v.id, k])), at = Date.parse(d.at) || Date.now(), gone = new Set();
+  const byId = new Map(Object.entries(picLS.map).map(([k, v]) => [v.id, k])), at = Date.parse(d.at) || Date.now(), gone = new Set(), pb = uid();
   const add = items.map(a => {
     const sh = S.shop.find(x => !x.done && !gone.has(x.id) && x.pic && x.pic.id === a.id) || S.shop.find(x => !x.done && !gone.has(x.id) && byId.get(a.id) === Sh.norm(itemName(x)));
     if (sh) gone.add(sh.id);
     const k = byId.get(a.id), name = sh ? itemName(sh) : k ? k[0].toUpperCase() + k.slice(1) : a.name;
-    return { id: uid(), text: name, qty: picQty(a), ts: Date.now(), by: D.me(), pic: d.id };
+    return { id: uid(), text: name, qty: picQty(a), ts: Date.now(), by: D.me(), pic: d.id, pb };   // pb: this batch (G28: two of his devices)
   });
   let miss = 0;
-  S.shop.forEach(x => { if (!gone.has(x.id) && x.pic && x.pic.ts < at) { delete x.pic; miss++; } });   // was in the cart, didn't come: back on the list
+  S.shop.forEach(x => { if (!gone.has(x.id) && x.pic && x.pic.ts < at && !!x.me === mineOn()) { delete x.pic; miss++; } });   // (only the list of THIS account)   // was in the cart, didn't come: back on the list
   S.shop = S.shop.filter(x => !gone.has(x.id));
   S.vorratAdd = (S.vorratAdd || []).concat(add);
   if (add.length) try { localStorage.setItem('gn_hq', 'vorrat'); ui.lastQ.hello = 'vorrat'; } catch (e) {}
@@ -185,7 +194,7 @@ function picArrived(d, items) {
 export function picCheer() {
   const adds = vorratAdds(), owner = picOwners(adds), seen = new Set(S.picCheered || []), me = D.me(), recent = Date.now() - 2 * 864e5;
   const mine = new Set(adds.filter(x => x.pic && x.by === me).map(x => x.pic)), n = {};
-  for (const x of adds) if (x.pic && !seen.has(x.pic) && !mine.has(x.pic) && (x.ts || 0) > recent && owner[x.pic] === (x.by || '')) n[x.pic] = (n[x.pic] || 0) + 1;
+  for (const x of adds) if (x.pic && !seen.has(x.pic) && !mine.has(x.pic) && (x.ts || 0) > recent && owner[x.pic] === picKey(x)) n[x.pic] = (n[x.pic] || 0) + 1;
   const ds = Object.keys(n); if (!ds.length) return false;
   const k = ds.reduce((a, d) => a + n[d], 0);
   confetti(50); toast('📦 Picnic war da – ' + k + (k === 1 ? ' Sache' : ' Sachen') + ' im Vorrat');
@@ -199,8 +208,8 @@ const picWhen = (a, b) => {
 };
 export function picDelivModal() {
   const n = picNow(); if (!n) return;
-  const inCart = S.shop.filter(x => x.pic).length;
-  modal(`<div style="text-align:center"><p style="font-size:44px;margin:4px 0">🚚</p><h2>Picnic kommt</h2>
+  const own = mineOn() && n === S.picNext, inCart = shopList(own).filter(x => x.pic).length;
+  modal(`<div style="text-align:center"><p style="font-size:44px;margin:4px 0">🚚</p><h2>${own ? 'Dein Picnic kommt' : 'Picnic kommt'}</h2>
     <p><b>${esc(picWhen(n.start, n.end))} Uhr</b></p>
     ${n.eta && n.eta.start ? `<p class="muted">Gerade geschätzt: ${esc(picWhen(n.eta.start, n.eta.end).split(', ')[1] || '')} Uhr</p>` : ''}
     <p class="muted">Wenn Picnic da war, kommt alles von selbst in den Vorrat${inCart ? ` – und die ${inCart} 🧺 Sachen von der Einkaufsliste werden abgehakt` : ''}.</p>
@@ -216,7 +225,7 @@ export function picModal() {
   const P = ui.pic || {};
   let h = '<h2 style="text-align:center">🧺 Bei Picnic bestellen</h2>';
   if (P.step === 'login' || !picLS.tok && P.step !== 'code') {
-    h += `<p class="muted" style="margin-top:0">Einmal mit deinem Picnic-Konto anmelden. Das Passwort wird nicht gespeichert – nur ein Anmelde-Schlüssel bleibt auf diesem Handy.</p>
+    h += `<p class="muted" style="margin-top:0">${mineOn() ? 'Einmal mit <b>deinem eigenen</b> Picnic-Konto anmelden – für die Liste „Nur ich“, auf allen deinen Geräten. Das Passwort wird nicht gespeichert, nur ein Anmelde-Schlüssel in deiner Sicherung.' : 'Einmal mit deinem Picnic-Konto anmelden. Das Passwort wird nicht gespeichert – nur ein Anmelde-Schlüssel bleibt auf diesem Handy.'}</p>
       <input id="pic-mail" type="email" placeholder="E-Mail" autocomplete="username" style="width:100%;margin-bottom:8px">
       <input id="pic-pw" type="password" placeholder="Passwort" autocomplete="current-password" style="width:100%">
       <p id="pic-msg" class="hint" style="color:var(--danger)">${esc(P.msg || '')}</p>
@@ -274,10 +283,10 @@ export function picModal() {
   ui.picShown = true;
 }
 export async function picSearchAll() {
-  const map = picLS.map, open = S.shop.filter(x => !x.done && !x.pic), memOf = x => map[Sh.norm(itemName(x))];
+  const L = shopList(mineOn()), map = picLS.map, open = L.filter(x => !x.done && !x.pic), memOf = x => map[Sh.norm(itemName(x))];
   // her remembered products stand there at once (2026-11-25); the search behind them only freshens price + choice
   const P = ui.pic = { step: 'match', rows: open.map(x => { const mem = memOf(x); return { x, hits: mem ? [mem] : null, pick: mem || null, wait: true, skip: false, more: false, n: mem ? picN(x, mem) : 1 }; }),
-    busy: true, inCart: S.shop.filter(x => !x.done && x.pic).length };
+    busy: true, inCart: L.filter(x => !x.done && x.pic).length };
   picModal();
   let dead = false;
   const gone = () => dead || ui.pic !== P || !$('#ov');   // she closed it (or opened it anew) meanwhile
@@ -328,7 +337,7 @@ export function shopModal(item, keep) { // her list — or a handed-over one (it
   modal(`<div style="text-align:left">${shopBody(item, false)}</div>`, '', keep);
 }
 export function shopBody(item, inTab) {
-  const L = item ? item.list : S.shop, open = L.filter(x => !x.done), done = L.filter(x => x.done), di = item ? ` data-item="${item.id}"` : '';
+  const me = !item && shopMine(), L = item ? item.list : shopList(me), open = L.filter(x => !x.done), done = L.filter(x => x.done), di = item ? ` data-item="${item.id}"` : '';
   const row = x => `<div class="shoprow"><button class="pick ${x.done ? 'on' : ''}" data-a="shoptick" data-id="${x.id}"${di}><span class="box">${x.done ? '✓' : ''}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}"><span class="${!x.done && x.pic ? 'in-pic' : ''}">${esc(itemName(x))}${itemQty(x) || x.q ? ` <b class="qty">${esc(itemQty(x) ? fmtQty(itemQty(x)) : x.q)}</b>` : ''}</span>${x.from ? `<span class="tag">${esc(x.from)}</span>` : ''}${!x.done && x.pic ? `<span class="tag pic-tag">🧺 ${x.pic.n > 1 ? x.pic.n + '× ' : ''}im Picnic-Warenkorb${x.sortOf || S.shop.some(y => y.sortOf === x.id && y.pic) ? ' · ' + esc(x.pic.name) : ''}</span>` : !x.done && x.nopic ? '<span class="tag">nicht bei Picnic</span>' : ''}</span></button>`
     + (!x.done && (ui.shopEdit || secOf(x) === 'sonst') ? `<button class="mini-btn" data-a="shoptag" data-id="${x.id}"${di} aria-label="Abteilung wählen">🏷️</button>` : '')
     + `<button class="mini-btn" data-a="shopdel" data-id="${x.id}"${di} aria-label="Entfernen">✕</button></div>`
@@ -340,7 +349,10 @@ export function shopBody(item, inTab) {
     const [ic, l] = Sh.SECTIONS[sec];
     return `<div class="shopsec"><div class="sechead"><span>${ic} ${l}${xs.length ? ' <span class="muted">(' + xs.length + ')</span>' : ''}</span>${ui.shopEdit ? `<span><button class="mini-btn" data-a="shopmove" data-v="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Nach oben">↑</button><button class="mini-btn" data-a="shopmove" data-v="${i}" data-d="1" ${i < order.length - 1 ? '' : 'disabled'} aria-label="Nach unten">↓</button></span>` : ''}</div>${xs.map(row).join('')}</div>`;
   }).join('');
-  return `${inTab ? '' : `<h2 style="text-align:center">🛒 ${item ? esc(item.text) : 'Einkaufsliste'}</h2>`}
+  // 🙋 G28 tabs (his devices only): "Wir" = the shared list, "Nur ich" = his own one, in its own colour so it can't be mixed up
+  const tabs = !item && mineOn() ? `<div class="chips shoptabs"><button class="chip ${me ? '' : 'on'}" data-a="shoptab" data-v="wir">🏠 Wir <span class="muted">(${shopList(false).filter(x => !x.done).length})</span></button><button class="chip me ${me ? 'on' : ''}" data-a="shoptab" data-v="me">🙋 Nur ich <span class="muted">(${shopList(true).filter(x => !x.done).length})</span></button></div>
+    ${me ? `<p class="hint me-hint">🙋 Nur für dich – ${esc(pn())} sieht diese Liste nicht. Bestellt wird über dein eigenes Picnic-Konto.</p>` : ''}` : '';
+  return `${inTab ? '' : `<h2 style="text-align:center">🛒 ${item ? esc(item.text) : me ? 'Nur ich' : 'Einkaufsliste'}</h2>`}${tabs}${me ? '<div class="shop-me">' : ''}
     ${item ? `<p class="muted">von ${esc(item.from || '')}</p>` : ''}
     <div class="chips stores">${Object.entries(Sh.STORES).map(([k, [l]]) => `<button class="chip ${(S.shopStore || 'standard') === k ? 'on' : ''}" data-a="shopstore" data-v="${k}">${l}</button>`).join('')}<button class="chip ${ui.shopEdit ? 'on' : ''}" data-a="shopedit">↕ Reihenfolge anpassen</button></div>
     ${ui.shopEdit ? `<p class="hint" style="margin:0 0 6px">So wie in deiner ${esc(Sh.STORES[S.shopStore] ? Sh.STORES[S.shopStore][0] : 'Filiale')}-Filiale: ↑↓ verschiebt Abteilungen, 🏷️ ändert die Abteilung eines Artikels.</p>` : ''}
@@ -351,13 +363,13 @@ export function shopBody(item, inTab) {
     ${done.length ? `<div class="shopsec"><div class="sechead"><span>✓ Im Wagen <span class="muted">(${done.length})</span></span></div>${done.map(row).join('')}</div>` : ''}</div>
     ${!item && done.length ? `<button class="btn green wide alldone" data-a="shopdoneask">✅ Fertig eingekauft – ${done.length} ${done.length === 1 ? 'Sache' : 'Sachen'} in den Vorrat</button>` : ''}
     ${item ? '' : `<form class="add" data-f="shopadd"><input name="t" placeholder="Was fehlt? (Komma = mehrere)" autocomplete="off" enterkeyhint="done"><button class="btn blue" aria-label="Hinzufügen">+</button></form>`}
-    ${!item && open.length && hnUnwrapped() ? (() => { const todo = open.filter(x => !x.pic).length, inCart = open.length - todo;   // (what's in the cart already doesn't count, user 2026-10-20)
+    ${!item && open.length && hnUnwrapped() && (!mineOn() || me) ? (() => { const todo = open.filter(x => !x.pic).length, inCart = open.length - todo;   // (what's in the cart already doesn't count, user 2026-10-20)
       return todo ? `<button class="btn soft wide" data-a="picnic" style="margin-top:8px">🧺 Bei Picnic bestellen (${todo})</button>${inCart ? `<p class="hint" style="text-align:center;margin-top:4px">${inCart} ${inCart === 1 ? 'liegt' : 'liegen'} schon im Picnic-Warenkorb</p>` : ''}`
         : `<button class="btn soft wide" data-a="picapp" style="margin-top:8px">📱 Alles im Picnic-Warenkorb – Picnic-App öffnen</button>`; })() : ''}
     ${done.length && !item || !inTab ? `<div class="row">${done.length && !item ? '<button class="btn soft" data-a="shopclear">Erledigte löschen</button>' : ''}${inTab ? '' : '<button class="btn" data-a="close">Fertig</button>'}</div>` : ''}
-    ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen – auch bei ${esc(pn())}</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
+    ${!item && L.length ? (ui.shopWipe ? `<div class="row"><button class="btn" data-a="shopwipeyes" style="background:var(--danger)">Ja, alle ${L.length} löschen${me ? '' : ' – auch bei ' + esc(pn())}</button><button class="btn soft" data-a="shopwipe">Doch nicht</button></div>`
       : `<div class="row"><button class="btn soft" data-a="shopwipe" style="color:var(--danger)">🗑 Ganze Liste leeren</button></div>`) : ''}
-`;
+${me ? '</div>' : ''}`;
 }
 function vorratHtml() {
   const V = vorratGroups();

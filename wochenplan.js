@@ -2,7 +2,7 @@
 import * as C from './content.js';
 import { $, addDays, closeModal, commit, esc, modal, parse, shortDate, toast, today } from './core.js';
 import { A, S, ui } from './state.js';
-import { addToShop, cookableNow, cookedLog, ingWanted, isBake, recipeById } from './kochbuch.js';
+import { addToShop, askList, withList, cookableNow, cookedLog, ingWanted, isBake, recipeById } from './kochbuch.js';
 import { parseQty, splitAmount } from './sync.js';
 import { shopModal } from './einkauf.js';
 import { deckCard, viewHome } from './home.js';
@@ -185,9 +185,10 @@ Object.assign(A, {
     const i = +el.dataset.i, k = el.dataset.k, q = planLive(), v = k === 'm' ? { r: q.days[i] } : (q.s || {})[i + k], rid = slotRec(v), r = rid && recipeById(rid);
     let n = 0;
     if (r) {
+      if (askList(el, 'planshop')) return;   // 🙋 G28: a recipe 🛒 on his devices asks which list
       ui.ingPick = {};
       const add = (r.ing || []).filter(([qq, t]) => t && ingWanted(t, qq));
-      add.forEach(([qq, t]) => addToShop(t, parseQty(qq), qq, r.title)); n = add.length;
+      withList(el, () => add.forEach(([qq, t]) => addToShop(t, parseQty(qq), qq, r.title))); n = add.length;
       S.dishes = (S.dishes || []).filter(x => x.id !== r.id).concat([{ id: r.id, ts: Date.now() }]);   // bought for → "Heute kochen?" on Home
     } else { const t = slotText(v); if (!t) return; const a = splitAmount(t); addToShop(a.name, a.qty, '', 'Wochenplan'); n = 1; }
     commit(); shopModal();

@@ -25,6 +25,12 @@ import { retryBons } from './bon.js';
 // from outside (own other device / partner) and keeps its stamp.
 // The snapshot belongs to one S: when S is replaced as a whole (load, setup link, other device adopted) it is taken anew,
 // never compared, so nothing that merely isn't in the new S counts as deleted.
+// 🙋 "Nur ich" (G28, 2026-11-25): with S.myPic.on, entries with x.me are his own list. They live in S.shop like the
+// rest (so ticking, editing and his own devices' merge work unchanged) but never go into the post: Julia never sees them.
+// His Picnic login (S.myPic.tok) travels in his own backup, so desktop, iPad and iPhone share one login and one cart.
+export const mineOn = () => !!(S.myPic && S.myPic.on);
+export const shopList = mine => mineOn() ? (S.shop || []).filter(x => !!x.me === !!mine) : (S.shop || []);
+export const shopMine = () => { if (ui.shopTab == null) try { ui.shopTab = localStorage.getItem('gn_shoptab') || 'wir'; } catch (e) { ui.shopTab = 'wir'; } return mineOn() && ui.shopTab === 'me'; };   // the list tab open right now
 let shopSnap = null, shopSnapOf = null;
 const shopKey = x => { const { u, ...r } = x; return JSON.stringify(r); };
 export const shopSnapNow = () => { shopSnapOf = S; shopSnap = new Map((S.shop || []).map(x => [x.id, { k: shopKey(x), u: x.u || 0 }])); };
@@ -73,13 +79,13 @@ export function postObj() { // what the partner reads: my handed-over tasks and 
     thanks: (S.thanks || []).filter(t => Date.now() - t.ts < MONTH),
     stats: myStats(),
     vorrat: vorratPost(),
-    shop: { items: S.shop, gone: (S.shopGone || []).filter(g => Date.now() - g.ts < MONTH) },
+    shop: { items: S.shop.filter(x => !x.me), gone: (S.shopGone || []).filter(g => Date.now() - g.ts < MONTH) },
     cooked: (S.cookLog || []).slice(-300),
     dishPics: (S.dishPics || []).filter(x => x.up).slice(-300),   // 📷 photos of the cooked dishes (the files: gerichte/<id>.jpg)
     baby: S.babyMine || {},
     ent: S.entMine || {},   // 🧭 Entdecker: what I swiped onto "Das kochen wir"
     kn: S.knMine || {},   // 💡 KNIFFlicheNudel: my verdicts + setup ticks
-    ...(picLS.tok ? { pic: S.picNext || null } : {}),
+    ...(picLS.tok && !mineOn() ? { pic: S.picNext || null } : {}),   // 🙋 his own account's slot stays on his devices
     wb: S.wb || null,   // 💶 G27: the team's Wochenbudget (the newer u wins)
     prices: S.prices || {},   // 💶 the price book from Picnic searches (per thing the newer entry wins)
     plan: S.plan || null,   // 🗓️ the Wochenplan, the newer `u` wins on both phones   // the Picnic slot, only from a phone that's logged in to Picnic
@@ -123,17 +129,19 @@ export function picOwners(adds) {
   const o = {};
   for (const x of adds) {
     if (!x.pic) continue;
-    const b = o[x.pic], by = x.by || '', ts = x.ts || 0;
+    const b = o[x.pic], by = picKey(x), ts = x.ts || 0;
     if (!b || ts < b.ts || (ts === b.ts && by < b.by)) o[x.pic] = { ts, by };
   }
   return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.by]));
 }
+// who moved a delivery in: the person + (since G28) the batch, so two of HIS devices moving the same delivery count once too
+export const picKey = x => (x.by || '') + (x.pb ? '|' + x.pb : '');
 export function vorrat() {
   const uses = [...(S.vorratUsed || []), ...((S.partnerVorrat || {}).used || [])].filter(Boolean).sort((a, b) => (a.ts || 0) - (b.ts || 0)), seen = new Set(), out = [];
   const adds = vorratAdds(), owner = picOwners(adds);
   for (const x of adds.sort((a, b) => (a.ts || 0) - (b.ts || 0))) {
     if (!x.id || seen.has(x.id)) continue; seen.add(x.id);
-    if (x.pic && owner[x.pic] !== (x.by || '')) continue;   // the other phone's copy of the same delivery
+    if (x.pic && owner[x.pic] !== picKey(x)) continue;   // the other phone's copy of the same delivery
     let left = itemQty(x), gone = false;
     if (left && left.unit === 'er') left = { n: left.n, unit: 'stk' };   // Picnic "10er" eggs, stored before 2026-10-30
     for (const u of uses) {

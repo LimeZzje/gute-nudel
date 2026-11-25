@@ -3,7 +3,7 @@ import * as C from './content.js';
 import * as Bk from './book.js';
 import { addDays, esc, longDate, monday, parse, shortDate, today, toolBtns, weekDays } from './core.js';
 import { S, ui } from './state.js';
-import { vorratGroups } from './sync.js';
+import { shopList, vorratGroups } from './sync.js';
 import { choreDone, choreDue, choreNext, choreRhythm, choreWhen } from './chores.js';
 import { giftCards } from './heute.js';
 import { viewRelax } from './relax.js';
@@ -44,7 +44,7 @@ export function viewRuhe() {
 // scrolling (iPhone swipe flips book pages); sticky under the header like every chip row; motion only for a real state
 // (the van drives only while a delivery is on its way) and never with reduced motion.
 function hnStops() {
-  const open = S.shop.filter(x => !x.done).length, inCart = S.shop.filter(x => !x.done && x.pic).length;
+  const L = shopList(false), open = L.filter(x => !x.done).length, inCart = L.filter(x => !x.done && x.pic).length;   // (the shared list; 🙋 his own one lives in its tab)
   const fresh = (S.vorratAdd || []).filter(x => x && x.pic && Date.now() - (x.ts || 0) < 864e5).length;
   const cook = cookableNow().all.length, pn0 = picNow(), n = pn0 && new Date(pn0.start);
   return {

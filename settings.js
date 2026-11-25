@@ -2,7 +2,7 @@
 import * as D from './data.js';
 import { $, VERSION, closeModal, endTime, esc, modal, toast, today } from './core.js';
 import { S, setS } from './state.js';
-import { pn, shopSnapNow } from './sync.js';
+import { mineOn, pn, shopSnapNow } from './sync.js';
 import { rollover } from './chores.js';
 import { render, renderTop } from './app.js';
 import { VAPID_PUBLIC, pushCan, pushLabel } from './faellig.js';
@@ -22,6 +22,8 @@ export function settings() {
     <label class="field"><span>Wie soll dich die App nennen?</span><input id="s-name" value="${esc(S.name)}" placeholder="Dein Name (optional)"></label>
     <label class="field"><span>Wie heißt dein Partner hier? (Spitzname)</span><input id="s-nick" value="${esc(pn() === 'Partner' ? '' : pn())}" placeholder="${esc(S.partnerName || 'Name')}"></label>
     <label class="field"><span>Feierabend ab (dann heißt es „Tag geschafft!“)</span><input id="s-end" type="time" value="${esc(endTime())}"></label>
+    ${D.me() !== 'stand' ? `<div class="row"><button class="btn soft" data-a="mypictoggle">${mineOn() ? '🙋 Eigene Liste „Nur ich“ + eigenes Picnic: an ✓' : '🙋 Eigene Liste „Nur ich“ + eigenes Picnic-Konto einschalten'}</button></div>
+      ${mineOn() ? `<p class="hint" style="margin-top:0">Auf allen deinen Geräten. ${esc(pn())} sieht davon nichts. Für euren gemeinsamen Picnic-Einkauf sorgt ${esc(pn())}s Handy.</p>` : ''}` : ''}
     ${pushCan() ? `<div class="row"><button class="btn soft" data-a="pushtoggle" id="s-push">${pushLabel()}</button></div>` : (VAPID_PUBLIC || localStorage.getItem('gn_push_key')) ? `<p class="muted">🔕 Erinnerungen am Tag vorher kann dieses Handy nicht (iPhone: erst „Zum Home-Bildschirm“).</p>` : ''}
     <h3 style="margin:18px 0 4px">☁ Sicherung</h3>
     <div class="status"><span class="dot ${dot}"></span>${esc(txt)}</div>

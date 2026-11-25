@@ -11,7 +11,7 @@ import { KUECHE_OF } from './entdecker_tags.js';
 import { commit, esc, toast, today } from './core.js';
 import { A, S, ui } from './state.js';
 import { earn, parseQty, qtyOk, vorrat, vorratGroups } from './sync.js';
-import { addToShop, cookedLog, endCookMode, isPantry, recipeById, recipePage, styleOf, vMatch, viewCookMode } from './kochbuch.js';
+import { addToShop, askList, withList, cookedLog, endCookMode, isPantry, recipeById, recipePage, styleOf, vMatch, viewCookMode } from './kochbuch.js';
 import { dishPicsOf } from './recipes.js';
 import { render } from './app.js';
 
@@ -308,8 +308,8 @@ A.entback = () => {   // one step back inside the shelf (also Android's back but
   A.entexit(); return true;
 };
 A.entshop = el => {
-  const r = entById(el.dataset.id); if (!r) return;
-  const m = missing(r, vorratGroups(vorrat())); m.forEach(([q, t]) => addToShop(t, parseQty(q || ''), q, r.title));
+  const r = entById(el.dataset.id); if (!r || askList(el, 'entshop')) return;
+  const m = missing(r, vorratGroups(vorrat())); withList(el, () => m.forEach(([q, t]) => addToShop(t, parseQty(q || ''), q, r.title)));
   S.dishes = (S.dishes || []).filter(x => x.id !== r.id).concat([{ id: r.id, ts: Date.now() }]);   // bought for → "Heute kochen?" on Home
   commit(); toast('🛒 ' + (m.length === 1 ? '1 Sache' : m.length + ' Sachen') + ' auf der Einkaufsliste');
 };
