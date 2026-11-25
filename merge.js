@@ -2,6 +2,7 @@
 import * as D from './data.js';
 import * as B from './baby.js';
 import { plantProgress } from './plant.js';
+import { priceMerge } from './budget.js';
 
 // ---------- several devices of one person: merge two versions of the same save ----------
 // base = the version both devices last agreed on (null if unknown). With it, the merge knows what was DELETED:
@@ -24,6 +25,8 @@ export function mergeStates(local, remote, base = null) {
   m.newsRead = [...new Set([].concat(older.newsRead || [], newer.newsRead || []))];   // (per recipe, the newer decision wins: ↶ undo sticks)
   m.hnOpen = newer.hnOpen || older.hnOpen;
   m.plan = ((older.plan || {}).u || 0) > ((newer.plan || {}).u || 0) ? older.plan : newer.plan;   // 🗓️ the last edit wins
+  m.wb = ((older.wb || {}).u || 0) > ((newer.wb || {}).u || 0) ? older.wb : newer.wb;   // 💶 Wochenbudget: the last edit wins
+  if (older.prices || newer.prices) m.prices = priceMerge(older.prices, newer.prices);   // 💶 price book: per thing the newer entry
   { const g = new Map(); [].concat(older.shopGone || [], newer.shopGone || []).forEach(x => x && g.set(x.id, x)); m.shopGone = [...g.values()].slice(-500); }   // 🎁 unwrapped on any of her devices = unwrapped
   m.hiddenRecipes = [...new Set([].concat(newer.hiddenRecipes || [], older.hiddenRecipes || []))];
   // the log the same way (an undo on one device removes the entry everywhere)

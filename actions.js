@@ -23,6 +23,7 @@ import { KTABS, PLACES, addToShop, onList,cookSteps, endCookMode, ingKey, ingWan
 import { allDishPics, backToList, loadDishPics } from './recipes.js';
 import { NEWS, ZETTEL, deck, newsAll, newsRead, swipeSet } from './home.js';
 import { planNow } from './wochenplan.js';
+import { pricePick } from './budget.js';
 import { babyLive, gbParty, gbReconcile, snParty, snReconcile } from './events.js';
 import { entReconcile } from './entdecker.js';
 import { knLive } from './kniff.js';
@@ -453,7 +454,7 @@ Object.assign(A, {
     try {
       for (const r of todo) {
         for (let n = r.n || 1; n > 0; n -= 20) await pic('/add', { id: r.pick.id, n: Math.min(20, n) });   // the worker takes 20 at a time
-        added++; if (!r.extra) map[Sh.norm(itemName(r.x))] = r.pick;
+        added++; if (!r.extra) { map[Sh.norm(itemName(r.x))] = r.pick; pricePick(itemName(r.x), r.pick); }
       }
       picLS.map = map;
       let inCart = null; try { inCart = new Set((await pic('/cart')).items.map(a => String(a.id))); } catch (e) { if (e.auth) throw e; }   // read back what really landed

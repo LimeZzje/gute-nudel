@@ -8,6 +8,7 @@ import { fmtQty, groupQty, itemName, itemQty, parseQty, picOwners, pn, vorratAdd
 import { inQ } from './daheim.js';
 import { hnUnwrapped } from './events.js';
 import { render } from './app.js';
+import { pricePick, priceSeen } from './budget.js';
 
 // ---------- helpers: shopping list, cookbook, music ----------
 // Steps with a time: she sets her PHONE's timer (only that one rings with the screen off — a web app gets paused).
@@ -57,11 +58,13 @@ export function picQueries(name) {
 // a search answer is kept for a day (2026-11-25, user: the list filled in slowly): the weekly shop asks for the same
 // words again and again. Empty answers are kept too, so "Fond, Rind" doesn't walk through all its wordings every time.
 const PIC_TTL = 24 * 3600e3, PIC_KEEP = 80;
+let priceNew = false;   // the price book learned something during this order screen → posted once at its end
 async function picSearch(q) {
   const k = q.toLowerCase(), e = picLS.cache[k];
   if (e && Date.now() - e.t < PIC_TTL) return e.h;
   const h = await pic('/search?q=' + encodeURIComponent(q));
   const c = picLS.cache; c[k] = { t: Date.now(), h };
+  if (priceSeen(q, h)) priceNew = true;   // 💶 G27: every search teaches the price book
   const old = Object.keys(c).sort((a, b) => c[b].t - c[a].t).slice(PIC_KEEP); for (const o of old) delete c[o];
   picLS.cache = c;
   return h;
@@ -157,7 +160,7 @@ export async function picDeliveries(force) {
     if (changed) commit(true);
   } catch (e) { if (e.auth) render(); }   // quietly: a busy Picnic is no reason to bother her
 }
-const picQty = a => {
+export const picQty = a => {
   const m = String(a.unit || '').match(/^(\d+)\s*x\s*(.+)$/i), q = parseQty(m ? m[2] : a.unit);
   return q ? { ...q, n: q.n * (m ? +m[1] : 1) * (a.n || 1) } : (a.n > 1 ? { n: a.n, unit: 'stk' } : null);
 };
@@ -290,6 +293,7 @@ export async function picSearchAll() {
         if (mem) r.pick = fresh || mem;
         else { const b = picBudget(r.x, r.hits, f.q); r.pick = b ? b.pick : r.hits[0] || null; r.save = b ? b.save : 0; }
         if (!r.nSet) r.n = picN(r.x, r.pick);
+        if (r.pick && f.hits.includes(r.pick) && pricePick(itemName(r.x), r.pick)) priceNew = true;   // only a price Picnic just said
         for (const y of P.rows) if (y.extra && y.x === r.x) { y.hits = r.hits; y.q = r.q; }   // a second sort she added meanwhile
         picModal();
       }
@@ -297,6 +301,7 @@ export async function picSearchAll() {
     const cart = pic('/cart').then(c => { P.cartTotal = c.total || 0; }, e => { if (e.auth) throw e; });   // what's already in there counts for the 150 € look
     await Promise.all([cart, ...Array.from({ length: PIC_PAR }, work)]);
   } catch (e) { const was = gone(); dead = true; return was ? undefined : picFail(e); }
+  if (priceNew) { priceNew = false; commit(true); }
   if (gone()) return;
   P.busy = false; picModal();
 }

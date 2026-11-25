@@ -15,6 +15,7 @@ import { babyParty, babyReconcile, gbParty, gbReconcile, snParty, snReconcile } 
 import { entReconcile } from './entdecker.js';
 import * as SN from './snacks.js';
 import { knParty, knReconcile } from './kniff.js';
+import { priceMerge } from './budget.js';
 import { retryBons } from './bon.js';
 
 // ---------- the shared shopping list (2026-10-19.5) ----------
@@ -79,6 +80,8 @@ export function postObj() { // what the partner reads: my handed-over tasks and 
     ent: S.entMine || {},   // 🧭 Entdecker: what I swiped onto "Das kochen wir"
     kn: S.knMine || {},   // 💡 KNIFFlicheNudel: my verdicts + setup ticks
     ...(picLS.tok ? { pic: S.picNext || null } : {}),
+    wb: S.wb || null,   // 💶 G27: the team's Wochenbudget (the newer u wins)
+    prices: S.prices || {},   // 💶 the price book from Picnic searches (per thing the newer entry wins)
     plan: S.plan || null,   // 🗓️ the Wochenplan, the newer `u` wins on both phones   // the Picnic slot, only from a phone that's logged in to Picnic
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
@@ -228,6 +231,8 @@ export async function syncPost() {
     if (shopMerge(p.shop)) changed = true;
     try { const c = await D.readClaudePost(); if (c && c.vorrat && JSON.stringify(c.vorrat) !== JSON.stringify(S.claudeVorrat)) { S.claudeVorrat = c.vorrat; changed = true; } } catch (e) {}   // 🧾 G23
     if (p.plan && (p.plan.u || 0) > ((S.plan || {}).u || 0)) { S.plan = p.plan; changed = true; }
+    if (p.wb && (p.wb.u || 0) > ((S.wb || {}).u || 0)) { S.wb = p.wb; changed = true; }
+    if (p.prices) { const m = priceMerge(S.prices, p.prices); if (JSON.stringify(m) !== JSON.stringify(S.prices || {})) { S.prices = m; changed = true; } }
     if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; entReconcile(); if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); if (snReconcile()) toast(`🥜 Snack-Labor geschafft · +${SN.STARS} ⭐`); }
     if (p.dishPics && JSON.stringify(p.dishPics) !== JSON.stringify(S.partnerDishPics)) { S.partnerDishPics = p.dishPics; changed = true; }
     let babyNews = 0;

@@ -12,6 +12,7 @@ import { inQ } from './daheim.js';
 import { shopModal } from './einkauf.js';
 import { addToShop, archRecipes, kpage, ksec, origOf, protTag, recipeById, vorratRecipes, vrSeenAdd } from './kochbuch.js';
 import { render } from './app.js';
+import { budgetSet, euroR } from './budget.js';
 import { readDue } from './faellig.js';
 
 // ---------- 📷 photographed recipes + ✏️ own recipes ----------
@@ -240,6 +241,11 @@ export function loadRecPhotos(root = document) { root.querySelectorAll('img.recp
 
 const dueOf = form => { const d = readDue(form); return d ? { due: d } : {}; };   // optional due date from the add form
 export const FORMS = {
+  wbset(t) {   // 💶 G27: "60", "60,50", "60 €" → the team's Wochenbudget
+    const c = Math.round(parseFloat(t.replace(/[^\d,.]/g, '').replace(',', '.')) * 100);
+    if (!(c > 0)) { toast('Betrag nicht verstanden – z.B. „60“'); return; }
+    budgetSet(c); closeModal(); commit(true); render(); toast(`💶 Wochenbudget: ${euroR(c)}`);
+  },
   ingextra(t) { ui.ingExtra = (ui.ingExtra || []).concat(t.split(',').map(x => x.trim()).filter(Boolean)); render(); const i = document.querySelector('form[data-f="ingextra"] input'); if (i) i.focus(); },
   shopadd(t) { t.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const a = splitAmount(x); addToShop(a.name, a.qty, a.qty ? '' : '', null); }); commit(); shopModal(null, true); const i = document.querySelector('form[data-f="shopadd"] input'); if (i) i.focus(); },
   decline(t, form) {

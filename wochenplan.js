@@ -1,12 +1,13 @@
 // 🗓️ Wochenplan: up to 7 recipes on days, its banner and swipe view.
 import * as C from './content.js';
-import { addDays, closeModal, commit, esc, modal, parse, shortDate, toast, today } from './core.js';
+import { $, addDays, closeModal, commit, esc, modal, parse, shortDate, toast, today } from './core.js';
 import { A, S, ui } from './state.js';
 import { addToShop, cookableNow, cookedLog, ingWanted, isBake, recipeById } from './kochbuch.js';
 import { parseQty, splitAmount } from './sync.js';
 import { shopModal } from './einkauf.js';
 import { deckCard, viewHome } from './home.js';
 import { render, start } from './app.js';
+import { budget, budgetSet, euro, euroR, fillWeek, weekBudget } from './budget.js';
 
 // ---------- 🗓️ Wochenplan (Julia 2026-10-30): up to 7 recipes, each on a day ----------
 // Rolling since 2026-11-14 (his pick): the window is always today + 6 days. Each morning yesterday drops off the left and a
@@ -64,6 +65,7 @@ export function viewPlan() {
   const di = Math.max(0, Math.min(PLAN_N - 1, ui.planDay != null ? ui.planDay : 0));   // today (far left) first, or the day he tapped
   let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button><div class="sec-title" style="margin-top:0">🗓️ Wochenplan</div>`;
   h += `<p class="muted" style="margin:0 4px 10px">${p ? `Heute bis ${shortDate(q.end)} · ${p.cooked} von ${p.n} gekocht. Jeden Morgen rückt hinten ein neuer Tag nach.` : 'Plan dir die nächsten 7 Tage: Frühstück, Backen, Hauptgericht und was von gestern übrig ist. Jeden Morgen rückt hinten ein neuer Tag nach.'}</p>`;
+  h += budgetCard(q);
   h += `<div class="pw-strip">` + q.days.map((id, i) => {
     const r = id && recipeById(id), k = addDays(q.start, i), d = parse(k), done = !!(q.done || [])[i], extra = SLOTS.filter(x => x.k !== 'm' && s[i + x.k]);
     const sr = !r && extra.map(x => slotRec(s[i + x.k])).filter(Boolean).map(recipeById).find(Boolean);   // no main dish: a slot recipe's icon
@@ -93,6 +95,40 @@ export function viewPlan() {
   }).join('') + '</div>';
   return h + `<p class="hint">Geht auch im Kochbuch: bei einem Rezept auf „🗓️ Planen“.</p>`;
 }
+// 💶 G27: the week's budget line (tap = set it / see what's in it) + ✨ Woche auffüllen while a day has no dinner yet
+const openDays = q => q.days.filter((id, i) => !id && !(q.s || {})[i + 'r']).length;
+function budgetCard(q) {
+  const w = weekBudget(q), unk = w.unknown.length, n = openDays(q);
+  const cost = w.c ? `geplant ca. ${euro(w.c)}` : w.buy.length || unk || q.days.some(Boolean) ? 'geplant: alles daheim' : 'noch nichts geplant';
+  const line = w.b != null ? `${euroR(w.b)} · ${cost}<br><b class="${w.rest < 0 ? 'wb-over' : 'wb-ok'}">${w.rest >= 0 ? 'noch ' + euro(w.rest) + ' frei' : euro(-w.rest) + ' drüber'}</b>` : `${cost}<br><span class="muted">Tippen und ein Budget festlegen</span>`;
+  return `<button class="card hcard wb-card" data-a="wbudget"><span class="hc-txt"><b>💶 Wochenbudget</b><span>${line}${unk ? ` <span class="muted">· ${unk === 1 ? 'ein Preis' : unk + ' Preise'} noch unbekannt</span>` : ''}</span></span><span class="hc-go">›</span></button>`
+    + (n ? `<button class="btn soft wide wb-fill" data-a="fill">✨ Woche auffüllen <span class="muted">(${n} ${n === 1 ? 'Tag' : 'Tage'} frei)</span></button>` : '');
+}
+function budgetModal(keep) {
+  const q = planLive(), w = weekBudget(q), b = budget(), top = w.buy.slice().sort((x, y) => y.c - x.c).slice(0, 8);
+  modal(`<div style="text-align:left"><h2 style="text-align:center">💶 Wochenbudget</h2>
+    <p class="muted" style="margin-top:0">Für die geplanten Gerichte der nächsten 7 Tage – nur was ihr dafür noch kaufen müsst (ganze Picnic-Packungen, was im Vorrat ist zählt nicht).</p>
+    <form class="add" data-f="wbset"><input id="wbin" name="t" inputmode="decimal" placeholder="z.B. 60" value="${b ? String(b / 100).replace('.', ',') : ''}" autocomplete="off" enterkeyhint="done"><span style="align-self:center;padding:0 6px">€</span><button class="btn blue" aria-label="Budget speichern">✓</button></form>
+    <p style="margin:10px 0 4px">Geplant: <b>ca. ${euro(w.c)}</b>${b ? ` von ${euroR(b)}` : ''}</p>
+    ${top.length ? `<ul class="wb-list">${top.map(x => `<li>${x.n > 1 ? x.n + '× ' : ''}${esc(x.t)} <span class="muted">${esc(x.e.u)}</span><b>${euro(x.c)}</b></li>`).join('')}</ul>` : ''}
+    ${w.unknown.length ? `<p class="muted">❔ Preis noch unbekannt: ${esc(w.unknown.join(', '))}</p>` : ''}
+    <p class="hint">Die Preise lernt die App von selbst, wenn ihr über 🧺 Picnic bestellt – mit jeder Bestellung kennt sie mehr.</p>
+    <div class="row">${b ? '<button class="btn soft" data-a="wbclear">Ohne Budget</button>' : ''}<button class="btn soft" data-a="close">Fertig</button></div></div>`, '', keep);
+}
+function fillModal(keep) {
+  const F = ui.fill, q = planLive(); if (!F) return;
+  let h = `<h2 style="text-align:center">✨ Vorschläge für eure Woche</h2>`;
+  if (!F.picks.length) h += `<p style="text-align:center">${F.none === 'budget' ? 'Fürs Budget passt gerade kein Gericht mehr – nimm was raus oder erhöh das Budget.' : F.none === 'full' ? 'Jeder Tag hat schon sein Essen. 🎉' : 'Mir fällt gerade nichts Passendes ein.'}</p><div class="row"><button class="btn soft" data-a="close">Schließen</button></div>`;
+  else {
+    const left = F.wb.b != null ? F.wb.b - F.picks.reduce((a, x) => a + x.extra, F.base) : null;
+    h += `<p class="muted" style="margin-top:0;text-align:center">Zuerst, was ihr fast ganz daheim habt.</p><div class="steps">` + F.picks.map((x, n) => { const r = recipeById(x.id); return r ? `<div class="plan-row"><button class="card diaryrow" data-a="recipe" data-id="${esc(r.id)}"><span class="ri">${r.icon}</span><span class="rt"><span class="muted">${esc(planDayName(q.start, x.i))}</span><br><b>${esc(r.title)}</b><br><span class="muted wb-why">${esc(x.why)}</span></span></button><button class="mini-btn" data-a="fillx" data-n="${n}" aria-label="Den nicht">✕</button></div>` : ''; }).join('') + '</div>'
+      + (left != null ? `<p style="text-align:right;margin:6px 2px">Danach noch ca. <b>${euro(left)}</b> frei</p>` : '')
+      + (F.short ? `<p class="hint">Für die übrigen freien Tage reicht das Budget nicht mehr.</p>` : '')
+      + `<button class="btn green wide" data-a="fillok">✓ ${F.picks.length === 1 ? 'Eintragen' : 'Alle ' + F.picks.length + ' eintragen'}</button><div class="row"><button class="btn soft" data-a="fillmore">🔄 Andere</button><button class="btn soft" data-a="close">Abbrechen</button></div>`;
+  }
+  modal(`<div style="text-align:left">${h}</div>`, '', keep);
+}
+function fillRun(skip) { const q = planLive(), F = fillWeek(q, skip); ui.fill = { ...F, base: F.wb.c, skip }; fillModal(!!$('#ov')); }
 export const planBanner = () => ui.planPick == null ? '' : `<div class="plan-pick"><span>🗓️ Such dir ${slotOf(ui.planPickK || 'm').pick} für <b>${esc(planDayName(planLive().start, ui.planPick))}</b> aus</span><button class="mini-btn" data-a="planpickx" aria-label="Abbrechen">✕</button></div>`;
 A.plan = (el, e, day) => { closeModal(); ui.planDay = day == null ? null : day; ui.tab = 'home'; ui.sub = 'plan'; render(); scrollTo(0, 0); };
 Object.assign(A, {
@@ -119,6 +155,17 @@ Object.assign(A, {
     toast(`🗓️ ${planDayName(S.plan.start, i)}${k === 'm' ? '' : ' · ' + slotOf(k).t}: ${r.title}`); A.plan(null, null, i);
   },
   planrm(el) { planSet(+el.dataset.i, null); commit(true); },
+  wbudget() { budgetModal(); },
+  wbclear() { budgetSet(0); commit(true); budgetModal(true); render(); },
+  fill() { fillRun([]); },
+  fillx(el) { ui.fill.picks.splice(+el.dataset.n, 1); fillModal(true); },
+  fillmore() { const F = ui.fill; fillRun([...(F.skip || []), ...F.picks.map(x => x.id)]); },
+  fillok() {
+    const F = ui.fill, p = planLive(), days = p.days.slice(); if (!F || !F.picks.length) return;
+    for (const x of F.picks) if (!days[x.i]) days[x.i] = x.id;
+    planWrite(days, { ...(p.s || {}) }); ui.fill = null; closeModal(); commit(true);
+    toast(`✨ ${F.picks.length} ${F.picks.length === 1 ? 'Gericht' : 'Gerichte'} im Plan`); render();
+  },
   planday(el) { ui.planDay = +el.dataset.i; render(); },
   planslot(el) {
     const i = +el.dataset.i, k = el.dataset.k, x = slotOf(k), q = planLive(), cur = slotText((q.s || {})[i + k]);

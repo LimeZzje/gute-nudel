@@ -41,7 +41,7 @@ export function vrSeenAdd(ids, quiet) {
   S.vrSeen = [...had, ...add].slice(-400); S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); if (!quiet) render();
 }
 export const fixRec = r => ({ tags: [], ing: [], steps: [], icon: '🍽️', min: 0, cat: 'haupt', ...r });
-function allRecipes() {
+export function allRecipes() {
   const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set([...(S.hiddenRecipes || []), ...nopes()]), free = r => !ids.has(r.id) && !hidden.has(r.id);
   return K.RECIPES.filter(free).concat(bookRecipes().filter(free).map(r => fixRec({ ...r, book: true })), mine.filter(r => !hidden.has(r.id)).map(r => fixRec({ ...r, own: true })),
     vorratRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true })), archRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true, arch: true })),
