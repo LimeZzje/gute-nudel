@@ -26,6 +26,8 @@ const PICNIC = localStorage.getItem('gn_picnic_api') || 'https://gute-nudel-picn
 export const picLS = { get tok() { return localStorage.getItem('gn_picnic_tok') || ''; }, set tok(v) { v ? localStorage.setItem('gn_picnic_tok', v) : localStorage.removeItem('gn_picnic_tok'); },
   get map() { try { return JSON.parse(localStorage.getItem('gn_picnic_map') || '{}'); } catch { return {}; } }, set map(v) { localStorage.setItem('gn_picnic_map', JSON.stringify(v)); },
   get q() { try { return JSON.parse(localStorage.getItem('gn_picnic_q') || '{}'); } catch { return {}; } }, set q(v) { localStorage.setItem('gn_picnic_q', JSON.stringify(v)); },
+  get cache() { try { return JSON.parse(localStorage.getItem('gn_picnic_cache') || '{}'); } catch { return {}; } },
+  set cache(v) { try { localStorage.setItem('gn_picnic_cache', JSON.stringify(v)); } catch { localStorage.removeItem('gn_picnic_cache'); } },
   get done() { try { return JSON.parse(localStorage.getItem('gn_picnic_done') || '[]'); } catch { return []; } }, set done(v) { localStorage.setItem('gn_picnic_done', JSON.stringify(v.slice(-30))); } };
 export async function pic(path, body) {
   const r = await fetch(PICNIC + path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...(picLS.tok ? { 'x-picnic-auth': picLS.tok } : {}) }, body: body ? JSON.stringify(body) : undefined });
@@ -52,9 +54,51 @@ export function picQueries(name) {
   const longest = parts.join(' ').replace(PIC_BOX, ' ').trim().split(/\s+/).sort((a, b) => b.length - a.length)[0] || '';   // a tie goes to the main word (before the comma)
   return [...new Set([picLS.q[Sh.norm(name)], base, comp, clean, longest].filter(q => q && q.length > 1))];
 }
+// a search answer is kept for a day (2026-11-25, user: the list filled in slowly): the weekly shop asks for the same
+// words again and again. Empty answers are kept too, so "Fond, Rind" doesn't walk through all its wordings every time.
+const PIC_TTL = 24 * 3600e3, PIC_KEEP = 80;
+async function picSearch(q) {
+  const k = q.toLowerCase(), e = picLS.cache[k];
+  if (e && Date.now() - e.t < PIC_TTL) return e.h;
+  const h = await pic('/search?q=' + encodeURIComponent(q));
+  const c = picLS.cache; c[k] = { t: Date.now(), h };
+  const old = Object.keys(c).sort((a, b) => c[b].t - c[a].t).slice(PIC_KEEP); for (const o of old) delete c[o];
+  picLS.cache = c;
+  return h;
+}
 async function picFind(name) {
-  for (const q of picQueries(name)) { const hits = await pic('/search?q=' + encodeURIComponent(q)); if (hits.length) return { hits, q }; }
+  for (const q of picQueries(name)) { const hits = await picSearch(q); if (hits.length) return { hits, q }; }
   return { hits: [], q: '' };
+}
+// 💶 budget pick (2026-11-25, user: "sometimes the recommended items are too expensive"): Picnic's first hit is their
+// relevance, not the price. Among the first hits that ARE the thing, the cheapest for what the list needs wins.
+// "Is the thing" = German compounds carry their meaning at the END: for "Tomaten", "Rispentomaten" counts and
+// "Tomatenmark" doesn't. If even Picnic's first hit fails that rule (brand names, odd wording), we don't guess.
+const picStem = w => w.replace(/(en|n|e|s)$/, '');
+const picWords = t => String(t).toLowerCase().split(/[^a-zäöüß]+/).filter(Boolean);
+export function picIsThing(name, q) {
+  const ws = picWords(q).filter(w => w.length > 2); if (!ws.length) return false;
+  const head = picStem(ws[ws.length - 1]), low = String(name).toLowerCase(); if (head.length < 3) return false;
+  return ws.slice(0, -1).every(w => low.includes(picStem(w)))
+    && picWords(name).some(w => { const i = w.lastIndexOf(head); return i >= 0 && w.length - i - head.length <= 2; });
+}
+// → null (keep the first hit) or {pick, save}: save = cents less than the first hit, for the amount on the list.
+// With an amount that fits the packs ("500 g Tomaten") whole packs are compared, so the 5 kg sack doesn't win on €/kg.
+// Without one, a pack must cost less AND be no worse per kg/l than the first hit (and at least half its size), so a
+// mini pack doesn't win either.
+export function picBudget(x, hits, q) {
+  const first = hits[0]; if (!first || !q || typeof first.price !== 'number' || !picIsThing(first.name, q)) return null;
+  const want = itemQty(x), size = h => picQty({ unit: h.unit, n: 1 }), s0 = size(first);
+  const fits = s => !!(want && s && s.n && s.unit === want.unit), byAmount = fits(s0);
+  const cost = h => h.price * (byAmount ? picN(x, h) : 1);
+  let best = first;
+  for (const h of hits.slice(1, 10)) {
+    if (typeof h.price !== 'number' || !picIsThing(h.name, q)) continue;
+    const s = size(h);
+    if (byAmount ? !fits(s) : !(s0 && s ? s.unit === s0.unit && s.n >= s0.n * .5 && h.price / s.n <= first.price / s0.n : !s0 && !s)) continue;
+    if (cost(h) < cost(best)) best = h;
+  }
+  return best === first ? null : { pick: best, save: cost(first) - cost(best) };
 }
 // €/kg or €/l, so 200 g and 500 g of the same Sahne can be compared
 function picPer(h) {
@@ -210,6 +254,7 @@ export function picModal() {
         <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(itemName(r.x))}${r.extra ? ' <span class="tag">noch eine Sorte</span>' : itemQty(r.x) || r.x.q ? ` <span class="muted" style="font-weight:400">(Liste: ${esc(itemQty(r.x) ? fmtQty(itemQty(r.x)) : r.x.q)})</span>` : ''}</b><button class="mini-btn" data-a="picskip" data-v="${i}" aria-label="${r.extra ? 'Sorte wieder weg' : r.skip ? 'Doch mitnehmen' : 'Weglassen'}">${r.skip ? '↺' : '✕'}</button></div>
         ${r.hits == null ? '<p class="muted" style="margin:4px 0">…</p>' : !p ? `<p class="muted" style="margin:4px 0">Bei Picnic nichts gefunden – bleibt auf deiner Liste. Anders heißen?</p>${picAsk(i)}`
           : `<button class="pick" data-a="picopen" data-v="${i}" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left">${p.img ? `<img src="${esc(p.img)}" alt="" style="width:44px;height:44px;object-fit:contain">` : ''}<span style="flex:1">${esc(p.name)} <span class="muted">${esc(p.unit)}</span></span><b>${euro(p.price)}</b></button>
+            ${r.save && !r.skip ? `<p class="muted pic-save" style="margin:2px 0 0;font-size:.85em">💶 Spar-Wahl: ${euro(r.save)} günstiger als Picnics erster Treffer</p>` : ''}
             ${r.skip ? '' : `<div class="pic-n ${r.n >= PIC_MANY ? 'warn' : ''}"><button class="mini-btn" data-a="picn" data-v="${i}" data-d="-1" aria-label="Weniger" ${r.n <= 1 ? 'disabled' : ''}>−</button><b>${r.n}×</b><button class="mini-btn" data-a="picn" data-v="${i}" data-d="1" aria-label="Mehr" ${r.n >= PIC_MAX ? 'disabled' : ''}>+</button>
               <span class="muted">${picTotal(r, r.n).slice(1)}</span><b style="margin-left:auto">${r.n > 1 ? euro(p.price * r.n) : ''}</b></div>`}`}
         ${ui.picOpen === i && r.hits && p ? picTable(r, i) + `<button class="linkbtn" data-a="picsort" data-v="${i}" style="background:none;border:0;text-decoration:underline;margin:6px 0 0">➕ Noch eine Sorte dazu</button>` + picAsk(i) : ''}
@@ -226,24 +271,36 @@ export function picModal() {
   ui.picShown = true;
 }
 export async function picSearchAll() {
-  const map = picLS.map, open = S.shop.filter(x => !x.done && !x.pic);
-  ui.pic = { step: 'match', rows: open.map(x => ({ x, hits: null, pick: null, skip: false, more: false, n: 1 })), busy: true, inCart: S.shop.filter(x => !x.done && x.pic).length };
+  const map = picLS.map, open = S.shop.filter(x => !x.done && !x.pic), memOf = x => map[Sh.norm(itemName(x))];
+  // her remembered products stand there at once (2026-11-25); the search behind them only freshens price + choice
+  const P = ui.pic = { step: 'match', rows: open.map(x => { const mem = memOf(x); return { x, hits: mem ? [mem] : null, pick: mem || null, wait: true, skip: false, more: false, n: mem ? picN(x, mem) : 1 }; }),
+    busy: true, inCart: S.shop.filter(x => !x.done && x.pic).length };
   picModal();
+  let dead = false;
+  const gone = () => dead || ui.pic !== P || !$('#ov');   // she closed it (or opened it anew) meanwhile
   try {
-    try { ui.pic.cartTotal = (await pic('/cart')).total || 0; } catch (e) { if (e.auth) throw e; }   // what's already in there counts for the 150 € look
-    for (const r of ui.pic.rows) {   // one after the other: gentle on Picnic, and the list fills in visibly
-      if (r.hits) continue;   // a second sort she added meanwhile
-      const mem = map[Sh.norm(itemName(r.x))];
-      const f = await picFind(itemName(r.x)); r.hits = f.hits; r.q = f.q;
-      if (mem && !r.hits.some(h => h.id === mem.id)) r.hits.unshift(mem);
-      r.pick = (mem && r.hits.find(h => h.id === mem.id)) || r.hits[0] || null;
-      if (!r.nSet) r.n = picN(r.x, r.pick);
-      if (!$('#ov')) return;   // she closed it meanwhile
-      picModal();
-    }
-  } catch (e) { return picFail(e); }
-  ui.pic.busy = false; picModal();
+    const todo = P.rows.slice();
+    const work = async () => {   // PIC_PAR at a time: still gentle on Picnic, but the list no longer trickles in
+      for (let r; !gone() && (r = todo.shift());) {
+        const f = await picFind(itemName(r.x));
+        if (gone()) return;
+        if (!r.wait) continue;   // she searched this row herself meanwhile
+        const mem = memOf(r.x), fresh = mem && f.hits.find(h => h.id === mem.id);
+        r.wait = false; r.q = f.q; r.hits = mem && !fresh ? [mem, ...f.hits] : f.hits;
+        if (mem) r.pick = fresh || mem;
+        else { const b = picBudget(r.x, r.hits, f.q); r.pick = b ? b.pick : r.hits[0] || null; r.save = b ? b.save : 0; }
+        if (!r.nSet) r.n = picN(r.x, r.pick);
+        for (const y of P.rows) if (y.extra && y.x === r.x) { y.hits = r.hits; y.q = r.q; }   // a second sort she added meanwhile
+        picModal();
+      }
+    };
+    const cart = pic('/cart').then(c => { P.cartTotal = c.total || 0; }, e => { if (e.auth) throw e; });   // what's already in there counts for the 150 € look
+    await Promise.all([cart, ...Array.from({ length: PIC_PAR }, work)]);
+  } catch (e) { const was = gone(); dead = true; return was ? undefined : picFail(e); }
+  if (gone()) return;
+  P.busy = false; picModal();
 }
+const PIC_PAR = 4;
 // the options as a small table: picture · name · size · price (+ €/kg or €/l to compare sizes); 6 first, "mehr anzeigen" for the rest
 function picTable(r, i) {
   const all = r.hits, show = r.more ? all : all.slice(0, 6), p = r.pick;

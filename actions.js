@@ -427,7 +427,7 @@ Object.assign(A, {
     try {
       const hits = await pic('/search?q=' + encodeURIComponent(q));
       if (!hits.length) { toast('Auch für „' + q + '“ nichts bei Picnic'); return; }
-      Object.assign(r, { hits, q, pick: hits[0], skip: false, more: false }); ui.picOpen = i;
+      Object.assign(r, { hits, q, pick: hits[0], skip: false, more: false, wait: false, save: 0 }); ui.picOpen = i;
       picLS.q = Object.assign(picLS.q, { [Sh.norm(itemName(r.x))]: q });   // her word for it, next time first
       picModal();
     } catch (e) { picFail(e); }
@@ -444,7 +444,7 @@ Object.assign(A, {
   picback() { ui.pic.step = 'match'; ui.pic.sure = false; picModal(); },
   picsure() { ui.pic.sure = true; ui.pic.step = 'match'; A.picgo(); },
   picopen(el) { ui.picOpen = ui.picOpen === +el.dataset.v ? null : +el.dataset.v; picModal(); },
-  picpick(el) { const r = ui.pic.rows[+el.dataset.v]; r.pick = r.hits[+el.dataset.k]; r.skip = false; if (!r.nSet) r.n = picN(r.x, r.pick); ui.picOpen = null; picModal(); },
+  picpick(el) { const r = ui.pic.rows[+el.dataset.v]; r.pick = r.hits[+el.dataset.k]; r.skip = false; r.save = 0; if (!r.nSet) r.n = picN(r.x, r.pick); ui.picOpen = null; picModal(); },
   async picgo() {
     const todo = ui.pic.rows.filter(r => r.pick && !r.skip), map = picLS.map;
     if (!ui.pic.sure && picWorry().length) { ui.pic.step = 'check'; return picModal(); }   // 12× Milch or 150 €: one look before the cart
