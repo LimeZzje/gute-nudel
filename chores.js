@@ -29,7 +29,34 @@ export function choreDone(c, d) {
   c.last = c.moved && c.moved.to === d && !(c.week && c.week.length) ? c.moved.orig : d;
   c.moved = null;
   if (c.round && c.round.length) c.round = [];   // 🧩 G33: a new round of parts starts next time
+  if (c.slid) { delete c.slid; delete c.slidOn; }   // 🐢 G34: done = the count starts over
 }
+// ---------- 🐢 G34 'seltener?': a routine that found no place (or was skipped) 3 times since it was last done ----------
+// c.slid = count, c.slidOn = the day it last counted (once a day). Gelber Schein days never count.
+export function slidCount(c, d) { if (c.slidOn === d) return; c.slid = (c.slid || 0) + 1; c.slidOn = d; }
+export function slidUncount(c, d) { if (c.slidOn === d) { c.slid = Math.max(0, (c.slid || 0) - 1); c.slidOn = null; if (!c.slid) { delete c.slid; delete c.slidOn; } } }
+export const SELTEN_AT = 3;
+// what a lower rhythm would be: alle N → about 1.5 N; weekdays → one day less (she picks; a single day → every 2 weeks); every day → every 2nd day
+export function seltenOf(c) {
+  const w = c.week && c.week.length ? [...new Set(c.week)] : null;
+  if (w && w.length >= 7 || (!w && (c.every || 7) === 1)) return { kind: 'daily', text: 'jeden 2. Tag statt jeden Tag' };
+  if (w && w.length === 1) return { kind: 'single', text: 'alle 2 Wochen statt jede Woche' };
+  if (w) return { kind: 'week', days: w.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)), text: 'einen Tag weniger' };
+  const n = c.every || 7, m = Math.max(n + 1, Math.round(n * 1.5));
+  return { kind: 'every', to: m, text: 'alle ' + m + ' statt alle ' + n + ' Tage' };
+}
+// the open proposals, the one waiting longest first (Meine Woche shows one; G38's breakfast page reads the same)
+export const seltenProposals = () => S.chores.filter(c => (c.slid || 0) >= SELTEN_AT).sort((a, b) => (b.slid || 0) - (a.slid || 0)).map(c => ({ c, p: seltenOf(c) }));
+export function seltenApply(c, day) {
+  const p = seltenOf(c), d = today();
+  if (p.kind === 'every') c.every = p.to;
+  else if (p.kind === 'daily') { delete c.week; c.every = 2; if (!c.last) c.last = d; }
+  else if (p.kind === 'single') { const wd = c.week[0]; delete c.week; c.every = 14; let k = d; while (parse(k).getDay() !== wd) k = addDays(k, 1); c.last = addDays(k, -14); c.moved = null; }
+  else { if (day === undefined || !c.week.includes(day)) return false; c.week = c.week.filter(x => x !== day); planChanged(c); }
+  delete c.slid; delete c.slidOn;
+  return true;
+}
+export function seltenKeep(c) { delete c.slid; delete c.slidOn; }
 // 🧩 G33 parts inside a routine: c.parts = [{id, name}], c.round = part ids ticked in the running round
 export const partsOf = c => (c && Array.isArray(c.parts) ? c.parts.filter(p => p && p.name) : []);
 export const openParts = c => partsOf(c).filter(p => !(c.round || []).includes(p.id)).map(p => p.id);
@@ -101,7 +128,7 @@ export function scheduleChores(force) {
     const used = rp.reduce((a, id) => a + weightOf(S.chores.find(c => c.id === id)), 0);
     const { take, rest } = pick(cand.filter(c => c.id !== force), d, T.rfull || T.closed ? 0 : C.DAY_BUDGET - used, !rp.length);
     take.forEach(c => { put(c); rp.push(c.id); });
-    rest.forEach(c => slide(c, d));
+    rest.forEach(c => { slide(c, d); slidCount(c, d); });   // 🐢 G34: found no place today
   }
   return added;
 }

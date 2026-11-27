@@ -1461,3 +1461,7 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 
 /* 🧱 G39 routine size: a big one is a slightly bigger symbol in Meine Woche */
 .weekstrip i.big { font-size: 22px; }
+
+/* 🐢 G34 'seltener?' */
+.selten p { margin: 0; }
+.selten .row { flex-wrap: wrap; gap: 8px; }

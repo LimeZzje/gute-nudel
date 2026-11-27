@@ -4,7 +4,7 @@
 import * as Car from './car.js';
 import { addDays, closeModal, commit, dayDone, esc, modal, scheinOn, toast, today, workToday } from './core.js';
 import { A, S } from './state.js';
-import { choreDue, isDaily, planAhead, slide } from './chores.js';
+import { choreDue, isDaily, planAhead, slide, slidUncount } from './chores.js';
 import { carAll, carDay, carTime, carToday, forMe, isCar, shared } from './termine.js';
 import { pn } from './sync.js';
 import { render } from './app.js';
@@ -55,6 +55,7 @@ export function takeSchein() {
     if (isDaily(c) || !(c.week && c.week.length) || !choreDue(c, d) || S.log.some(e => e.day === d && e.chore === c.id)) continue;
     snap.moved[c.id] = c.moved ? Object.assign({}, c.moved) : null; slide(c, d);
   }
+  S.chores.forEach(c => slidUncount(c, d));   // 🐢 G34: a Schein day never counts as "found no place"
   S.scheine = (S.scheine || []).filter(x => x.id !== d).concat([{ id: d, ts: Date.now() }]).slice(-SCHEIN_KEEP);
   S.today.schein = snap;
   commit(true);

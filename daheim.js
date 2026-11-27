@@ -4,7 +4,7 @@ import * as Bk from './book.js';
 import { addDays, esc, longDate, monday, parse, shortDate, today, toolBtns, weekDays } from './core.js';
 import { S, ui } from './state.js';
 import { shopList, vorratGroups } from './sync.js';
-import { choreNext, choreRhythm, isDaily, planAhead } from './chores.js';
+import { choreNext, choreRhythm, isDaily, planAhead, seltenProposals } from './chores.js';
 import { scheinOn } from './core.js';
 import { giftCards } from './heute.js';
 import { viewRelax } from './relax.js';
@@ -109,10 +109,21 @@ function choreGroups() {
   if (!h.length && !o.length) return [['', r]];
   return [['🏠 Haushalt', h], ['🌱 Für mich', o], [h.length || o.length ? 'Ohne Zuordnung' : '', r]].filter(g => g[1].length);
 }
+// 🐢 G34: ONE quiet card, only here (never on Heute or Home), no count of misses in the words
+function seltenCard() {
+  const x = seltenProposals()[0]; if (!x) return '';
+  const { c, p } = x;
+  const yes = p.kind === 'week'
+    ? `<p class="muted" style="margin:8px 0 4px">Welcher Tag fällt weg?</p><div class="chips">${p.days.map(d => `<button class="chip" data-a="seltenyes" data-id="${c.id}" data-v="${d}">ohne ${C.DOW[d]}</button>`).join('')}</div>`
+    : `<button class="btn" data-a="seltenyes" data-id="${c.id}">Ja, seltener</button>`;
+  return `<div class="card selten"><p><b>${esc(c.icon)} ${esc(c.name)}</b> findet gerade selten Platz. Seltener einplanen?</p>
+    <p class="muted" style="margin:4px 0 0">Vorschlag: ${esc(p.text)}.</p>
+    <div class="row" style="margin-top:10px">${yes}<button class="btn soft" data-a="seltenno" data-id="${c.id}">So lassen</button></div></div>`;
+}
 function weekPlanner() {
   const tdow = parse(today()).getDay();
   const off = ui.wkOff || 0, plan = planAhead(addDays(today(), Math.max(60, 7 * off + 14))), { days, out, t } = choreWeek(off, plan), sel = days.includes(ui.wkDay) ? ui.wkDay : off ? days[0] : t;
-  let h = `<div class="sec-title">📅 Meine Woche</div>
+  let h = seltenCard() + `<div class="sec-title">📅 Meine Woche</div>
     <div class="wknav"><button class="mini-btn" data-a="wkoff" data-d="-1" ${off ? '' : 'disabled'} aria-label="Woche davor">‹</button>
       <span><b>${off === 0 ? 'Diese Woche' : off === 1 ? 'Nächste Woche' : 'In ' + off + ' Wochen'}</b> · ${shortDate(days[0])} – ${shortDate(days[6])}</span>
       <button class="mini-btn" data-a="wkoff" data-d="1" ${off < 4 ? '' : 'disabled'} aria-label="Woche danach">›</button></div>`;

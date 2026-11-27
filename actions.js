@@ -10,7 +10,7 @@ import { $, addDays, closeModal, commit, confetti, esc, floatStar, longDate, mod
 import { A, S, ui } from './state.js';
 import { askVorrat, mineOn, shopList, shopMine, consumeFor, earn, fmtQty, groupQty, itemName, itemQty, parseQty, pn, splitAmount, useGroup, vGroup, vaskDone } from './sync.js';
 import { rankModal } from './rank.js';
-import { ceRead, choreDone, choreDue, choreItemId, choreModal, choreNext, choreRhythm, daysBetween, delegateModal, guessIcon, planChanged, plannedDay, scheduleChores, setChoreNext } from './chores.js';
+import { ceRead, choreDone, choreDue, choreItemId, choreModal, choreNext, choreRhythm, daysBetween, delegateModal, guessIcon, planChanged, plannedDay, scheduleChores, seltenApply, seltenKeep, setChoreNext, slidCount } from './chores.js';
 import { again, tick, tickParts } from './heute.js';
 import { inQ } from './daheim.js';
 import { ownRitualForm, rateRitual, ritualById, rxP } from './relax.js';
@@ -150,7 +150,7 @@ Object.assign(A, {
   choreskip(el) {
     const it = S.items.find(i => i.id === el.dataset.id), c = it && S.chores.find(x => x.id === it.chore); if (!it) return;
     const d = today();   // only this one time moves a day on; moved again → still counts from the first planned day
-    if (c) c.moved = { orig: c.moved && c.moved.to === d ? c.moved.orig : d, to: addDays(d, 1) };
+    if (c) { c.moved = { orig: c.moved && c.moved.to === d ? c.moved.orig : d, to: addDays(d, 1) }; slidCount(c, d); }   // 🐢 G34: a skip counts too
     S.items = S.items.filter(i => i !== it); commit();
     const k = c && plannedDay(c.id, addDays(d, 1)), n = k ? daysBetween(d, k) : 1;   // 🔁 G30: the day it really lands under the ceiling
     toast(n <= 1 ? 'Auf morgen verschoben – der Plan bleibt 🔁' : 'Heute nicht – kommt ' + (n <= 6 ? 'am ' + C.DAYNAMES[parse(k).getDay()] : 'am ' + longDate(k)) + ' wieder 🔁');
@@ -183,6 +183,9 @@ Object.assign(A, {
   cepartadd() { ceRead(); const n = (ui.ce.newPart || '').trim(); if (n) { ui.ce.parts = (ui.ce.parts || []).concat([{ id: uid(), name: n }]); ui.ce.newPart = ''; } choreModal(); const i = $('#ce-newpart'); if (i) i.focus(); },
   cepartdel(el) { ceRead(); ui.ce.parts = (ui.ce.parts || []).filter(p => p.id !== el.dataset.v); choreModal(); },
   cekind(el) { ceRead(); ui.ce.kind = ui.ce.kind === el.dataset.v ? '' : el.dataset.v; choreModal(); },
+  seltenyes(el) { const c = S.chores.find(x => x.id === el.dataset.id); if (!c) return;   // 🐢 G34: only ever on her tap
+    if (!seltenApply(c, el.dataset.v === undefined ? undefined : +el.dataset.v)) return; scheduleChores(); commit(); toast('🐢 ' + c.name + ': ' + choreRhythm(c)); },
+  seltenno(el) { const c = S.chores.find(x => x.id === el.dataset.id); if (!c) return; seltenKeep(c); commit(); },
   cesize(el) { ceRead(); ui.ce.size = el.dataset.v === 'n' ? '' : el.dataset.v; choreModal(); },   // 🧱 G39
   ceagain() { ceRead(); ui.ce.again = !ui.ce.again; choreModal(); },
   cetool(el) { ceRead(); const t = el.dataset.v, a = ui.ce.tools; a.includes(t) ? a.splice(a.indexOf(t), 1) : a.push(t); choreModal(); },
