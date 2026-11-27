@@ -344,6 +344,9 @@ textarea { width: 100%; border: 2px solid var(--line); border-radius: 12px; back
 .weekstrip i.plan { opacity: .45; }
 .weekstrip i.done::after { content: '✓'; position: absolute; right: -7px; bottom: -2px; font-size: 11px; font-weight: 900; color: var(--green); }
 .wkdetail h3 { margin: 0 0 6px; }
+.wkdaily { margin: 0 4px 6px; font-size: 14px; }
+.wkdaily span { font-size: 17px; }
+.wkdl { margin: 8px 0 0; font-size: 14px; }
 .list-plain.chores li .cw { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .cwtop { display: flex; align-items: center; justify-content: space-between; }
 .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
