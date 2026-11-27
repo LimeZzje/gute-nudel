@@ -11,7 +11,7 @@ import { A, S, ui } from './state.js';
 import { askVorrat, mineOn, shopList, shopMine, consumeFor, earn, fmtQty, groupQty, itemName, itemQty, parseQty, pn, splitAmount, useGroup, vGroup, vaskDone } from './sync.js';
 import { rankModal } from './rank.js';
 import { ceRead, choreDone, choreDue, choreItemId, choreModal, choreNext, choreRhythm, daysBetween, delegateModal, guessIcon, planChanged, plannedDay, scheduleChores, setChoreNext } from './chores.js';
-import { tick } from './heute.js';
+import { again, tick, tickParts } from './heute.js';
 import { inQ } from './daheim.js';
 import { ownRitualForm, rateRitual, ritualById, rxP } from './relax.js';
 import { hydratePhotos } from './schaetze.js';
@@ -37,10 +37,21 @@ Object.assign(A, {
   pickday(el) { const id = el.dataset.id; ui.picks.has(id) ? ui.picks.delete(id) : ui.picks.add(id); render(); },
   plandone() { S.items.forEach(i => { if (ui.picks.has(i.id)) { i.where = 'heute'; } }); ui.picks.clear(); S.today.planned = true; commit(); },
   tick(el) { tick(el.dataset.id, el); },
+  tickpart(el) { const it = S.items.find(i => i.id === el.dataset.id), c = it && S.chores.find(x => x.id === it.chore); if (c) tickParts(it, c, [el.dataset.p], el); },
+  again(el) { again(el.dataset.id, el); },
   later(el) { const i = S.items.find(x => x.id === el.dataset.id); if (i) { i.where = 'liste'; commit(); toast('Zurück auf der Liste – kein Stress.'); } },
   undo(el) {
     const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
     S.log = S.log.filter(x => x !== e); S.stars = Math.max(0, S.stars - e.stars); S.earned = Math.max(0, S.earned - e.stars);
+    if (e.partOf || e.againOf) {   // 🧩 G33: a part opens again; the last part opens the routine again
+      const c = S.chores.find(x => x.id === (e.partOf || e.againOf));
+      if (c && e.partOf && e.chore) {
+        c.last = e.prevLast || null; c.moved = e.prevMoved || null; c.round = (e.prevRound || []).slice();
+        S.gifts = S.gifts.filter(g => !(g.cid === c.id && g.day === e.day));
+        if (!S.items.some(i => i.chore === c.id && i.where === 'heute')) S.items.unshift({ id: choreItemId(c.id, e.day), text: c.name, where: 'heute', created: Date.now(), chore: c.id });
+      } else if (c && e.partOf && (c.round || []).includes(e.part)) c.round = c.round.filter(x => x !== e.part);
+      S.today.celebrated = false; S.today.closed = false; commit(); return;
+    }
     if (e.kind === 'task') S.items.unshift({ id: e.chore ? choreItemId(e.chore, e.day) : uid(), text: e.text, where: 'heute', created: Date.now(), ...(e.did ? { did: e.did, from: e.from } : {}), ...(e.chore ? { chore: e.chore } : {}) });
     if (e.chore) { const c = S.chores.find(x => x.id === e.chore); if (c) { c.last = e.prevLast || null; c.moved = e.prevMoved || null; } S.gifts = S.gifts.filter(g => !(g.cid === e.chore && g.day === e.day)); }
     let post = false;
@@ -151,8 +162,8 @@ Object.assign(A, {
   choredelyes(el) { S.chores = S.chores.filter(x => x.id !== el.dataset.id); S.items = S.items.filter(i => i.chore !== el.dataset.id); closeModal(); commit(); },
   choreedit(el) {
     const c = el.dataset.id && S.chores.find(x => x.id === el.dataset.id);
-    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, next: c.week && c.week.length ? null : choreNext(c), nextTouched: true, week: (c.week || []).slice(), reward: c.reward || '', start: 'morgen', tools: (c.tools || []).slice(), music: c.music || '' }
-      : { id: null, icon: '🔁', name: '', mode: 'week', every: 7, week: [], reward: '', start: 'morgen', tools: [], music: '' };
+    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, next: c.week && c.week.length ? null : choreNext(c), nextTouched: true, week: (c.week || []).slice(), reward: c.reward || '', start: 'morgen', tools: (c.tools || []).slice(), music: c.music || '', parts: (c.parts || []).map(p => ({ ...p })), kind: c.kind || '', again: !!c.again }
+      : { id: null, icon: '🔁', name: '', mode: 'week', every: 7, week: [], reward: '', start: 'morgen', tools: [], music: '', parts: [], kind: '', again: false };
     choreModal();
   },
   cemode(el) { ceRead(); ui.ce.mode = el.dataset.v; choreModal(); },
@@ -169,6 +180,10 @@ Object.assign(A, {
   cestart(el) { ceRead(); ui.ce.start = el.dataset.v; if (ui.ce.start === 'datum' && !ui.ce.startDate) ui.ce.startDate = addDays(today(), 1); choreModal(); },
   wkday(el) { ui.wkDay = el.dataset.k; render(); },
   wkoff(el) { ui.wkOff = Math.max(0, Math.min(4, (ui.wkOff || 0) + +el.dataset.d)); ui.wkDay = null; render(); },
+  cepartadd() { ceRead(); const n = (ui.ce.newPart || '').trim(); if (n) { ui.ce.parts = (ui.ce.parts || []).concat([{ id: uid(), name: n }]); ui.ce.newPart = ''; } choreModal(); const i = $('#ce-newpart'); if (i) i.focus(); },
+  cepartdel(el) { ceRead(); ui.ce.parts = (ui.ce.parts || []).filter(p => p.id !== el.dataset.v); choreModal(); },
+  cekind(el) { ceRead(); ui.ce.kind = ui.ce.kind === el.dataset.v ? '' : el.dataset.v; choreModal(); },
+  ceagain() { ceRead(); ui.ce.again = !ui.ce.again; choreModal(); },
   cetool(el) { ceRead(); const t = el.dataset.v, a = ui.ce.tools; a.includes(t) ? a.splice(a.indexOf(t), 1) : a.push(t); choreModal(); },
   cesave() {
     ceRead();
@@ -185,6 +200,13 @@ Object.assign(A, {
       if (e.mode === 'week' && e.start === 'datum' && e.startDate > today()) c.skip = e.startDate;   // nothing before that day
     }
     Object.assign(c, { icon: e.iconSet ? e.icon || '🔁' : e.id && e.icon && e.icon !== '🔁' ? e.icon : guessIcon(e.name), name: e.name, reward: e.reward || null, tools: e.tools.slice(), music: e.music || '', ...(e.mode === 'week' ? { week: e.week.slice(), every: undefined } : { every, week: undefined }) });
+    {   // 🧩 G33 parts (a typed but not added one counts too), marker, "mehrmals am Tag"
+      const ps = (e.parts || []).filter(p => p.name).concat((e.newPart || '').trim() ? [{ id: uid(), name: e.newPart.trim() }] : []);
+      if (ps.length) c.parts = ps; else delete c.parts;
+      c.round = (c.round || []).filter(id => ps.some(p => p.id === id)); if (!c.round.length) delete c.round;
+      if (e.kind) c.kind = e.kind; else delete c.kind;
+      if (e.again) c.again = true; else delete c.again;
+    }
     if (e.mode === 'days') setChoreNext(c, e.next);
     S.items.filter(i => i.chore === c.id).forEach(i => { i.text = c.name; });
     if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));

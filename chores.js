@@ -28,7 +28,12 @@ export function choreWhen(c) { // "heute", "morgen", "in 3 Tagen", "Mo"
 export function choreDone(c, d) {
   c.last = c.moved && c.moved.to === d && !(c.week && c.week.length) ? c.moved.orig : d;
   c.moved = null;
+  if (c.round && c.round.length) c.round = [];   // 🧩 G33: a new round of parts starts next time
 }
+// 🧩 G33 parts inside a routine: c.parts = [{id, name}], c.round = part ids ticked in the running round
+export const partsOf = c => (c && Array.isArray(c.parts) ? c.parts.filter(p => p && p.name) : []);
+export const openParts = c => partsOf(c).filter(p => !(c.round || []).includes(p.id)).map(p => p.id);
+export const partLabel = c => { const n = partsOf(c).length, o = openParts(c).length; return n ? (o === n ? n + ' Teile' : 'noch ' + o + ' von ' + n) : ''; };
 export function choreNext(c) { // the next day it is due (today, if it still is)
   const d = today(), doneToday = S.log.some(e => e.day === d && e.chore === c.id);
   for (let n = doneToday ? 1 : 0; n <= 400; n++) { const k = addDays(d, n); if (choreDue(c, k)) return k; }
@@ -129,6 +134,8 @@ export function rollover() {
   const d = today();
   if (S.today.day === d) return false;
   if (S.today.day) { // yesterday's leftovers go back to the top of the list, marked "von gestern" — chores just come back when due
+    const old = S.today.day;   // 🧩 G33: a started round still open → back as ONE line with the open parts (a weekday one slides like G30)
+    for (const c of S.chores) if ((c.round || []).length && openParts(c).length && !S.log.some(e => e.day === old && e.chore === c.id) && !(c.moved && c.moved.to > old)) slide(c, old);
     S.items = S.items.filter(i => !(i.chore && i.where === 'heute'));
     S.items.forEach(i => { i.carried = false; });
     const left = S.items.filter(i => i.where === 'heute');
@@ -160,6 +167,8 @@ export function ceRead() {
   if (ev) ui.ce.every = ev.value;
   if (r && ui.ce.own) ui.ce.reward = r.value.trim();
   const m = $('#ce-music'); if (m) ui.ce.music = m.value.trim();
+  document.querySelectorAll('#ov .ce-part').forEach(i => { const p = (ui.ce.parts || []).find(x => x.id === i.dataset.pid); if (p) p.name = i.value.trim(); });
+  const np = $('#ce-newpart'); if (np) ui.ce.newPart = np.value;
   const dt = document.getElementById('ce-date'); if (dt) ui.ce.startDate = dt.value;
   const nx = document.getElementById('ce-next'); if (nx) { ui.ce.next = nx.value; if (nx.dataset.auto === '0') ui.ce.nextTouched = true; }
 }
@@ -180,6 +189,11 @@ export function choreModal() {
       : `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(d => `<button class="chip ${e.week.includes(d) ? 'on' : ''}" data-a="ceday" data-v="${d}">${C.DOW[d]}</button>`).join('')}</div>`}
     ${e.id || e.mode === 'days' ? '' : `<p class="muted" style="font-weight:800;margin:12px 0 4px">Ab wann?</p><div class="chips"><button class="chip ${e.start === 'heute' ? 'on' : ''}" data-a="cestart" data-v="heute">Ab heute</button><button class="chip ${e.start === 'morgen' ? 'on' : ''}" data-a="cestart" data-v="morgen">Ab morgen</button><button class="chip ${e.start === 'datum' ? 'on' : ''}" data-a="cestart" data-v="datum">📅 Datum wählen</button></div>
       ${e.start === 'datum' ? `<label class="field"><span>Beginnt am</span><input type="date" id="ce-date" min="${today()}" value="${e.startDate || addDays(today(), 1)}" oninput="const h=document.getElementById('ce-datehint'); if(h) h.textContent=''"></label><p class="hint" id="ce-datehint">${e.startDate ? 'beginnt ' + esc(C.DAYNAMES[parse(e.startDate).getDay()]) + ', ' + esc(shortDate(e.startDate)) : ''}</p>` : ''}`}
+    <p class="muted" style="font-weight:800;margin:12px 0 4px">🧩 Teile <span style="font-weight:400">(optional)</span></p>
+    ${(e.parts || []).map(p => `<div class="ce-prow"><input class="ce-part" data-pid="${p.id}" value="${esc(p.name)}" autocomplete="off"><button class="mini-btn" data-a="cepartdel" data-v="${p.id}" aria-label="Teil entfernen">✕</button></div>`).join('')}
+    <div class="ce-prow"><input id="ce-newpart" value="${esc(e.newPart || '')}" placeholder="${(e.parts || []).length ? 'Noch ein Teil…' : 'z.B. Wanne'}" autocomplete="off"><button class="mini-btn" data-a="cepartadd" aria-label="Teil hinzufügen">+</button></div>
+    <p class="hint">Fertig, wenn alle Teile abgehakt sind. Jeder Teil gibt einen Stern.</p>
+    <div class="chips" style="margin-top:8px"><button class="chip ${e.kind === 'haus' ? 'on' : ''}" data-a="cekind" data-v="haus">🏠 Haushalt</button><button class="chip ${e.kind === 'eigen' ? 'on' : ''}" data-a="cekind" data-v="eigen">🌱 Für mich</button><button class="chip ${e.again ? 'on' : ''}" data-a="ceagain">➕ Mehrmals am Tag</button></div>
     <p class="muted" style="font-weight:800;margin:12px 0 4px">🎁 Belohnung danach (am selben Tag)</p>
     <div class="chips">${opts.map(r => `<button class="chip ${e.reward === r && !e.own ? 'on' : ''}" data-a="cerew" data-v="${esc(r)}">${esc(r)}</button>`).join('')}<button class="chip ${e.own ? 'on' : ''}" data-a="ceown">✏️ Eigene…</button></div>
     ${e.own ? `<label class="field"><span>Deine Belohnung</span><input id="ce-own" value="${esc(e.reward)}" placeholder="Was gönnst du dir?" autocomplete="off"></label>` : ''}

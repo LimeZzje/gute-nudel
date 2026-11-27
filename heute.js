@@ -4,7 +4,7 @@ import * as D from './data.js';
 import { addDays, allTicked, commit, confetti, dayDone, endTime, esc, evening, floatStar, longDate, modal, monday, tags, today, uid, weekDays, workToday } from './core.js';
 import { S, ui } from './state.js';
 import { answerDone, earn, pn } from './sync.js';
-import { choreDone, choreRhythm } from './chores.js';
+import { choreDone, choreRhythm, openParts, partLabel, partsOf } from './chores.js';
 import { carToday } from './termine.js';
 import { dueBtns, dueCard, dueField, dueSort, dueDays, SOON } from './faellig.js';
 import { knAsk, knChoreTrick } from './kniff.js';
@@ -40,7 +40,7 @@ export function viewHeute() {
   h += `<section class="pad"><h2>${esc(longDate(d))}</h2>`;
   const due = heute.filter(i => i.chore);
   if (!S.today.planned && heute.length === due.length && done.length === 0) {
-    if (due.length) h += `<p class="sub" style="margin-bottom:4px">🔁 Heute fällig – steht schon drauf:</p>` + due.map(i => `<div class="item"><span class="txt"><span>${esc(i.text)}</span>${tags(i)}</span><button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht">⏭</button></div>`).join('');
+    if (due.length) h += `<p class="sub" style="margin-bottom:4px">🔁 Heute fällig – steht schon drauf:</p>` + due.map(i => `<div class="item"><span class="txt"><span>${esc(i.text)}</span>${partTag(i)}${tags(i)}</span><button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht">⏭</button></div>`).join('');
     h += `<p class="sub">${S.name ? 'Hallo ' + esc(S.name) + '! ' : ''}Was kommt heute auf deine Seite? Hol dir, was du angehen magst – den Rest hebt die Liste für dich auf.</p>`;
     if (liste.some(i => i.due && dueDays(i.due) <= SOON)) h += `<p class="sub due-hint">📅 Bald fällig steht ganz oben – nur ein Vorschlag, du entscheidest.</p>`;
     if (liste.length) {
@@ -53,7 +53,7 @@ export function viewHeute() {
   }
 
   if (heute.length === 0 && done.length === 0) h += `<p class="sub">Nichts geplant. Genieß es – oder hol dir etwas aus der Liste.</p>`;
-  h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i, true)}</div>${i.chore ? '' : dueBtns(i)}${i.chore ? `<button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht">⏭</button>` : `<button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button>`}</div>`).join('');
+  h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i, true)}</div>${i.chore ? '' : dueBtns(i)}${i.chore ? `<button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht">⏭</button>` : `<button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button>`}</div>${partRows(i)}`).join('');
   if (!finished) {
     h += `<form class="add" data-f="addtoday"><input name="t" placeholder="Noch etwas für heute…" autocomplete="off" enterkeyhint="done">${dueField()}<button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
     h += `<div class="row" style="margin-top:12px">${liste.length ? '<button class="btn soft" data-a="fromlist">Aus der Liste holen</button>' : ''}${heute.length || early ? '<button class="btn soft" data-a="closeday">Für heute Schluss</button>' : ''}</div>`;
@@ -61,7 +61,7 @@ export function viewHeute() {
   }
   if (done.length) {
     h += `<div class="donebox"><div class="muted" style="margin:14px 0 4px;font-weight:800">Heute geschafft (${done.length})</div>` +
-      done.slice().reverse().map(e => `<div class="item done"><button class="chk" data-a="undo" data-id="${e.id}" aria-label="Rückgängig">✓</button><div class="txt"><span>${esc(e.text)}</span></div>${e.stars ? '<span class="muted">+' + e.stars + '⭐</span>' : ''}</div>`).join('') + '</div>';
+      done.slice().reverse().map(e => `<div class="item done"><button class="chk" data-a="undo" data-id="${e.id}" aria-label="Rückgängig">✓</button><div class="txt"><span>${esc(e.text)}</span></div>${againBtn(e, done)}${e.stars ? '<span class="muted">+' + e.stars + '⭐</span>' : ''}</div>`).join('') + '</div>';
   }
   h += `<form class="add" data-f="extra" style="margin-top:16px"><input name="t" placeholder="Sonst noch was geschafft?" autocomplete="off" enterkeyhint="done"><button class="btn green" aria-label="Als erledigt eintragen">✓</button></form>`;
   h += scheinBtn() + '</section>';
@@ -89,8 +89,56 @@ export function incomingCard() {
     </div>`).join('') + '</div>';
 }
 
+// 🧩 G33: a routine with parts = one row, its open parts below as small tick rows, this round's done ones muted
+const partTag = i => { const c = i.chore && S.chores.find(x => x.id === i.chore); const l = c && partLabel(c); return l ? `<span class="tag">🧩 ${esc(l)}</span>` : ''; };
+function partRows(i) {
+  const c = i.chore && S.chores.find(x => x.id === i.chore), ps = partsOf(c); if (!ps.length) return '';
+  return `<div class="parts"><div class="parts-n muted">${esc(partLabel(c))}</div>${ps.map(p => (c.round || []).includes(p.id)
+    ? `<div class="part on"><span class="pchk">✓</span><span>${esc(p.name)}</span></div>`
+    : `<div class="part"><button class="pchk" data-a="tickpart" data-id="${i.id}" data-p="${p.id}" aria-label="${esc(p.name)} erledigt"></button><span>${esc(p.name)}</span></div>`).join('')}</div>`;
+}
+// ➕ "mehrmals am Tag" (Kochen, Gassi): the newest entry of today gets a small "+ nochmal" – never an open debt
+function againBtn(e, done) {
+  const cid = e.chore || e.againOf, c = cid && S.chores.find(x => x.id === cid);
+  if (!c || !c.again || e.partOf) return '';
+  const last = done.filter(x => (x.chore || x.againOf) === cid).pop();
+  return last === e ? `<button class="mini-btn again" data-a="again" data-id="${c.id}">+ nochmal</button>` : '';
+}
+export function again(cid, el) {
+  const c = S.chores.find(x => x.id === cid); if (!c) return;
+  const n = workToday().length + dogStarsToday(), stars = n < C.CAP ? 1 : 0;
+  floatStar(el, stars ? '+1 ⭐' : '✓');
+  S.log.push({ id: uid(), text: c.name, kind: 'task', day: today(), ts: Date.now(), stars, againOf: c.id });
+  earn(stars); afterWork(n + 1); askMood(S.log[S.log.length - 1]);
+}
+// tick some open parts (one star each inside the cap); ticking the last open part finishes the routine
+export function tickParts(it, c, ids, el) {
+  const open = openParts(c); ids = ids.filter(x => open.includes(x)); if (!ids.length) return;
+  const last = ids.length === open.length, n = workToday().length + dogStarsToday();
+  const got = ids.map((_, k) => n + k < C.CAP ? 1 : 0), sum = got.reduce((a, b) => a + b, 0);
+  const row = el && el.closest(last ? '.item' : '.part'); if (row) row.classList.add('done', 'ticking');
+  floatStar(el, sum ? '+' + sum + ' ⭐' : '✓');
+  setTimeout(() => {
+    const prevRound = (c.round || []).slice(), prevLast = c.last || null, prevMoved = c.moved || null, d = today();
+    ids.forEach((pid, k) => {
+      const p = partsOf(c).find(x => x.id === pid), fin = last && k === ids.length - 1;
+      S.log.push({ id: uid(), text: c.name + ': ' + p.name, kind: 'task', day: d, ts: Date.now() + k, stars: got[k], partOf: c.id, part: pid,
+        ...(fin ? { chore: c.id, prevLast, prevMoved, prevRound: prevRound.concat(ids.slice(0, -1)) } : {}) });
+    });
+    earn(sum);
+    if (!last) { c.round = prevRound.concat(ids); afterWork(n + ids.length); return; }
+    S.items = S.items.filter(i => i !== it);
+    choreDone(c, d);
+    if (c.reward) S.gifts.push({ id: uid(), cid: c.id, day: d, icon: c.icon, name: c.name, reward: c.reward });
+    afterWork(n + ids.length, answerDone(it));
+    askMood(S.log[S.log.length - 1]);
+    choreFlow(c, null);
+  }, 650);
+}
 export function tick(id, el) {
   const it = S.items.find(i => i.id === id); if (!it) return;
+  const pc = it.chore && S.chores.find(c => c.id === it.chore);
+  if (pc && partsOf(pc).length) return tickParts(it, pc, openParts(pc), el);   // 🧩 the main box = "alles erledigt"
   const row = el && el.closest('.item');
   if (row) row.classList.add('done', 'ticking', 'leaving');
   const n = workToday().length + dogStarsToday(), stars = n < C.CAP ? 1 : 0;   // 🐕 a dog session's star counts into the cap
@@ -105,13 +153,17 @@ export function tick(id, el) {
     if (combo) S.combo.phase = 'reward';
     afterWork(n + 1, answerDone(it));
     askMood(S.log[S.log.length - 1]);
-    const kid = ch && knChoreTrick(ch);   // 💡 the chore carried a Kniff: ask first, then what comes next
-    const next = () => {
-    if (ch && ch.reward) modal(`<h2>${esc(ch.icon)} Erledigt!</h2><p><b>${esc(ch.name)}</b> ist für ${esc(choreRhythm(ch))} erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">🎁 ${esc(ch.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
-    if (combo) modal(`<h2>Teil 1 geschafft!</h2><p><b>${esc(combo.work)}</b> ist erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">${combo.icon} ${esc(combo.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
-    };
-    if (kid) knAsk(kid, next); else next();
+    choreFlow(ch, combo);
   }, 650);
+}
+// after a routine is done: the Kniff question first, then its reward (or a Doppel-Quest's reward)
+function choreFlow(ch, combo) {
+  const kid = ch && knChoreTrick(ch);   // 💡 the chore carried a Kniff: ask first, then what comes next
+  const next = () => {
+  if (ch && ch.reward) modal(`<h2>${esc(ch.icon)} Erledigt!</h2><p><b>${esc(ch.name)}</b> ist für ${esc(choreRhythm(ch))} erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">🎁 ${esc(ch.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
+  if (combo) modal(`<h2>Teil 1 geschafft!</h2><p><b>${esc(combo.work)}</b> ist erledigt.</p><p>Heute wartet auf dich:</p><p class="hand" style="font-size:30px;color:var(--accent)">${combo.icon} ${esc(combo.reward)}</p><p class="muted">Ob gleich oder heute Abend – Hauptsache heute. +${C.COMBO_REWARD_STARS} ⭐ wenn du's genossen hast.</p><div class="row"><button class="btn" data-a="close">Freu mich!</button></div>`);
+  };
+  if (kid) knAsk(kid, next); else next();
 }
 // "wie war's?": five faces under the screen for a few seconds — one tap, or just ignore it
 const MOOD_SECS = 12;

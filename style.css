@@ -1445,3 +1445,16 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 :root[data-theme="dark"] .schein-card, :root[data-theme="dark"] .schein-home { background: #3d3410 !important; color: #ffe9a0; border-color: #6b5a14; }
 :root[data-theme="dark"] .schein-card h2 { color: #ffe9a0; }
 :root[data-theme="dark"] .weekstrip > button.schein { background: #3d3410; }
+
+/* 🧩 G33 parts inside a routine */
+.parts { margin: -4px 0 6px 44px; }
+.parts-n { font-size: 13px; margin: 0 0 2px; }
+.part { display: flex; align-items: center; gap: 10px; padding: 3px 0; font-size: 15px; }
+.part .pchk { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--blue); background: none; flex: 0 0 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; }
+.part.on { opacity: .55; }
+.part.on .pchk { background: var(--blue); }
+.part.done .pchk { background: var(--blue); }
+.ce-prow { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+.ce-prow input { flex: 1; min-width: 0; }
+.cgroup { margin: 10px 0 4px; font-size: 17px; }
+.mini-btn.again { width: auto; padding: 0 8px; font-size: 13px; }

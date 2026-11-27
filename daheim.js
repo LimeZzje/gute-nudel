@@ -103,6 +103,12 @@ function planWhen(c, plan) {
   if (k === t) return plan[k].find(x => x.c === c).st === 'done' ? 'heute erledigt ✓' : 'heute fällig';
   return k === addDays(t, 1) ? 'morgen' : C.DOW[parse(k).getDay()] + ', ' + shortDate(k);
 }
+// 🧩 G33: Haushalt / Für mich apart; unmarked ones stay one plain group (no headings at all while nothing is marked)
+function choreGroups() {
+  const h = S.chores.filter(c => c.kind === 'haus'), o = S.chores.filter(c => c.kind === 'eigen'), r = S.chores.filter(c => c.kind !== 'haus' && c.kind !== 'eigen');
+  if (!h.length && !o.length) return [['', r]];
+  return [['🏠 Haushalt', h], ['🌱 Für mich', o], [h.length || o.length ? 'Ohne Zuordnung' : '', r]].filter(g => g[1].length);
+}
 function weekPlanner() {
   const tdow = parse(today()).getDay();
   const off = ui.wkOff || 0, plan = planAhead(addDays(today(), Math.max(60, 7 * off + 14))), { days, out, t } = choreWeek(off, plan), sel = days.includes(ui.wkDay) ? ui.wkDay : off ? days[0] : t;
@@ -122,10 +128,10 @@ function weekPlanner() {
       : `<p class="muted" style="margin:0">${sel < t ? 'Nichts aus den Routinen erledigt.' : 'Nichts geplant – frei. 🛋️'}</p>`}
       ${dl.length ? `<p class="muted wkdl">Dazu wie jeden Tag: ${dl.map(x => esc(x.c.icon) + ' ' + esc(x.c.name)).join(' · ')}</p>` : ''}
       <p class="hint">✓ = erledigt · durchsichtig = kommt noch. Tipp auf einen Tag zeigt, was dran ist.</p></div>`;
-    h += `<div class="sec-title" style="font-size:24px">Deine Aufgaben & ihre Tage</div><div class="card"><ul class="list-plain chores">${S.chores.map(c => `<li><span class="cw"><span class="cwtop"><b>${esc(c.icon)} ${esc(c.name)}</b><span><button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></span></span>
+    h += `<div class="sec-title" style="font-size:24px">Deine Aufgaben & ihre Tage</div><div class="card">${choreGroups().map(([gl, list]) => `${gl ? `<h3 class="cgroup">${gl}</h3>` : ''}<ul class="list-plain chores">${list.map(c => `<li><span class="cw"><span class="cwtop"><b>${esc(c.icon)} ${esc(c.name)}</b><span><button class="mini-btn" data-a="choreedit" data-id="${c.id}" aria-label="Bearbeiten">✎</button><button class="mini-btn" data-a="choredel" data-id="${c.id}" aria-label="Löschen">✕</button></span></span>
       ${c.week && c.week.length ? `<span class="days">${C.WEEK_ORDER.map(d => `<button class="dayt ${c.week.includes(d) ? 'on' : ''} ${d === tdow ? 'today' : ''}" data-a="cday" data-id="${c.id}" data-v="${d}">${C.DOW[d]}</button>`).join('')}</span>`
         : `<label class="nextrow"><span>Nächstes Mal</span><input type="date" class="nextdate" data-ch="chorenext" data-id="${c.id}" min="${today()}" value="${choreNext(c)}"></label>`}
-      <span class="muted">${c.week && c.week.length ? esc(planWhen(c, plan)) : esc(choreRhythm(c)) + ' ab da'}${c.reward ? ' · 🎁 ' + esc(c.reward) : ''}</span>${(tb => tb ? '<span>' + tb + '</span>' : '')(toolBtns(c))}</span></li>`).join('')}</ul>
+      <span class="muted">${c.week && c.week.length ? esc(planWhen(c, plan)) : esc(choreRhythm(c)) + ' ab da'}${c.reward ? ' · 🎁 ' + esc(c.reward) : ''}</span>${(tb => tb ? '<span>' + tb + '</span>' : '')(toolBtns(c))}</span></li>`).join('')}</ul>`).join('')}
       <p class="hint">Wochentags-Aufgaben: Tipp auf einen Tag legt sie dorthin (oder nimmt sie weg), gilt ab morgen. „Alle paar Tage“: Datum antippen – dann ist sie an dem Tag dran und läuft von da an weiter.</p></div>`;
   }
   const ex = C.EXAMPLE_WEEK.filter(e => C.CHORE_TEMPLATES.some(t => t.name === e.name));
