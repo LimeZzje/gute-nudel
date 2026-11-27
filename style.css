@@ -1501,3 +1501,12 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .home-foot .lnk { background: none; border: 0; color: var(--ink2); font: inherit; text-decoration: underline; padding: 6px; }
 .back-home { margin: 4px 0 10px; }
 .es-row .hc-go { font-size: 15px; font-weight: 800; color: var(--blue); white-space: nowrap; }
+
+/* 👶 G37 Baby-Zeit */
+.bz-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 0; }
+.bz-list .chips { flex-wrap: nowrap; align-items: center; gap: 4px; }
+.bz-pend { font-size: 12px; margin-left: 4px; }
+.bz-review { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; margin-bottom: 8px; border-radius: 10px; background: var(--paper2); }
+
+/* 🧭 the Tellerrand entry card: its button has no own background (the browser default showed grey/black in the Kochbuch) */
+.e-entry .hcard { background: none; padding: 0; margin: 0; cursor: pointer; }

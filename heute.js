@@ -11,7 +11,8 @@ import { knAsk, knChoreTrick } from './kniff.js';
 import { dogStarsToday } from './hund.js';
 import { inWeek, unsorted, viewPiles } from './piles.js';
 import { offerLeft, whyFor } from './builder.js';   // 🧺 G36 (also fills A with onemore)   // 📚 G35 (also fills A with pdoor / psort / pairs …)
-import { scheinBtn, viewSchein } from './schein.js';   // 🟡 G32 (also fills A with schein / scheinyes / scheinundo)
+import { scheinBtn, viewSchein } from './schein.js';
+import { bzOn } from './babyzeit.js';   // 🟡 G32 (also fills A with schein / scheinyes / scheinundo)
 import { scheinOn } from './core.js';
 
 // ---------- HEUTE ----------
@@ -60,7 +61,7 @@ export function viewHeute() {
   if (!finished) {
     h += `<form class="add" data-f="addtoday"><input name="t" placeholder="Noch etwas für heute…" autocomplete="off" enterkeyhint="done">${dueField()}<button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
     h += `<div class="row" style="margin-top:12px">${liste.length ? '<button class="btn soft" data-a="fromlist">Aus der Liste holen</button>' : ''}${heute.length || early ? '<button class="btn soft" data-a="closeday">Für heute Schluss</button>' : ''}</div>`;
-    if (D.canPost() && S.items.length) h += `<button class="btn soft wide" data-a="delegate" style="margin-top:10px">🤝 An ${esc(pn())} abgeben</button>`;
+    if (D.canPost() && S.items.length) h += bzOn() ? `<p style="text-align:center;margin:10px 0 0"><button class="sc-undo" data-a="delegate">🤝 An ${esc(pn())} abgeben</button></p>` : `<button class="btn soft wide" data-a="delegate" style="margin-top:10px">🤝 An ${esc(pn())} abgeben</button>`;   // 👶 G37: steps back in Baby-Zeit
   }
   if (done.length) {
     h += `<div class="donebox"><div class="muted" style="margin:14px 0 4px;font-weight:800">Heute geschafft (${done.length})</div>` +

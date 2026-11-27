@@ -1,6 +1,7 @@
 // The action table: data-a="x" → A.x(el, e). Most actions live here; feature modules add their own (A.x = ...).
 import * as C from './content.js';
 import { swapOut, whyFor } from './builder.js';
+import { bzEditorSave, bzOn } from './babyzeit.js';
 import * as K from './cookbook.js';
 import * as Sh from './shop.js';
 import * as D from './data.js';
@@ -165,7 +166,7 @@ Object.assign(A, {
   choredelyes(el) { S.chores = S.chores.filter(x => x.id !== el.dataset.id); S.items = S.items.filter(i => i.chore !== el.dataset.id); closeModal(); commit(); },
   choreedit(el) {
     const c = el.dataset.id && S.chores.find(x => x.id === el.dataset.id);
-    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, next: c.week && c.week.length ? null : choreNext(c), nextTouched: true, week: (c.week || []).slice(), reward: c.reward || '', start: 'morgen', tools: (c.tools || []).slice(), music: c.music || '', parts: (c.parts || []).map(p => ({ ...p })), kind: c.kind || '', again: !!c.again, size: c.size || '' }
+    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, next: c.week && c.week.length ? null : choreNext(c), nextTouched: true, week: (c.week || []).slice(), reward: c.reward || '', start: 'morgen', tools: (c.tools || []).slice(), music: c.music || '', parts: (c.parts || []).map(p => ({ ...p })), kind: c.kind || '', again: !!c.again, size: c.size || '', bz: !!c.giveTo }
       : { id: null, icon: '🔁', name: '', mode: 'week', every: 7, week: [], reward: '', start: 'morgen', tools: [], music: '', parts: [], kind: '', again: false };
     choreModal();
   },
@@ -190,6 +191,7 @@ Object.assign(A, {
     if (!seltenApply(c, el.dataset.v === undefined ? undefined : +el.dataset.v)) return; scheduleChores(); commit(); toast('🐢 ' + c.name + ': ' + choreRhythm(c)); },
   seltenno(el) { const c = S.chores.find(x => x.id === el.dataset.id); if (!c) return; seltenKeep(c); commit(); },
   cesize(el) { ceRead(); ui.ce.size = el.dataset.v === 'n' ? '' : el.dataset.v; choreModal(); },   // 🧱 G39
+  cebz() { ceRead(); ui.ce.bz = !ui.ce.bz; choreModal(); },   // 👶 G37
   ceagain() { ceRead(); ui.ce.again = !ui.ce.again; choreModal(); },
   cetool(el) { ceRead(); const t = el.dataset.v, a = ui.ce.tools; a.includes(t) ? a.splice(a.indexOf(t), 1) : a.push(t); choreModal(); },
   cesave() {
@@ -214,6 +216,7 @@ Object.assign(A, {
       if (e.kind) c.kind = e.kind; else delete c.kind;
       if (e.again) c.again = true; else delete c.again;
       if (e.size && e.size !== 'n') c.size = e.size; else delete c.size;   // 🧱 G39
+      if (e.id) bzEditorSave(c, !!e.bz);   // 👶 G37: from tomorrow on the partner's phone
     }
     if (e.mode === 'days') setChoreNext(c, e.next);
     S.items.filter(i => i.chore === c.id).forEach(i => { i.text = c.name; });

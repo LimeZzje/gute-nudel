@@ -12,7 +12,7 @@ import { picNow, shopBody } from './einkauf.js';
 import { cookableNow, viewCook, viewDaheim } from './kochbuch.js';
 import { viewTermine } from './termine.js';
 import { viewHello } from './events.js';
-import { entCard } from './entdecker.js';
+import { bzCard, leaving } from './babyzeit.js';
 
 // ---------- RUHE ----------
 export const dayIndex = () => Math.floor(parse(today()).getTime() / 864e5);
@@ -73,7 +73,7 @@ export function viewHN() {
   const h = hnLoop(ui.qtab !== 'kochbuch');   // the delivery note stays out of the book's way
   if (ui.qtab === 'einkauf') return h + `<div class="card shoptab">${shopBody(null, true)}</div>`;
   if (ui.qtab === 'vorrat') return h + `<div class="sec-head plain"><h2>Was ist daheim?</h2>${Bk.sectionArt('daheim')}</div>` + viewDaheim();
-  return h + (ui.qtab === 'kochbuch' && !ui.rid ? entCard() : '') + viewCook();   // 🧭 G40: the Entdecker card moved here from Home
+  return h + viewCook();   // (🧭 the Entdecker card already sits on the Kochbuch's Kochen page)
 }
 function viewHaushalt() {
   let h = `<div class="sec-title" style="margin-top:6px">Routinen – laufen von allein</div>
@@ -106,7 +106,8 @@ function planWhen(c, plan) {
 }
 // 🧩 G33: Haushalt / Für mich apart; unmarked ones stay one plain group (no headings at all while nothing is marked)
 function choreGroups() {
-  const h = S.chores.filter(c => c.kind === 'haus'), o = S.chores.filter(c => c.kind === 'eigen'), r = S.chores.filter(c => c.kind !== 'haus' && c.kind !== 'eigen');
+  const L = S.chores.filter(c => !leaving(c));   // 👶 G37: one moving away is simply not on the list any more
+  const h = L.filter(c => c.kind === 'haus'), o = L.filter(c => c.kind === 'eigen'), r = L.filter(c => c.kind !== 'haus' && c.kind !== 'eigen');
   if (!h.length && !o.length) return [['', r]];
   return [['🏠 Haushalt', h], ['🌱 Für mich', o], [h.length || o.length ? 'Ohne Zuordnung' : '', r]].filter(g => g[1].length);
 }
@@ -124,7 +125,7 @@ function seltenCard() {
 function weekPlanner() {
   const tdow = parse(today()).getDay();
   const off = ui.wkOff || 0, plan = planAhead(addDays(today(), Math.max(60, 7 * off + 14))), { days, out, t } = choreWeek(off, plan), sel = days.includes(ui.wkDay) ? ui.wkDay : off ? days[0] : t;
-  let h = seltenCard() + `<div class="sec-title">📅 Meine Woche</div>
+  let h = bzCard() + seltenCard() + `<div class="sec-title">📅 Meine Woche</div>
     <div class="wknav"><button class="mini-btn" data-a="wkoff" data-d="-1" ${off ? '' : 'disabled'} aria-label="Woche davor">‹</button>
       <span><b>${off === 0 ? 'Diese Woche' : off === 1 ? 'Nächste Woche' : 'In ' + off + ' Wochen'}</b> · ${shortDate(days[0])} – ${shortDate(days[6])}</span>
       <button class="mini-btn" data-a="wkoff" data-d="1" ${off < 4 ? '' : 'disabled'} aria-label="Woche danach">›</button></div>`;

@@ -1,4 +1,5 @@
 // Settings modal, connecting/testing the backup, restore, export.
+import { bzSettings } from './babyzeit.js';
 import * as D from './data.js';
 import { $, VERSION, closeModal, endTime, esc, modal, toast, today } from './core.js';
 import { S, setS } from './state.js';
@@ -24,6 +25,7 @@ export function settings() {
     <label class="field"><span>Feierabend ab (dann heißt es „Tag geschafft!“)</span><input id="s-end" type="time" value="${esc(endTime())}"></label>
     ${D.me() !== 'stand' ? `<div class="row"><button class="btn soft" data-a="mypictoggle">${mineOn() ? '🙋 Eigene Liste „Nur ich“ + eigenes Picnic: an ✓' : '🙋 Eigene Liste „Nur ich“ + eigenes Picnic-Konto einschalten'}</button></div>
       ${mineOn() ? `<p class="hint" style="margin-top:0">Auf allen deinen Geräten. ${esc(pn())} sieht davon nichts. Für euren gemeinsamen Picnic-Einkauf sorgt ${esc(pn())}s Handy.</p>` : ''}` : ''}
+    ${bzSettings()}
     ${pushCan() ? `<div class="row"><button class="btn soft" data-a="pushtoggle" id="s-push">${pushLabel()}</button></div>` : (VAPID_PUBLIC || localStorage.getItem('gn_push_key')) ? `<p class="muted">🔕 Erinnerungen am Tag vorher kann dieses Handy nicht (iPhone: erst „Zum Home-Bildschirm“).</p>` : ''}
     <h3 style="margin:18px 0 4px">☁ Sicherung</h3>
     <div class="status"><span class="dot ${dot}"></span>${esc(txt)}</div>

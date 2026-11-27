@@ -8,6 +8,7 @@ import * as D from './data.js';
 import { dueBtns, dueDays, dueField, dueSort } from './faellig.js';
 import { pn } from './sync.js';
 import { render } from './app.js';
+import { bzOn } from './babyzeit.js';
 
 export const WEEK_DAYS = 7, OLD_DAYS = 21, PAIRS_MAX = 7;
 const PILES = { woche: 'Diese Woche', monat: 'Diesen Monat', spaeter: 'Irgendwann' };
@@ -40,7 +41,7 @@ export function viewPiles() {
     h += `<button class="pdoor ${open ? 'open' : ''}" data-a="pdoor" data-v="${k}">${k === 'monat' ? '📦' : '🌙'} ${PILES[k]}<span>${open ? '▾' : '›'}</span></button>`;
     if (open) h += `<div class="ppile">${list.map(i => row(i, false)).join('') || '<p class="muted">Leer.</p>'}</div>`;
   }
-  if (D.canPost() && S.items.length) h += `<button class="btn soft wide" data-a="delegate" style="margin-top:12px">🤝 An ${esc(pn())} abgeben</button>`;
+  if (D.canPost() && S.items.length) h += bzOn() ? `<p style="text-align:center;margin:12px 0 0"><button class="sc-undo" data-a="delegate">🤝 An ${esc(pn())} abgeben</button></p>` : `<button class="btn soft wide" data-a="delegate" style="margin-top:12px">🤝 An ${esc(pn())} abgeben</button>`;
   h += `<p class="hint">Mit ☀ kommt eine Aufgabe auf die Seite von heute. 💛 = macht Freude, 🏋 = eher schwer.</p></section>`;
   return h;
 }

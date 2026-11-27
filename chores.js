@@ -4,10 +4,12 @@ import { $, addDays, esc, modal, parse, scheinOn, shortDate, today } from './cor
 import { S, ui } from './state.js';
 import { pn } from './sync.js';
 import { buildDay } from './builder.js';
+import { bzEditorChip, bzOn } from './babyzeit.js';
 
 // ---------- recurring chores: due ones land on today's page by themselves ----------
 export const daysBetween = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
 export function choreDue(c, d) {
+  if (c.giveTo && c.giveAt && d >= c.giveAt) return false;   // 👶 G37: moving to the partner from that day on (hidden here, never lost)
   if (c.moved) {   // ⏭ moved one day on: due on the new day, not in between; the rhythm itself stays untouched
     if (d === c.moved.to) return c.last !== d;
     if (d >= c.moved.orig && d < c.moved.to) return false;
@@ -98,8 +100,11 @@ const waitOf = (c, d) => c.moved ? daysBetween(c.moved.orig, d) : c.week && c.we
 export const weightOf = c => (c && C.SIZE_W[c.size]) || 1;
 // the waiting ones that get a place: longest waiting first (her list order on a tie), each while its size still fits;
 // one too big is passed over for a smaller one behind it and keeps its turn. On an empty day the first always lands.
+// 👶 his pick 2026-11-27: a weekday routine marked 🌱 Für mich lands FIRST on its own day (Büro, Homeoffice …); the rest after
+const anchored = c => c.kind === 'eigen' && !!(c.week && c.week.length) && !c.moved;
 function pick(list, d, room, empty) {
-  const order = list.map((c, i) => [c, waitOf(c, d), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]).map(x => x[0]);
+  const sorted = list.map((c, i) => [c, waitOf(c, d), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]).map(x => x[0]);
+  const order = [...sorted.filter(anchored), ...sorted.filter(c => !anchored(c))];
   const take = [], rest = []; let left = room;
   for (const c of order) { const w = weightOf(c); if (w <= left + 1e-9 || (empty && !take.length && room > 0)) { take.push(c); left -= w; } else rest.push(c); }
   return { take, rest };
@@ -230,6 +235,7 @@ export function choreModal() {
     <div class="ce-prow"><input id="ce-newpart" value="${esc(e.newPart || '')}" placeholder="${(e.parts || []).length ? 'Noch ein Teil…' : 'z.B. Wanne'}" autocomplete="off"><button class="mini-btn" data-a="cepartadd" aria-label="Teil hinzufügen">+</button></div>
     <p class="hint">Fertig, wenn alle Teile abgehakt sind. Jeder Teil gibt einen Stern.</p>
     <div class="chips" style="margin-top:8px"><button class="chip ${e.kind === 'haus' ? 'on' : ''}" data-a="cekind" data-v="haus">🏠 Haushalt</button><button class="chip ${e.kind === 'eigen' ? 'on' : ''}" data-a="cekind" data-v="eigen">🌱 Für mich</button><button class="chip ${e.again ? 'on' : ''}" data-a="ceagain">➕ Mehrmals am Tag</button></div>
+    ${bzEditorChip(e)}
     <p class="muted" style="font-weight:800;margin:12px 0 4px">🎁 Belohnung danach (am selben Tag)</p>
     <div class="chips">${opts.map(r => `<button class="chip ${e.reward === r && !e.own ? 'on' : ''}" data-a="cerew" data-v="${esc(r)}">${esc(r)}</button>`).join('')}<button class="chip ${e.own ? 'on' : ''}" data-a="ceown">✏️ Eigene…</button></div>
     ${e.own ? `<label class="field"><span>Deine Belohnung</span><input id="ce-own" value="${esc(e.reward)}" placeholder="Was gönnst du dir?" autocomplete="off"></label>` : ''}
@@ -242,7 +248,7 @@ export function choreModal() {
 }
 
 export function delegateModal() {
-  const open = [...S.items.filter(i => i.where === 'heute'), ...S.items.filter(i => i.where !== 'heute')];
+  const open = [...S.items.filter(i => i.where === 'heute'), ...S.items.filter(i => i.where !== 'heute')].filter(i => !(i.chore && bzOn()));   // 👶 G37: routines never change hands during a day
   const n = ui.dpicks.size;
   modal(`<h2>An ${esc(pn())} abgeben</h2><p class="muted">Welche Aufgaben soll ${esc(pn())} übernehmen?</p>
     <div style="text-align:left">${open.map(i => `<button class="pick ${ui.dpicks.has(i.id) ? 'on' : ''}" data-a="dpick" data-id="${i.id}"><span class="box">${ui.dpicks.has(i.id) ? '✓' : ''}</span><span>${esc(i.text)}</span></button>`).join('')}</div>
