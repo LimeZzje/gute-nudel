@@ -1510,3 +1510,12 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 
 /* 🧭 the Tellerrand entry card: its button has no own background (the browser default showed grey/black in the Kochbuch) */
 .e-entry .hcard { background: none; padding: 0; margin: 0; cursor: pointer; }
+
+/* ☕ G38 Frühstücksplan: readable at arm's length */
+.fs h2 { font-size: 34px; margin: 4px 0 10px; }
+.fs h3 { font-size: 22px; margin: 0 0 6px; }
+.fs .card p, .fs-line { font-size: 19px; line-height: 1.35; }
+.fs-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+.fs-line:last-child { border-bottom: 0; }
+.fs-pause { font-weight: 800; }
+.fs-week { margin: 12px 0 0; }

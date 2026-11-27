@@ -112,7 +112,7 @@ function choreGroups() {
   return [['🏠 Haushalt', h], ['🌱 Für mich', o], [h.length || o.length ? 'Ohne Zuordnung' : '', r]].filter(g => g[1].length);
 }
 // 🐢 G34: ONE quiet card, only here (never on Heute or Home), no count of misses in the words
-function seltenCard() {
+export function seltenCard() {
   const x = seltenProposals()[0]; if (!x) return '';
   const { c, p } = x;
   const yes = p.kind === 'week'

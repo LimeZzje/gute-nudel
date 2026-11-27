@@ -27,6 +27,7 @@ import { flowerGarden } from './flowers.js';
 import { render } from './app.js';
 import { dueCard } from './faellig.js';
 import { partnerScheinLine, scheinHome, todayTerms } from './schein.js';
+import { fsTile, viewFs } from './fruehstueck.js';
 import { shopList } from './sync.js';
 import { scheinOn } from './core.js';
 
@@ -222,6 +223,7 @@ export function viewHome() {
   if (ui.sub === 'plan') return viewPlan();
   if (ui.sub === 'hello') return viewHello();
   if (ui.sub === 'swipe') return viewSwipe();
+  if (ui.sub === 'fs') return viewFs();   // ☕ G38
   if (ui.sub === 'zeitung') return `<button class="btn soft back-home" data-a="go" data-tab="home">‹ Zurück</button>` + (newspaper() || '<p class="muted">Noch keine Ausgabe.</p>');   // 📰 G40: its own quiet place
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
@@ -248,6 +250,7 @@ export function viewHome() {
   h += `<button class="card hcard" data-a="go" data-tab="termine"><span class="hc-txt"><b>📅 Als Nächstes</b>${soon.length
       ? soon.map(b => `<span class="hc-term"><i class="tdot" style="background:${b.color}"></i> ${esc(carDayLabel(carDay(b.start) < t ? t : carDay(b.start)))} ${esc(carTime(b.start))} · <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b>${isCar(b) ? ' 🚗' : ''}</span>`).join('')
       : '<span class="muted">Heute und morgen nichts Gemeinsames.</span>'}</span><span class="hc-go">›</span></button>`;
+  h += fsTile();   // ☕ G38: one quiet tile, no badge
   h += bubbles() + dogHomeCard();   // live events only (Picnic + Wochenplan sit in Essen now); 🐕 G29: his devices only
   h += dogRulesLink();   // 🐕 G29: on her phone only the walk rules, quietly at the bottom
   h += `<p class="home-foot"><button class="lnk" data-a="zeitung">📰 Zeitung</button> · <button class="lnk" data-a="pause">☕ Pause</button></p>`;
