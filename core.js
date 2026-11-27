@@ -10,7 +10,7 @@ import { render } from './app.js';
 import { dueTag, pushSync } from './faellig.js';
 import { knBtn } from './kniff.js';
 
-export const VERSION = '2026-11-27.3';
+export const VERSION = '2026-11-27.4';
 
 export const $ = s => document.querySelector(s);
 export const tags = (i, tap) => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '') + dueTag(i, tap);
@@ -40,7 +40,9 @@ export const workToday = () => dayLog(today()).filter(isWork);
 export const endTime = () => S.endTime || '18:00';
 export const evening = () => { const n = new Date(), hm = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'); return n.getHours() < 3 || hm >= endTime(); };
 export const allTicked = () => S.today.planned && !S.items.some(i => i.where === 'heute') && workToday().length > 0;
-export const dayDone = () => S.today.planned && (S.today.closed || (allTicked() && evening()));
+// 🟡 G32: a Gelber Schein covers this day (S.scheine = [{id: day, ts}])
+export const scheinOn = (d = today()) => (S.scheine || []).some(x => x && x.id === d);
+export const dayDone = () => !scheinOn() && S.today.planned && (S.today.closed || (allTicked() && evening()));
 
 // ---------- saving ----------
 export function commit(post = false) {

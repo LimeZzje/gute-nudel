@@ -1,6 +1,6 @@
 // Recurring chores (due ones land on today's page by themselves), day rollover, and the chore editor + hand-over modals.
 import * as C from './content.js';
-import { $, addDays, esc, modal, parse, shortDate, today } from './core.js';
+import { $, addDays, esc, modal, parse, scheinOn, shortDate, today } from './core.js';
 import { S, ui } from './state.js';
 import { pn } from './sync.js';
 
@@ -68,7 +68,7 @@ function pick(list, d, room) {
   return { take: order.slice(0, room), rest: order.slice(room) };
 }
 // no place today: a weekday routine tries again tomorrow (one line, the chain keeps its first day); "alle N Tage" just stays due
-function slide(c, d) { if (c.week && c.week.length) c.moved = { orig: c.moved && c.moved.to === d ? c.moved.orig : d, to: addDays(d, 1) }; }
+export function slide(c, d) { if (c.week && c.week.length) c.moved = { orig: c.moved && c.moved.to === d ? c.moved.orig : d, to: addDays(d, 1) }; }
 
 // force = a routine id she explicitly wants today ("Nächstes Mal: heute", new one "ab heute"): beats the ceiling
 export function scheduleChores(force) {
@@ -82,6 +82,7 @@ export function scheduleChores(force) {
   }
   const rp = T.day === d ? T.rplaced : null;
   let added = 0;
+  if (scheinOn(d)) return 0;   // 🟡 G32 Gelber Schein: nothing lands today
   const put = c => { S.items.push({ id: choreItemId(c.id, d), text: c.name, where: 'heute', created: Date.now(), chore: c.id }); added++; };
   const free = c => choreDue(c, d) && !onPage(c) && !doneToday(c);
   if (!T.closed) S.chores.filter(c => isDaily(c) && free(c)).forEach(put);   // "Für heute Schluss" = nothing new today

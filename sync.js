@@ -4,7 +4,7 @@ import * as Sh from './shop.js';
 import * as D from './data.js';
 import * as Car from './car.js';
 import * as G from './geburtstag.js';
-import { closeModal, commit, confetti, esc, modal, toast, today, uid } from './core.js';
+import { closeModal, commit, confetti, esc, modal, scheinOn, toast, today, uid } from './core.js';
 import { A, S, ui } from './state.js';
 import { picCheer, picLS } from './einkauf.js';
 import { isPantry, vMatch } from './kochbuch.js';
@@ -89,6 +89,7 @@ export function postObj() { // what the partner reads: my handed-over tasks and 
     wb: S.wb || null,   // 💶 G27: the team's Wochenbudget (the newer u wins)
     prices: S.prices || {},   // 💶 the price book from Picnic searches (per thing the newer entry wins)
     plan: S.plan || null,   // 🗓️ the Wochenplan, the newer `u` wins on both phones   // the Picnic slot, only from a phone that's logged in to Picnic
+    schein: scheinOn() ? today() : null,   // 🟡 G32: the partner sees one quiet line on Home, no message
     replies: Object.entries(S.answered).filter(([, a]) => Date.now() - a.ts < MONTH).map(([id, a]) => ({ id, ...a })),
   };
 }
@@ -235,6 +236,7 @@ export async function syncPost() {
     if (thx.length) { S.thanksSeen = [...(S.thanksSeen || []), ...thx.map(t => t.id)].slice(-200); changed = true; }
     if ('pic' in p && JSON.stringify(p.pic) !== JSON.stringify(S.partnerPic || null)) { S.partnerPic = p.pic; changed = true; }
     if (p.stats && JSON.stringify(p.stats) !== JSON.stringify(S.partnerStats)) { S.partnerStats = p.stats; changed = true; }
+    if ('schein' in p && (p.schein || null) !== (S.partnerSchein || null)) { S.partnerSchein = p.schein || null; changed = true; }
     if (p.vorrat && JSON.stringify(p.vorrat) !== JSON.stringify(S.partnerVorrat)) { S.partnerVorrat = p.vorrat; changed = true; if (picCheer()) changed = true; }
     if (shopMerge(p.shop)) changed = true;
     try { const c = await D.readClaudePost(); if (c && c.vorrat && JSON.stringify(c.vorrat) !== JSON.stringify(S.claudeVorrat)) { S.claudeVorrat = c.vorrat; changed = true; } } catch (e) {}   // 🧾 G23

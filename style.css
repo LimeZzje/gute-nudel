@@ -1427,3 +1427,21 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .dg-rules { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
 .dg-rules span { color: var(--ink2); font-size: 15px; }
 .gamelink.dglink { text-align: center; margin-top: -14px; }
+
+/* 🟡 G32 Gelber Schein */
+.schein-card { background: #fff4c2; border-color: #f0d76a; color: #4a3d00; }
+.schein-card h2 { margin: 2px 0 6px; color: #4a3d00; }
+.schein-card .sc-k { font-weight: 800; font-size: 13px; letter-spacing: .03em; }
+.schein-card p { margin: 0; }
+.schein-home { background: #fff4c2 !important; color: #4a3d00; border-color: #f0d76a; }
+.schein-partner { margin: 6px 4px 10px; }
+.sc-term { margin: 4px 0; }
+.sc-due { margin: 8px 4px; }
+.sc-undo { background: none; border: 0; color: var(--ink2); text-decoration: underline; font: inherit; font-size: 14px; padding: 6px; }
+.schein-btn { margin-top: 14px; }
+.weekstrip > button.schein { background: #fff4c2; }
+.weekstrip > button.schein.today { background: #ffe98a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .schein-card, :root:not([data-theme="light"]) .schein-home { background: #3d3410 !important; color: #ffe9a0; border-color: #6b5a14; } :root:not([data-theme="light"]) .schein-card h2 { color: #ffe9a0; } :root:not([data-theme="light"]) .weekstrip > button.schein { background: #3d3410; } }
+:root[data-theme="dark"] .schein-card, :root[data-theme="dark"] .schein-home { background: #3d3410 !important; color: #ffe9a0; border-color: #6b5a14; }
+:root[data-theme="dark"] .schein-card h2 { color: #ffe9a0; }
+:root[data-theme="dark"] .weekstrip > button.schein { background: #3d3410; }

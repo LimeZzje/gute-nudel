@@ -9,6 +9,8 @@ import { carToday } from './termine.js';
 import { dueBtns, dueCard, dueField, dueSort, dueDays, SOON } from './faellig.js';
 import { knAsk, knChoreTrick } from './kniff.js';
 import { dogStarsToday } from './hund.js';
+import { scheinBtn, viewSchein } from './schein.js';   // 🟡 G32 (also fills A with schein / scheinyes / scheinundo)
+import { scheinOn } from './core.js';
 
 // ---------- HEUTE ----------
 export function viewHeute() {
@@ -16,6 +18,7 @@ export function viewHeute() {
   const liste = dueSort(S.items.filter(i => i.where === 'liste'));   // due soon / overdue on top (suggested, never preselected)
   const capped = done.length >= C.CAP;
   let h = '';
+  if (scheinOn(d)) return viewSchein();   // 🟡 G32: the covered page
 
   h += carToday() + comboCard(true) + giftCards() + dueCard();
   const lastMon = addDays(monday(d), -7);
@@ -45,7 +48,7 @@ export function viewHeute() {
     }
     h += `<form class="add" data-f="addplan"><input name="t" placeholder="Etwas Neues für heute…" autocomplete="off" enterkeyhint="done">${dueField()}<button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
     h += `<div class="row" style="margin-top:14px"><button class="btn green" data-a="plandone">${ui.picks.size ? 'Los geht\'s (' + ui.picks.size + ')' : 'Los geht\'s'}</button></div>`;
-    h += `<p class="hint">Du kannst später jederzeit noch etwas dazuholen.</p></section>`;
+    h += `<p class="hint">Du kannst später jederzeit noch etwas dazuholen.</p>` + scheinBtn() + `</section>`;
     return h;
   }
 
@@ -61,7 +64,7 @@ export function viewHeute() {
       done.slice().reverse().map(e => `<div class="item done"><button class="chk" data-a="undo" data-id="${e.id}" aria-label="Rückgängig">✓</button><div class="txt"><span>${esc(e.text)}</span></div>${e.stars ? '<span class="muted">+' + e.stars + '⭐</span>' : ''}</div>`).join('') + '</div>';
   }
   h += `<form class="add" data-f="extra" style="margin-top:16px"><input name="t" placeholder="Sonst noch was geschafft?" autocomplete="off" enterkeyhint="done"><button class="btn green" aria-label="Als erledigt eintragen">✓</button></form>`;
-  h += '</section>';
+  h += scheinBtn() + '</section>';
   return h;
 }
 
@@ -138,7 +141,7 @@ export function afterWork(count, post = false) {
 }
 // the clock passes "Feierabend" while everything is already ticked: now it's really "Tag geschafft"
 export function checkEvening() {
-  if (!allTicked() || !evening() || S.today.celebrated || S.today.closed) return;
+  if (!allTicked() || !evening() || S.today.celebrated || S.today.closed || scheinOn()) return;
   S.today.celebrated = true; commit();
   if (document.visibilityState === 'visible' && (ui.tab === 'heute' || ui.tab === 'home')) confetti();
 }

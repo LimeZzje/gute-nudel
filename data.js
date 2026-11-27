@@ -40,6 +40,7 @@ export function freshState() {
     quest: null,           // active quest id
     chores: [],            // recurring chores: {id, icon, name, every (days) | week [0..6], reward, last (day), skip (day), moved {orig, to} (⏭ this once a day later)}
     gifts: [],             // chore rewards waiting today
+    scheine: [],           // 🟡 G32 Gelber Schein days: {id: 'YYYY-MM-DD', ts}
     shop: [],              // her shopping list: {id, text, done, from, sec?}
     shopStore: 'standard', shopOrder: {}, shopLearn: {}, pantry: [],   // pantry: ingredients she usually has at home (learned)   // chosen store, her own section order per store, sections she corrected
     recipes: null,         // her cookbook: {id, title, ingredients[], steps} (null = the examples not added yet)

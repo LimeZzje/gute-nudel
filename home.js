@@ -26,6 +26,8 @@ import { dogHomeCard, dogRulesLink, viewHund } from './hund.js';   // 🐕 Hunde
 import { flowerGarden } from './flowers.js';
 import { render } from './app.js';
 import { dueCard } from './faellig.js';
+import { partnerScheinLine, scheinHome } from './schein.js';
+import { scheinOn } from './core.js';
 
 // ---------- HOME: the start screen – what's going on today, a few numbers, the two of you ----------
 function daySlot() { const h = new Date().getHours(); return h < 5 ? 'nacht' : h < 11 ? 'morgen' : h < 14 ? 'mittag' : h < 18 ? 'nachmittag' : h < 23 ? 'abend' : 'nacht'; }
@@ -225,11 +227,12 @@ export function viewHome() {
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = flowerGarden(done.length, t) + `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
-  h += bubbles() + incomingCard() + giftCards() + dueCard();   // (the events live in the bubbles now, user 2026-10-18)
+  const sch = scheinOn(t);   // 🟡 G32: her Gelber Schein day = no ring, no due card
+  h += bubbles() + partnerScheinLine() + incomingCard() + giftCards() + (sch ? '' : dueCard());   // (the events live in the bubbles now, user 2026-10-18)
   h += newspaper();   // above the to-dos (user 2026-10-20)
   // today: the ring + the next few things, ticked right here
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
-  h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
+  if (sch) h += scheinHome(); else h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
     <svg class="ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${R}" class="ring-bg"/><circle cx="42" cy="42" r="${R}" class="ring-fg" style="stroke-dasharray:${U};stroke-dashoffset:${U * (1 - p)}"/></svg>
     <span class="ring-n">${finished ? '🎉' : all ? done.length + '<small>/' + all + '</small>' : '–'}</span>
     <span class="hc-txt"><b>${finished ? 'Tag geschafft!' : !S.today.planned && !done.length && !heute.length ? 'Noch nichts geplant' : heute.length === 0 ? 'Alles abgehakt! 🎉' : heute.length === 1 ? 'Noch eine Sache' : 'Noch ' + heute.length + ' Sachen'}</b>
