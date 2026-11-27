@@ -9,7 +9,8 @@ import { carToday } from './termine.js';
 import { dueBtns, dueCard, dueField, dueSort, dueDays, SOON } from './faellig.js';
 import { knAsk, knChoreTrick } from './kniff.js';
 import { dogStarsToday } from './hund.js';
-import { inWeek, unsorted, viewPiles } from './piles.js';   // 📚 G35 (also fills A with pdoor / psort / pairs …)
+import { inWeek, unsorted, viewPiles } from './piles.js';
+import { offerLeft, whyFor } from './builder.js';   // 🧺 G36 (also fills A with onemore)   // 📚 G35 (also fills A with pdoor / psort / pairs …)
 import { scheinBtn, viewSchein } from './schein.js';   // 🟡 G32 (also fills A with schein / scheinyes / scheinundo)
 import { scheinOn } from './core.js';
 
@@ -30,6 +31,7 @@ export function viewHeute() {
   if (early) {
     h += `<div class="card early"><b>Alles abgehakt! 🎉</b><span class="muted">Hol dir noch was aus der Liste – oder genieß die Lücke. Ab ${esc(endTime())} ist offiziell Feierabend.</span></div>`;
   }
+  { const n = offerLeft(); if (n) h += `<div class="card offer"><span>Noch ${n} bis zu deinen ${C.CAP} Sternen. Magst du noch eine?</span><button class="btn soft" data-a="onemore">Ja, eine noch</button></div>`; }   // 🧺 G36
   if (finished) {
     h += `<div class="celebrate"><div class="big">Tag geschafft!</div>
       <p>${done.length === 1 ? 'Eine Sache' : done.length + ' Sachen'} erledigt. Für heute ist Schluss – der Rest wartet bis morgen.</p>
@@ -54,7 +56,7 @@ export function viewHeute() {
   }
 
   if (heute.length === 0 && done.length === 0) h += `<p class="sub">Nichts geplant. Genieß es – oder hol dir etwas aus der Liste.</p>`;
-  h += heute.map(i => `<div class="item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i, true)}</div>${i.chore ? '' : dueBtns(i)}${i.chore ? `<button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht">⏭</button>` : `<button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button>`}</div>${partRows(i)}`).join('');
+  h += heute.map((i, n) => `<div class="item${n === 0 ? ' start' : ''}" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt ${i.carried ? 'carried' : ''}">${n === 0 && heute.length > 1 ? '<span class="startmark">▶ Fang hier an</span>' : ''}<span>${esc(i.text)}</span>${tags(i, true)}${whyFor(i.id) ? `<span class="why">${esc(whyFor(i.id))}</span>` : ''}</div>${i.chore ? '' : dueBtns(i)}${i.chore ? `<button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht">⏭</button>` : `<button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Zurück auf die Liste" title="Zurück auf die Liste">↩</button>`}</div>${partRows(i)}`).join('');
   if (!finished) {
     h += `<form class="add" data-f="addtoday"><input name="t" placeholder="Noch etwas für heute…" autocomplete="off" enterkeyhint="done">${dueField()}<button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
     h += `<div class="row" style="margin-top:12px">${liste.length ? '<button class="btn soft" data-a="fromlist">Aus der Liste holen</button>' : ''}${heute.length || early ? '<button class="btn soft" data-a="closeday">Für heute Schluss</button>' : ''}</div>`;

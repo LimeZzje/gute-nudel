@@ -1,5 +1,6 @@
 // The action table: data-a="x" → A.x(el, e). Most actions live here; feature modules add their own (A.x = ...).
 import * as C from './content.js';
+import { swapOut, whyFor } from './builder.js';
 import * as K from './cookbook.js';
 import * as Sh from './shop.js';
 import * as D from './data.js';
@@ -39,7 +40,9 @@ Object.assign(A, {
   tick(el) { tick(el.dataset.id, el); },
   tickpart(el) { const it = S.items.find(i => i.id === el.dataset.id), c = it && S.chores.find(x => x.id === it.chore); if (c) tickParts(it, c, [el.dataset.p], el); },
   again(el) { again(el.dataset.id, el); },
-  later(el) { const i = S.items.find(x => x.id === el.dataset.id); if (i) { i.where = 'liste'; commit(); toast('Zurück auf der Liste – kein Stress.'); } },
+  later(el) { const i = S.items.find(x => x.id === el.dataset.id); if (!i) return;
+    if (whyFor(i.id)) { const n = swapOut(i); commit(); toast(n ? 'Heute nicht – dafür: ' + n.text : 'Heute nicht – kein Stress.'); return; }   // 🧺 G36: the next one takes the place
+    i.where = 'liste'; commit(); toast('Zurück auf der Liste – kein Stress.'); },
   undo(el) {
     const e = S.log.find(x => x.id === el.dataset.id); if (!e) return;
     S.log = S.log.filter(x => x !== e); S.stars = Math.max(0, S.stars - e.stars); S.earned = Math.max(0, S.earned - e.stars);

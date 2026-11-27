@@ -1478,3 +1478,8 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .psort .btn { margin-top: 8px; }
 .psort-t { font-family: var(--hand, inherit); font-size: 28px; line-height: 1.25; margin: 12px 0 14px; word-break: break-word; }
 .ppair { white-space: normal; min-height: 64px; font-size: 18px; }
+
+/* 🧺 G36 the app builds the day */
+.item .why { display: block; font-size: 13px; color: var(--ink2); margin-top: 1px; }
+.item .startmark { display: block; font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .02em; }
+.card.offer { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }

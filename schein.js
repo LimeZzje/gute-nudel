@@ -22,6 +22,8 @@ function todayFixed() {
   return { terms, due };
 }
 
+export const todayTerms = () => todayFixed().terms;   // (G36: a day with an appointment gets one to-do fewer)
+
 export function viewSchein() {
   const t = today(), tm = addDays(t, 1), done = workToday(), { terms, due } = todayFixed();
   let h = `<div class="card schein-card"><div class="sc-k">🟡 Gelber Schein</div><h2>Heute ist Pause.</h2>

@@ -107,6 +107,8 @@ export const COMBO_REWARD_STARS = 2;
 export const DAY_BUDGET = 3;
 export const ROUTINE_CAP = DAY_BUDGET;   // (G30's name, kept for old callers)
 export const SIZE_W = { k: 0.5, n: 1, g: 2, v: 3 };
+// 🧺 G36 the app builds the day: about DAY_LINES lines (routines + to-dos); to-dos between TODO_MIN and TODO_MAX
+export const DAY_LINES = 6, TODO_MIN = 2, TODO_MAX = 4;
 export const SIZES = [['k', 'klein'], ['n', 'normal'], ['g', 'groß'], ['v', 'ganzer Tag']];
 export const CHORE_REWARDS = [...new Set(COMBOS.map(c => c.reward).concat(['Ein Kapitel im Lieblingsbuch – mit Tee', 'Lieblingsessen bestellen – kein Kochen heute', 'Ein warmes Fußbad', 'Eine Runde Kuscheln']))]; // + the 1 star part 1 gets as a normal task = 3 in total
 

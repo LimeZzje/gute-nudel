@@ -3,6 +3,7 @@ import * as C from './content.js';
 import { $, addDays, esc, modal, parse, scheinOn, shortDate, today } from './core.js';
 import { S, ui } from './state.js';
 import { pn } from './sync.js';
+import { buildDay } from './builder.js';
 
 // ---------- recurring chores: due ones land on today's page by themselves ----------
 export const daysBetween = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
@@ -130,6 +131,7 @@ export function scheduleChores(force) {
     take.forEach(c => { put(c); rp.push(c.id); });
     rest.forEach(c => { slide(c, d); slidCount(c, d); });   // 🐢 G34: found no place today
   }
+  buildDay();   // 🧺 G36: once a day the app adds her small set of to-dos
   return added;
 }
 
@@ -171,7 +173,7 @@ export function rollover() {
     S.items = S.items.filter(i => !(i.chore && i.where === 'heute'));
     S.items.forEach(i => { i.carried = false; });
     const left = S.items.filter(i => i.where === 'heute');
-    left.forEach(i => { i.where = 'liste'; i.carried = true; });
+    left.forEach(i => { i.where = 'liste'; });   // 🧺 G36: back to their pile, WITHOUT a "von gestern" mark
     S.items = [...left, ...S.items.filter(i => !left.includes(i))];
   }
   S.today = { day: d, planned: false, capShown: false, closed: false, celebrated: false, rplaced: [] };
