@@ -10,6 +10,7 @@ import { consumeFor, fmtQty, parseQty, postObj, shopSnapNow, splitAmount, syncPo
 import { emblem, rankModal } from './rank.js';
 import { choreDone, choreDue, rollover, scheduleChores } from './chores.js';
 import { checkEvening, incomingCard, viewHeute, viewListe } from './heute.js';
+import { weekCount } from './piles.js';
 import { HN_STOPS, hnLast, inQ, tabOfQ, viewHN, viewRuhe } from './daheim.js';
 import { hydratePhotos, viewSchaetze } from './schaetze.js';
 import { viewWoche } from './woche.js';
@@ -43,7 +44,7 @@ export function renderTop() {
 // ---------- render ----------
 const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Liste']];
 function viewHeuteTab() {
-  const n = S.items.filter(i => i.where === 'liste').length;
+  const n = weekCount();   // 📚 G35: the chip counts only Diese Woche
   return `<div class="chips qtabs two">${HTABS.map(([k, l]) => `<button class="chip ${ui.htab === k ? 'on' : ''}" data-a="htab" data-v="${k}">${l}${k === 'liste' && n ? ' <span class="cnt">' + n + '</span>' : ''}</button>`).join('')}</div>` + incomingCard() + (ui.htab === 'liste' ? viewListe() : viewHeute());
 }
 const VIEWS = { home: viewHome, heute: viewHeuteTab, ruhe: viewRuhe, hello: viewHN, schaetze: viewSchaetze, woche: viewWoche };

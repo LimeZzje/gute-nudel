@@ -253,12 +253,12 @@ export const FORMS = {
     S.answered[id] = { status: 'nein', reason: t, ts: Date.now() }; S.incoming = S.incoming.filter(y => y !== x); ui.declining = null;
     commit(true); toast('Okay – ' + pn() + ' bekommt sie mit deiner Begründung zurück.');
   },
-  addplan(t, form) { const it = { id: uid(), text: t, where: 'liste', created: Date.now(), ...dueOf(form) }; S.items.push(it); ui.picks.add(it.id); commit(); },
-  addtoday(t, form) { S.items.push({ id: uid(), text: t, where: 'heute', created: Date.now(), ...dueOf(form) }); S.today.planned = true; commit(); },
+  addplan(t, form) { const it = { id: uid(), text: t, where: 'liste', created: Date.now(), pile: 'woche', pileTs: Date.now(), ...dueOf(form) }; S.items.push(it); ui.picks.add(it.id); commit(); },
+  addtoday(t, form) { S.items.push({ id: uid(), text: t, where: 'heute', created: Date.now(), pile: 'woche', pileTs: Date.now(), ...dueOf(form) }); S.today.planned = true; commit(); },
   vorratadd(t) { S.vorratAdd = (S.vorratAdd || []).concat(t.split(',').map(x => x.trim()).filter(Boolean).map(x => { const a = splitAmount(x); return { id: uid(), text: a.name, qty: a.qty, ts: Date.now(), by: D.me() }; })); commit(true); },
   vorratset(t, form) { const id = form.dataset.id, q = parseQty(t) || (splitAmount('x ' + t).qty); if (!q) { toast('Menge nicht verstanden – z.B. „250 g“'); return; } useGroup(id, { set: q }); closeModal(); commit(true); },
   vaskset(t, form) { const id = form.dataset.id, q = parseQty(t); if (!q) { toast('Menge nicht verstanden – z.B. „200 g“'); return; } useGroup(id, { set: q }); vaskDone(id); },
-  addlist(t, form) { S.items.push({ id: uid(), text: t, where: 'liste', created: Date.now(), ...dueOf(form) }); commit(); },
+  addlist(t, form) { S.items.push({ id: uid(), text: t, where: 'liste', created: Date.now(), pile: 'woche', pileTs: Date.now(), ...dueOf(form) }); commit(); },   // 📚 G35: a new to-do lands in Diese Woche
   extra(t, form) {
     const n = workToday().length, stars = n < C.CAP ? 1 : 0;
     S.log.push({ id: uid(), text: t, kind: 'extra', day: today(), ts: Date.now(), stars }); earn(stars);

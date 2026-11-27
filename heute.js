@@ -9,13 +9,14 @@ import { carToday } from './termine.js';
 import { dueBtns, dueCard, dueField, dueSort, dueDays, SOON } from './faellig.js';
 import { knAsk, knChoreTrick } from './kniff.js';
 import { dogStarsToday } from './hund.js';
+import { inWeek, unsorted, viewPiles } from './piles.js';   // 📚 G35 (also fills A with pdoor / psort / pairs …)
 import { scheinBtn, viewSchein } from './schein.js';   // 🟡 G32 (also fills A with schein / scheinyes / scheinundo)
 import { scheinOn } from './core.js';
 
 // ---------- HEUTE ----------
 export function viewHeute() {
   const d = today(), heute = S.items.filter(i => i.where === 'heute'), done = workToday();
-  const liste = dueSort(S.items.filter(i => i.where === 'liste'));   // due soon / overdue on top (suggested, never preselected)
+  const liste = dueSort(S.items.filter(i => i.where === 'liste' && (inWeek(i) || unsorted(i))));   // due soon / overdue on top (suggested, never preselected); 📚 G35: only Diese Woche + not yet sorted
   const capped = done.length >= C.CAP;
   let h = '';
   if (scheinOn(d)) return viewSchein();   // 🟡 G32: the covered page
@@ -200,13 +201,7 @@ export function checkEvening() {
 
 // ---------- LISTE ----------
 export function viewListe() {
-  const l = dueSort(S.items.filter(i => i.where === 'liste'));
-  let h = `<section class="pad"><h2>Alles, was irgendwann dran ist</h2><p class="sub">Hier darf alles stehen. Nichts davon muss heute passieren.</p>`;
-  h += l.map(i => `<div class="item"><button class="chk" data-a="toheute" data-id="${i.id}" aria-label="Für heute einplanen" title="Für heute">☀</button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i, true)}</div>${dueBtns(i)}<button class="mini-btn" data-a="del" data-id="${i.id}" aria-label="Löschen">✕</button></div>`).join('');
-  if (!l.length) h += `<p class="muted">Die Liste ist leer. Wie schön.</p>`;
-  h += `<form class="add" data-f="addlist"><input name="t" placeholder="Neue Aufgabe…" autocomplete="off" enterkeyhint="done">${dueField()}<button class="btn blue" aria-label="Hinzufügen">+</button></form>`;
-  if (D.canPost() && S.items.length) h += `<button class="btn soft wide" data-a="delegate" style="margin-top:12px">🤝 An ${esc(pn())} abgeben</button>`;
-  h += `<p class="hint">Tipp: Mit ☀ kommt eine Aufgabe auf die Seite von heute.</p></section>`;
+  let h = viewPiles();   // 📚 G35: the three piles
   const sent = S.sent.filter(x => x.status === 'wartet' || x.status === 'ok');
   if (sent.length) {
     const lbl = { wartet: 'wartet auf Antwort', ok: 'übernommen 💛', erledigt: 'erledigt 🎉' };
