@@ -120,7 +120,7 @@ function weekPlanner() {
     const dailies = S.chores.filter(isDaily);   // 🔁 G30/G31: the every-day ones stand once above the week, not in every day
     if (dailies.length) h += `<p class="wkdaily muted">Jeden Tag dabei: ${dailies.map(c => `<span title="${esc(c.name)}">${esc(c.icon)}</span>`).join(' ')}</p>`;
     h += `<div class="card weekstrip">${days.map(d => `<button class="${d === t ? 'today' : ''}${d === sel ? ' sel' : ''}${d < t ? ' past' : ''}${scheinOn(d) ? ' schein' : ''}" data-a="wkday" data-k="${d}"><b>${C.DOW[parse(d).getDay()]}</b><small>${parse(d).getDate()}.</small>
-        <span>${out[d].filter(x => !x.daily || x.st === 'done').map(x => `<i class="${x.st}">${esc(x.c.icon)}</i>`).join('') || (d < t ? '·' : '🛋️')}</span></button>`).join('')}</div>`;
+        <span>${out[d].filter(x => !x.daily || x.st === 'done').map(x => `<i class="${x.st}${x.c.size === 'g' || x.c.size === 'v' ? ' big' : ''}">${esc(x.c.icon)}</i>`).join('') || (d < t ? '·' : '🛋️')}</span></button>`).join('')}</div>`;
     const list = out[sel].filter(x => !x.daily || x.st === 'done'), lbl = { done: '✓ erledigt', due: 'heute dran', plan: 'geplant' };
     const dl = out[sel].filter(x => x.daily && x.st !== 'done');
     h += `<div class="card wkdetail"><h3>${sel === t ? 'Heute' : esc(longDate(sel))}</h3>${list.length

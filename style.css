@@ -1458,3 +1458,6 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .ce-prow input { flex: 1; min-width: 0; }
 .cgroup { margin: 10px 0 4px; font-size: 17px; }
 .mini-btn.again { width: auto; padding: 0 8px; font-size: 13px; }
+
+/* 🧱 G39 routine size: a big one is a slightly bigger symbol in Meine Woche */
+.weekstrip i.big { font-size: 22px; }

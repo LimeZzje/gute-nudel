@@ -66,11 +66,15 @@ function backfillCookLog() {
 // ---------- 🔁 G30 day ceiling: every-day routines always, at most C.ROUTINE_CAP others; what doesn't fit waits ----------
 export const isDaily = c => c.week && c.week.length ? new Set(c.week).size >= 7 : (c.every || 7) === 1;
 const waitOf = (c, d) => c.moved ? daysBetween(c.moved.orig, d) : c.week && c.week.length ? 0 : c.last ? daysBetween(c.last, d) - (c.every || 7) : 0;
-// the waiting ones that get a place: longest waiting first, her list order on a tie
-function pick(list, d, room) {
+// 🧱 G39: how much of the day a routine takes (absent = normal)
+export const weightOf = c => (c && C.SIZE_W[c.size]) || 1;
+// the waiting ones that get a place: longest waiting first (her list order on a tie), each while its size still fits;
+// one too big is passed over for a smaller one behind it and keeps its turn. On an empty day the first always lands.
+function pick(list, d, room, empty) {
   const order = list.map((c, i) => [c, waitOf(c, d), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]).map(x => x[0]);
-  room = Math.max(0, room);
-  return { take: order.slice(0, room), rest: order.slice(room) };
+  const take = [], rest = []; let left = room;
+  for (const c of order) { const w = weightOf(c); if (w <= left + 1e-9 || (empty && !take.length && room > 0)) { take.push(c); left -= w; } else rest.push(c); }
+  return { take, rest };
 }
 // no place today: a weekday routine tries again tomorrow (one line, the chain keeps its first day); "alle N Tage" just stays due
 export function slide(c, d) { if (c.week && c.week.length) c.moved = { orig: c.moved && c.moved.to === d ? c.moved.orig : d, to: addDays(d, 1) }; }
@@ -94,7 +98,8 @@ export function scheduleChores(force) {
   if (rp) {
     S.chores.filter(c => c.id === force && !isDaily(c) && free(c)).forEach(c => { put(c); if (!rp.includes(c.id)) rp.push(c.id); });
     const cand = S.chores.filter(c => !isDaily(c) && free(c) && !rp.includes(c.id));
-    const { take, rest } = pick(cand.filter(c => c.id !== force), d, T.rfull || T.closed ? 0 : C.ROUTINE_CAP - rp.length);
+    const used = rp.reduce((a, id) => a + weightOf(S.chores.find(c => c.id === id)), 0);
+    const { take, rest } = pick(cand.filter(c => c.id !== force), d, T.rfull || T.closed ? 0 : C.DAY_BUDGET - used, !rp.length);
     take.forEach(c => { put(c); rp.push(c.id); });
     rest.forEach(c => slide(c, d));
   }
@@ -118,7 +123,7 @@ export function planAhead(until) {
     out[k] = [];
     for (const x of sim) if (x.moved && x.moved.to < k) x.moved = null;
     sim.filter(x => isDaily(x) && choreDue(x, k)).forEach(x => { out[k].push(row(x, 'plan')); choreDone(x, k); });
-    const { take, rest } = pick(sim.filter(x => !isDaily(x) && choreDue(x, k)), k, C.ROUTINE_CAP);
+    const { take, rest } = pick(sim.filter(x => !isDaily(x) && choreDue(x, k)), k, C.DAY_BUDGET, true);
     take.forEach(x => { out[k].push(row(x, 'plan')); choreDone(x, k); });
     rest.forEach(x => slide(x, k));
   }
@@ -189,6 +194,8 @@ export function choreModal() {
       : `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(d => `<button class="chip ${e.week.includes(d) ? 'on' : ''}" data-a="ceday" data-v="${d}">${C.DOW[d]}</button>`).join('')}</div>`}
     ${e.id || e.mode === 'days' ? '' : `<p class="muted" style="font-weight:800;margin:12px 0 4px">Ab wann?</p><div class="chips"><button class="chip ${e.start === 'heute' ? 'on' : ''}" data-a="cestart" data-v="heute">Ab heute</button><button class="chip ${e.start === 'morgen' ? 'on' : ''}" data-a="cestart" data-v="morgen">Ab morgen</button><button class="chip ${e.start === 'datum' ? 'on' : ''}" data-a="cestart" data-v="datum">📅 Datum wählen</button></div>
       ${e.start === 'datum' ? `<label class="field"><span>Beginnt am</span><input type="date" id="ce-date" min="${today()}" value="${e.startDate || addDays(today(), 1)}" oninput="const h=document.getElementById('ce-datehint'); if(h) h.textContent=''"></label><p class="hint" id="ce-datehint">${e.startDate ? 'beginnt ' + esc(C.DAYNAMES[parse(e.startDate).getDay()]) + ', ' + esc(shortDate(e.startDate)) : ''}</p>` : ''}`}
+    <p class="muted" style="font-weight:800;margin:12px 0 4px">Wie viel vom Tag?</p>
+    <div class="chips">${C.SIZES.map(([k, l]) => `<button class="chip ${(e.size || 'n') === k ? 'on' : ''}" data-a="cesize" data-v="${k}">${l}</button>`).join('')}</div>
     <p class="muted" style="font-weight:800;margin:12px 0 4px">🧩 Teile <span style="font-weight:400">(optional)</span></p>
     ${(e.parts || []).map(p => `<div class="ce-prow"><input class="ce-part" data-pid="${p.id}" value="${esc(p.name)}" autocomplete="off"><button class="mini-btn" data-a="cepartdel" data-v="${p.id}" aria-label="Teil entfernen">✕</button></div>`).join('')}
     <div class="ce-prow"><input id="ce-newpart" value="${esc(e.newPart || '')}" placeholder="${(e.parts || []).length ? 'Noch ein Teil…' : 'z.B. Wanne'}" autocomplete="off"><button class="mini-btn" data-a="cepartadd" aria-label="Teil hinzufügen">+</button></div>

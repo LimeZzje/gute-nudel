@@ -162,7 +162,7 @@ Object.assign(A, {
   choredelyes(el) { S.chores = S.chores.filter(x => x.id !== el.dataset.id); S.items = S.items.filter(i => i.chore !== el.dataset.id); closeModal(); commit(); },
   choreedit(el) {
     const c = el.dataset.id && S.chores.find(x => x.id === el.dataset.id);
-    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, next: c.week && c.week.length ? null : choreNext(c), nextTouched: true, week: (c.week || []).slice(), reward: c.reward || '', start: 'morgen', tools: (c.tools || []).slice(), music: c.music || '', parts: (c.parts || []).map(p => ({ ...p })), kind: c.kind || '', again: !!c.again }
+    ui.ce = c ? { id: c.id, icon: c.icon, name: c.name, mode: c.week && c.week.length ? 'week' : 'days', every: c.every || 7, next: c.week && c.week.length ? null : choreNext(c), nextTouched: true, week: (c.week || []).slice(), reward: c.reward || '', start: 'morgen', tools: (c.tools || []).slice(), music: c.music || '', parts: (c.parts || []).map(p => ({ ...p })), kind: c.kind || '', again: !!c.again, size: c.size || '' }
       : { id: null, icon: '🔁', name: '', mode: 'week', every: 7, week: [], reward: '', start: 'morgen', tools: [], music: '', parts: [], kind: '', again: false };
     choreModal();
   },
@@ -183,6 +183,7 @@ Object.assign(A, {
   cepartadd() { ceRead(); const n = (ui.ce.newPart || '').trim(); if (n) { ui.ce.parts = (ui.ce.parts || []).concat([{ id: uid(), name: n }]); ui.ce.newPart = ''; } choreModal(); const i = $('#ce-newpart'); if (i) i.focus(); },
   cepartdel(el) { ceRead(); ui.ce.parts = (ui.ce.parts || []).filter(p => p.id !== el.dataset.v); choreModal(); },
   cekind(el) { ceRead(); ui.ce.kind = ui.ce.kind === el.dataset.v ? '' : el.dataset.v; choreModal(); },
+  cesize(el) { ceRead(); ui.ce.size = el.dataset.v === 'n' ? '' : el.dataset.v; choreModal(); },   // 🧱 G39
   ceagain() { ceRead(); ui.ce.again = !ui.ce.again; choreModal(); },
   cetool(el) { ceRead(); const t = el.dataset.v, a = ui.ce.tools; a.includes(t) ? a.splice(a.indexOf(t), 1) : a.push(t); choreModal(); },
   cesave() {
@@ -206,6 +207,7 @@ Object.assign(A, {
       c.round = (c.round || []).filter(id => ps.some(p => p.id === id)); if (!c.round.length) delete c.round;
       if (e.kind) c.kind = e.kind; else delete c.kind;
       if (e.again) c.again = true; else delete c.again;
+      if (e.size && e.size !== 'n') c.size = e.size; else delete c.size;   // 🧱 G39
     }
     if (e.mode === 'days') setChoreNext(c, e.next);
     S.items.filter(i => i.chore === c.id).forEach(i => { i.text = c.name; });

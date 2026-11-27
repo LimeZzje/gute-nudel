@@ -102,8 +102,12 @@ export const EXAMPLE_RECIPES = [
   { title: 'Ofengemüse mit Feta', ingredients: ['Kartoffeln', 'Paprika', 'Zucchini', 'Rote Zwiebel', 'Feta', 'Olivenöl', 'Rosmarin'], steps: 'Alles in Stücke, mit Öl, Salz und Rosmarin aufs Blech. 35 Min. bei 200 °C. Feta zerbröseln, die letzten 10 Minuten mit rein.' },
 ];
 export const COMBO_REWARD_STARS = 2;
-// 🔁 G30: at most this many routines a day (the every-day ones sit outside it)
-export const ROUTINE_CAP = 3;
+// 🔁 G30 + G39: a day has room for DAY_BUDGET normal routines (the every-day ones sit outside it).
+// A routine's size (c.size) uses up this much of it: klein / normal / groß / ganzer Tag. Tune here.
+export const DAY_BUDGET = 3;
+export const ROUTINE_CAP = DAY_BUDGET;   // (G30's name, kept for old callers)
+export const SIZE_W = { k: 0.5, n: 1, g: 2, v: 3 };
+export const SIZES = [['k', 'klein'], ['n', 'normal'], ['g', 'groß'], ['v', 'ganzer Tag']];
 export const CHORE_REWARDS = [...new Set(COMBOS.map(c => c.reward).concat(['Ein Kapitel im Lieblingsbuch – mit Tee', 'Lieblingsessen bestellen – kein Kochen heute', 'Ein warmes Fußbad', 'Eine Runde Kuscheln']))]; // + the 1 star part 1 gets as a normal task = 3 in total
 
 // Cozy recipes: the app does the thinking. Each setup step earns 1 star, enjoying it at the end +2.
