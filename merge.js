@@ -47,6 +47,9 @@ export function mergeStates(local, remote, base = null) {
   // a chore deleted on one device takes its open to-dos with it; one open to-do per chore at most
   const cids = new Set(m.chores.map(c => c.id)), one = new Set();
   m.items = m.items.filter(i => !i.chore || (cids.has(i.chore) && !(i.where === 'heute' && (one.has(i.chore) || !one.add(i.chore)))));
+  // 🔁 G30: routines placed today on either device keep their place (two devices the same morning may make it 4 once, that's fine)
+  if (newer.today && older.today && newer.today.day === older.today.day && (newer.today.rplaced || older.today.rplaced))
+    m.today = Object.assign({}, newer.today, { rplaced: [...new Set([].concat(newer.today.rplaced || [], older.today.rplaced || []))] });
   m.recipes = newer.recipes || older.recipes;
   m.fixes = [...new Set([].concat(newer.fixes || [], older.fixes || []))];
   m.favs = [...new Set([].concat(newer.favs || [], older.favs || []))];

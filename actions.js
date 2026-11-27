@@ -10,7 +10,7 @@ import { $, addDays, closeModal, commit, confetti, esc, floatStar, longDate, mod
 import { A, S, ui } from './state.js';
 import { askVorrat, mineOn, shopList, shopMine, consumeFor, earn, fmtQty, groupQty, itemName, itemQty, parseQty, pn, splitAmount, useGroup, vGroup, vaskDone } from './sync.js';
 import { rankModal } from './rank.js';
-import { ceRead, choreDone, choreDue, choreItemId, choreModal, choreNext, choreRhythm, delegateModal, guessIcon, planChanged, scheduleChores, setChoreNext } from './chores.js';
+import { ceRead, choreDone, choreDue, choreItemId, choreModal, choreNext, choreRhythm, daysBetween, delegateModal, guessIcon, planChanged, plannedDay, scheduleChores, setChoreNext } from './chores.js';
 import { tick } from './heute.js';
 import { inQ } from './daheim.js';
 import { ownRitualForm, rateRitual, ritualById, rxP } from './relax.js';
@@ -140,7 +140,9 @@ Object.assign(A, {
     const it = S.items.find(i => i.id === el.dataset.id), c = it && S.chores.find(x => x.id === it.chore); if (!it) return;
     const d = today();   // only this one time moves a day on; moved again → still counts from the first planned day
     if (c) c.moved = { orig: c.moved && c.moved.to === d ? c.moved.orig : d, to: addDays(d, 1) };
-    S.items = S.items.filter(i => i !== it); commit(); toast('Auf morgen verschoben – der Plan bleibt 🔁');
+    S.items = S.items.filter(i => i !== it); commit();
+    const k = c && plannedDay(c.id, addDays(d, 1)), n = k ? daysBetween(d, k) : 1;   // 🔁 G30: the day it really lands under the ceiling
+    toast(n <= 1 ? 'Auf morgen verschoben – der Plan bleibt 🔁' : 'Heute nicht – kommt ' + (n <= 6 ? 'am ' + C.DAYNAMES[parse(k).getDay()] : 'am ' + longDate(k)) + ' wieder 🔁');
   },
   choredel(el) {
     const c = S.chores.find(x => x.id === el.dataset.id); if (!c) return;
@@ -186,7 +188,7 @@ Object.assign(A, {
     if (e.mode === 'days') setChoreNext(c, e.next);
     S.items.filter(i => i.chore === c.id).forEach(i => { i.text = c.name; });
     if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
-    scheduleChores(); closeModal(); commit(); toast('Gespeichert 🔁');
+    scheduleChores(!e.id && e.mode === 'week' && e.start === 'heute' ? c.id : undefined); closeModal(); commit(); toast('Gespeichert 🔁');   // a new one "ab heute" beats the ceiling
   },
   cookback() { ui.sub = null; ui.qtab = 'kochbuch'; ui.rid = null; render(); scrollTo(0, 0); },
   cookhome() { endCookMode(); ui.rid = null; ui.sides = []; render(); scrollTo(0, 0); },

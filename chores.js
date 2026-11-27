@@ -39,7 +39,7 @@ export function setChoreNext(c, k) {
   if (c.moved && c.moved.to === k && !(c.week && c.week.length)) return scheduleChores();   // still the moved day → plan untouched
   c.last = addDays(k, -(c.every || 7)); c.skip = null; c.moved = null;
   if (!choreDue(c, today())) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute'));
-  scheduleChores();
+  scheduleChores(k === today() ? c.id : undefined);   // her own pick for today beats the ceiling
 }
 export const choreRhythm = c => c.week && c.week.length ? 'jeden ' + c.week.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(x => C.DOW[x]).join(' & ') : c.every === 1 ? 'jeden Tag' : 'alle ' + c.every + ' Tage';
 // a changed plan never touches today's page: not there yet → from tomorrow; there but today no longer chosen → off again
@@ -58,18 +58,70 @@ function backfillCookLog() {
   if (S.cookLog) return;
   S.cookLog = Object.entries(S.cook || {}).filter(([, c]) => c && c.last).map(([rid, c]) => ({ id: 'old-' + rid, rid, day: c.last, ts: new Date(c.last + 'T19:00').getTime(), taste: c.taste, old: true }));
 }
-export function scheduleChores() {
+// ---------- 🔁 G30 day ceiling: every-day routines always, at most C.ROUTINE_CAP others; what doesn't fit waits ----------
+export const isDaily = c => c.week && c.week.length ? new Set(c.week).size >= 7 : (c.every || 7) === 1;
+const waitOf = (c, d) => c.moved ? daysBetween(c.moved.orig, d) : c.week && c.week.length ? 0 : c.last ? daysBetween(c.last, d) - (c.every || 7) : 0;
+// the waiting ones that get a place: longest waiting first, her list order on a tie
+function pick(list, d, room) {
+  const order = list.map((c, i) => [c, waitOf(c, d), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]).map(x => x[0]);
+  room = Math.max(0, room);
+  return { take: order.slice(0, room), rest: order.slice(room) };
+}
+// no place today: a weekday routine tries again tomorrow (one line, the chain keeps its first day); "alle N Tage" just stays due
+function slide(c, d) { if (c.week && c.week.length) c.moved = { orig: c.moved && c.moved.to === d ? c.moved.orig : d, to: addDays(d, 1) }; }
+
+// force = a routine id she explicitly wants today ("Nächstes Mal: heute", new one "ab heute"): beats the ceiling
+export function scheduleChores(force) {
   backfillCookLog();
   dedupeChoreItems();
-  const d = today();
+  const d = today(), T = S.today;
+  for (const c of S.chores) if (c.moved && c.moved.to < d) c.moved = null;   // the moved day is over (not done → it's just overdue, like any other)
+  const onPage = c => S.items.some(i => i.chore === c.id), doneToday = c => S.log.some(e => e.day === d && e.chore === c.id);
+  if (T.day === d && !Array.isArray(T.rplaced)) {   // upgrade in the middle of a day: what is there stays, nothing more today
+    T.rplaced = S.chores.filter(c => !isDaily(c) && (onPage(c) || doneToday(c))).map(c => c.id); T.rfull = true;
+  }
+  const rp = T.day === d ? T.rplaced : null;
   let added = 0;
-  for (const c of S.chores) {
-    if (c.moved && c.moved.to < d) c.moved = null;   // the moved day is over (not done → it's just overdue, like any other)
-    if (!choreDue(c, d) || S.items.some(i => i.chore === c.id) || S.log.some(e => e.day === d && e.chore === c.id)) continue;
-    S.items.push({ id: choreItemId(c.id, d), text: c.name, where: 'heute', created: Date.now(), chore: c.id });
-    added++;
+  const put = c => { S.items.push({ id: choreItemId(c.id, d), text: c.name, where: 'heute', created: Date.now(), chore: c.id }); added++; };
+  const free = c => choreDue(c, d) && !onPage(c) && !doneToday(c);
+  if (!T.closed) S.chores.filter(c => isDaily(c) && free(c)).forEach(put);   // "Für heute Schluss" = nothing new today
+  if (rp) {
+    S.chores.filter(c => c.id === force && !isDaily(c) && free(c)).forEach(c => { put(c); if (!rp.includes(c.id)) rp.push(c.id); });
+    const cand = S.chores.filter(c => !isDaily(c) && free(c) && !rp.includes(c.id));
+    const { take, rest } = pick(cand.filter(c => c.id !== force), d, T.rfull || T.closed ? 0 : C.ROUTINE_CAP - rp.length);
+    take.forEach(c => { put(c); rp.push(c.id); });
+    rest.forEach(c => slide(c, d));
   }
   return added;
+}
+
+// play the days forward from today as if everything placed gets done: { day: [{ c, st: 'done'|'open'|'plan', daily }] }
+// (Meine Woche, the Gelber Schein's "morgen", and the ⏭ toast all read the same plan that fills the days)
+export function planAhead(until) {
+  const d = today(), out = {};
+  const sim = S.chores.map(c => Object.assign({}, c, { moved: c.moved ? Object.assign({}, c.moved) : null }));
+  const real = new Map(S.chores.map(c => [c.id, c]));
+  const row = (x, st) => ({ c: real.get(x.id), st, daily: isDaily(x) });
+  out[d] = [];   // today = what really is on the page or done
+  for (const x of sim) {
+    const done = S.log.some(e => e.day === d && e.chore === x.id), open = S.items.some(i => i.chore === x.id && i.where === 'heute');
+    if (done) out[d].push(row(x, 'done'));
+    else if (open) { out[d].push(row(x, 'open')); choreDone(x, d); }
+  }
+  for (let k = addDays(d, 1); k <= until; k = addDays(k, 1)) {
+    out[k] = [];
+    for (const x of sim) if (x.moved && x.moved.to < k) x.moved = null;
+    sim.filter(x => isDaily(x) && choreDue(x, k)).forEach(x => { out[k].push(row(x, 'plan')); choreDone(x, k); });
+    const { take, rest } = pick(sim.filter(x => !isDaily(x) && choreDue(x, k)), k, C.ROUTINE_CAP);
+    take.forEach(x => { out[k].push(row(x, 'plan')); choreDone(x, k); });
+    rest.forEach(x => slide(x, k));
+  }
+  return out;
+}
+// the first day from `from` on where the plan puts this routine
+export function plannedDay(id, from, max = 60) {
+  const p = planAhead(addDays(today(), max));
+  return Object.keys(p).sort().find(k => k >= from && p[k].some(r => r.c && r.c.id === id)) || null;
 }
 
 export function rollover() {
@@ -82,7 +134,7 @@ export function rollover() {
     left.forEach(i => { i.where = 'liste'; i.carried = true; });
     S.items = [...left, ...S.items.filter(i => !left.includes(i))];
   }
-  S.today = { day: d, planned: false, capShown: false, closed: false, celebrated: false };
+  S.today = { day: d, planned: false, capShown: false, closed: false, celebrated: false, rplaced: [] };
   S.quest = null;
   if (S.combo && S.combo.day !== d) S.combo = null;   // the reward belongs to its day
   S.gifts = S.gifts.filter(g => g.day === d);

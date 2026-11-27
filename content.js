@@ -102,6 +102,8 @@ export const EXAMPLE_RECIPES = [
   { title: 'Ofengemüse mit Feta', ingredients: ['Kartoffeln', 'Paprika', 'Zucchini', 'Rote Zwiebel', 'Feta', 'Olivenöl', 'Rosmarin'], steps: 'Alles in Stücke, mit Öl, Salz und Rosmarin aufs Blech. 35 Min. bei 200 °C. Feta zerbröseln, die letzten 10 Minuten mit rein.' },
 ];
 export const COMBO_REWARD_STARS = 2;
+// 🔁 G30: at most this many routines a day (the every-day ones sit outside it)
+export const ROUTINE_CAP = 3;
 export const CHORE_REWARDS = [...new Set(COMBOS.map(c => c.reward).concat(['Ein Kapitel im Lieblingsbuch – mit Tee', 'Lieblingsessen bestellen – kein Kochen heute', 'Ein warmes Fußbad', 'Eine Runde Kuscheln']))]; // + the 1 star part 1 gets as a normal task = 3 in total
 
 // Cozy recipes: the app does the thinking. Each setup step earns 1 star, enjoying it at the end +2.
