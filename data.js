@@ -63,6 +63,7 @@ export function freshState() {
     entMine: {},           // 🧭 Entdecker: my swipes onto "Das kochen wir", rid -> [1 on / 0 off, ts]
     partnerEnt: {},        // the partner's (from their post); entNo = my "no" pile (never posted), entSeen = kitchens counted for stars
     entNo: {},
+    dogWalks: [],          // 🐕 G29 Hundeschule (his devices only, never posted): {id, day, ts, l 1–5 leash, d drag bucket 0|2|4|8|12}
     events: [],            // finished events with their fun statistics (Home → Vergangene Events)
     partnerName: '', postedName: null,
   };

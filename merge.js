@@ -18,7 +18,7 @@ export function mergeStates(local, remote, base = null) {
     const seen = new Set();
     return a.concat(b).filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return !inBase || !inBase.has(x.id) || (inA.has(x.id) && inB.has(x.id)); });
   };
-  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events', 'cookLog', 'dishPics'].forEach(k => { m[k] = join(k); });
+  ['items', 'chores', 'shop', 'wishes', 'sent', 'gifts', 'timers', 'car', 'thanks', 'myRecipes', 'recipeInbox', 'dishes', 'vorratAdd', 'vorratUsed', 'myRituals', 'events', 'cookLog', 'dishPics', 'dogWalks'].forEach(k => { m[k] = join(k); });
   m.relaxRate = Object.assign({}, older.relaxRate || {}, newer.relaxRate || {});
   m.swiped = Object.assign({}, older.swiped || {}, newer.swiped || {});
   m.picCheered = [...new Set([].concat(older.picCheered || [], newer.picCheered || []))];
@@ -37,7 +37,7 @@ export function mergeStates(local, remote, base = null) {
     m.stars = Math.max(0, (newer.stars || 0) + (older.stars || 0) - (base.stars || 0));
     m.earned = Math.max(0, (newer.earned || 0) + (older.earned || 0) - (base.earned || 0));
     // 🍼 a baby tick credited (or taken back) on BOTH devices counted twice above → once
-    const bids = x => new Map((x.log || []).filter(e => e.kind === 'baby' || e.kind === 'event' || e.kind === 'kniff').map(e => [e.id, e.stars || 1])), bA = bids(newer), bB = bids(older), bZ = bids(base);
+    const bids = x => new Map((x.log || []).filter(e => e.kind === 'baby' || e.kind === 'event' || e.kind === 'kniff' || e.kind === 'dog').map(e => [e.id, e.stars || 1])), bA = bids(newer), bB = bids(older), bZ = bids(base);
     let fix = 0; bA.forEach((n, id) => { if (bB.has(id) && !bZ.has(id)) fix -= n; }); bZ.forEach((n, id) => { if (!bA.has(id) && !bB.has(id)) fix += n; });
     m.stars = Math.max(0, m.stars + fix); m.earned = Math.max(0, m.earned + fix);
   } else {

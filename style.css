@@ -1400,3 +1400,27 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .shop-me { background: var(--me-bg); border-left: 4px solid var(--me); border-radius: 12px; padding: 6px 8px 8px; }
 .shop-me .sechead { color: var(--me); }
 .shoptabs .chip.me.on .muted { color: #fff; opacity: .85; }
+
+/* ---------- 🐕 G29 Hundeschule ---------- */
+.dg-home { border-left: 5px solid var(--green); }
+.dg-ex { display: grid; gap: 6px; border-top: 5px solid var(--green); }
+.dg-ex.done { border-top-color: var(--gold); }
+.dg-eye { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--ink2); }
+.dg-t { font-size: 22px; font-weight: 800; line-height: 1.25; }
+.dg-how { margin: 2px 0 4px; padding-left: 22px; display: grid; gap: 6px; }
+.dg-why { margin: 0; font-size: 15px; color: var(--ink2); }
+.dg-why b { color: var(--ink); }
+.dg-ex .btn { margin-top: 6px; }
+.dg-walks { display: grid; gap: 8px; }
+.dg-n { margin: 0; font-size: 14px; }
+.dg-dots { display: flex; flex-wrap: wrap; gap: 4px; }
+.dg-dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; background: var(--paper2); }
+.dg-dot.l4, .dg-dot.l5 { background: color-mix(in srgb, var(--green) 22%, var(--card)); }
+.dg-dot.l1, .dg-dot.l2 { background: color-mix(in srgb, var(--accent) 22%, var(--card)); }
+.dg-pick { display: grid; gap: 8px; margin: 12px 0; }
+.dg-opt { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 14px; border: 2px solid var(--line); border-radius: 14px; background: var(--card); text-align: left; }
+.dg-opt span { font-size: 24px; }
+.dg-opt:active { border-color: var(--green); }
+.dg-rules { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.dg-rules span { color: var(--ink2); font-size: 15px; }
+.gamelink.dglink { text-align: center; margin-top: -14px; }

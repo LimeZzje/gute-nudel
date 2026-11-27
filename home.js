@@ -22,6 +22,7 @@ import { babyLive, gbLive, hnUnwrapped, pastEvents, snLive, viewBaby, viewEvents
 import * as SN from './snacks.js';
 import * as KN from './kniffe.js';
 import { knLive, viewKniffe } from './kniff.js';
+import { dogHomeCard, dogRulesLink, viewHund } from './hund.js';   // 🐕 Hundeschule (G29; also fills A with hund / hundwalk / …)
 import { flowerGarden } from './flowers.js';
 import { render } from './app.js';
 import { dueCard } from './faellig.js';
@@ -216,6 +217,7 @@ export function viewHome() {
   if (ui.sub === 'snack') return viewSnacks();
   if (ui.sub === 'ent') { const v = viewEnt(); if (v) return v; }
   if (ui.sub === 'kniff') return viewKniffe();
+  if (ui.sub === 'hund') { const v = viewHund(); if (v) return v; }
   if (ui.sub === 'events') return viewEvents();
   if (ui.sub === 'plan') return viewPlan();
   if (ui.sub === 'hello') return viewHello();
@@ -235,7 +237,7 @@ export function viewHome() {
     ${heute.slice(0, 3).map(i => { const c = i.chore && S.chores.find(x => x.id === i.chore);
       return `<div class="item home-item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt"><span>${c ? c.icon + ' ' : ''}${esc(i.text)}</span></div></div>`; }).join('')}
     ${heute.length > 3 ? `<button class="more-link" data-a="go" data-tab="heute">+ ${heute.length - 3} weitere ›</button>` : ''}</div>`;
-  h += relaxHomeCard() + entCard();
+  h += relaxHomeCard() + entCard() + dogHomeCard();   // 🐕 G29: his devices only
   // at home today: routines due, the shopping list, something to cook
   // the last dish that was shopped for: time to go shopping again (user's wording, 2026-10-08)
   if ((S.dishes || []).filter(x => recipeById(x.id)).length === 1) h += `<button class="last-dish" data-a="go" data-tab="ruhe" data-q="einkauf"><span class="ld-t">ZEIT FÜR EINEN WEITEREN VERDAMMTEN EINKAUF!</span> <span class="ld-e">😡</span></button>`;
@@ -260,6 +262,7 @@ export function viewHome() {
   h += `<button class="gamelink gamecard" data-a="game">🍝 Kleine Pause? <b>Nudel-Rush</b>${gl.length ? ` <span class="muted">· ${gdone}/5</span>` : ''}</button>`;
   // IQ MaXxing: its own single-file game in iq/ (own save per device, nothing shared or compared; user 2026-11-07)
   h += `<a class="gamelink iqlink" href="iq/">🧠 Kopf trainieren? <b>IQ MaXxing</b></a>`;
+  h += dogRulesLink();   // 🐕 G29: on her phone only the walk rules, quietly at the bottom
   return h;
 }
 A.splash = () => { pickSplash(); render(); };

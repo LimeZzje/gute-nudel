@@ -8,6 +8,7 @@ import { choreDone, choreRhythm } from './chores.js';
 import { carToday } from './termine.js';
 import { dueBtns, dueCard, dueField, dueSort, dueDays, SOON } from './faellig.js';
 import { knAsk, knChoreTrick } from './kniff.js';
+import { dogStarsToday } from './hund.js';
 
 // ---------- HEUTE ----------
 export function viewHeute() {
@@ -89,7 +90,7 @@ export function tick(id, el) {
   const it = S.items.find(i => i.id === id); if (!it) return;
   const row = el && el.closest('.item');
   if (row) row.classList.add('done', 'ticking', 'leaving');
-  const n = workToday().length, stars = n < C.CAP ? 1 : 0;
+  const n = workToday().length + dogStarsToday(), stars = n < C.CAP ? 1 : 0;   // 🐕 a dog session's star counts into the cap
   floatStar(el, stars ? '+1 ⭐' : '✓');
   setTimeout(() => {
     S.items = S.items.filter(i => i !== it);
