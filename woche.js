@@ -4,6 +4,7 @@ import { addDays, commit, confetti, esc, isRest, isWork, longDate, modal, monday
 import { S, ui } from './state.js';
 import { pn } from './sync.js';
 import { rankCard } from './rank.js';
+import { homeLookBack } from './home.js';   // 📊 G40: moved here from Home
 
 // ---------- WOCHE ----------
 export function weekStats(mon) {
@@ -51,7 +52,7 @@ export function viewWoche() {
   if (past.length) {
     h += `<div class="sec-title">Frühere Wochen</div>` + past.map(s => `<button class="card btn soft wide" data-a="story" data-w="${s.mon}" style="text-align:left;display:flex;justify-content:space-between"><span>${shortDate(s.mon)} – ${shortDate(addDays(s.mon, 6))}</span><span>${s.work} erledigt · ${s.rest} entspannt${s.sent ? ' · ' + s.sent + ' abgegeben' : ''}</span></button>`).join('');
   }
-  return h;
+  return h + homeLookBack();
 }
 
 export function weekLogModal(keep) { // this week's done (or rested) entries by day, each removable and (re)ratable

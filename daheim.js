@@ -12,6 +12,7 @@ import { picNow, shopBody } from './einkauf.js';
 import { cookableNow, viewCook, viewDaheim } from './kochbuch.js';
 import { viewTermine } from './termine.js';
 import { viewHello } from './events.js';
+import { entCard } from './entdecker.js';
 
 // ---------- RUHE ----------
 export const dayIndex = () => Math.floor(parse(today()).getTime() / 864e5);
@@ -72,7 +73,7 @@ export function viewHN() {
   const h = hnLoop(ui.qtab !== 'kochbuch');   // the delivery note stays out of the book's way
   if (ui.qtab === 'einkauf') return h + `<div class="card shoptab">${shopBody(null, true)}</div>`;
   if (ui.qtab === 'vorrat') return h + `<div class="sec-head plain"><h2>Was ist daheim?</h2>${Bk.sectionArt('daheim')}</div>` + viewDaheim();
-  return h + viewCook();
+  return h + (ui.qtab === 'kochbuch' && !ui.rid ? entCard() : '') + viewCook();   // 🧭 G40: the Entdecker card moved here from Home
 }
 function viewHaushalt() {
   let h = `<div class="sec-title" style="margin-top:6px">Routinen – laufen von allein</div>

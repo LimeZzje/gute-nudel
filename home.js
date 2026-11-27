@@ -6,7 +6,7 @@ import { openGame } from './spiel.js';
 import * as B from './baby.js';
 import * as G from './geburtstag.js';
 import * as HN from './hellonudel.js';
-import { addDays, closeModal, commit, dayDone, esc, isRest, isWork, key, monday, parse, pick, today, weekDays, workToday } from './core.js';
+import { addDays, closeModal, commit, dayDone, esc, isRest, isWork, key, modal, monday, parse, pick, today, weekDays, workToday } from './core.js';
 import { A, S, ui } from './state.js';
 import { pn } from './sync.js';
 import { emblem } from './rank.js';
@@ -26,7 +26,8 @@ import { dogHomeCard, dogRulesLink, viewHund } from './hund.js';   // 🐕 Hunde
 import { flowerGarden } from './flowers.js';
 import { render } from './app.js';
 import { dueCard } from './faellig.js';
-import { partnerScheinLine, scheinHome } from './schein.js';
+import { partnerScheinLine, scheinHome, todayTerms } from './schein.js';
+import { shopList } from './sync.js';
 import { scheinOn } from './core.js';
 
 // ---------- HOME: the start screen – what's going on today, a few numbers, the two of you ----------
@@ -100,10 +101,7 @@ function bubbles() {
   if (gbLive()) b.push({ a: 'kuchen', ic: '🎂', l: 'Geburtstag', on: true, t0: G.START, t1: G.END });
   if (snLive()) b.push({ a: 'snack', ic: '🥜', l: 'Snack-Labor', on: true, t0: SN.START, t1: SN.END });
   if (knLive()) b.push({ a: 'kniff', ic: '💡', l: 'Kniffe', on: true, t0: KN.START, t1: KN.END });
-  if (picNow()) { const t = new Date(picNow().start); b.push({ a: 'picdeliv', ic: '🚚', l: 'Picnic', n: t.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + t.getHours(), on: true }); }
   if (babyLive()) b.push({ a: 'baby', ic: '👶', l: 'Baby', on: true, t0: B.START, t1: B.END });
-  const pl = planNow();   // 🗓️ rolling plan (2026-11-14): no end any more, so no story ring; lit ring = the new 7th day is still empty
-  if (pl) b.push({ a: 'plan', ic: '🗓️', l: 'Wochenplan', on: !pl.days[PLAN_N - 1] });
   if (pastEvents().length) b.push({ a: 'events', ic: '🗓️', l: 'Vergangen', past: true });   // always last, grey ring (user)
   if (!b.length) return '';
   return `<div class="bubs" role="list">${b.map(x => { const tm = x.t1 ? storyLeft(x.t0, x.t1) : null, n = tm ? tm.txt : x.n;
@@ -224,33 +222,53 @@ export function viewHome() {
   if (ui.sub === 'plan') return viewPlan();
   if (ui.sub === 'hello') return viewHello();
   if (ui.sub === 'swipe') return viewSwipe();
+  if (ui.sub === 'zeitung') return `<button class="btn soft back-home" data-a="go" data-tab="home">‹ Zurück</button>` + (newspaper() || '<p class="muted">Noch keine Ausgabe.</p>');   // 📰 G40: its own quiet place
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
   let h = flowerGarden(done.length, t) + `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
-  const sch = scheinOn(t);   // 🟡 G32: her Gelber Schein day = no ring, no due card
-  h += bubbles() + partnerScheinLine() + incomingCard() + giftCards() + (sch ? '' : dueCard());   // (the events live in the bubbles now, user 2026-10-18)
-  h += newspaper();   // above the to-dos (user 2026-10-20)
-  // today: the ring + the next few things, ticked right here
+  // 🏠 G40 (his pick "Today first"): Heute · Essen · Als Nächstes; the rest moved (Zeitung behind a link, the look back to Woche)
+  const sch = scheinOn(t);   // 🟡 G32: her Gelber Schein day = the yellow card instead of the Heute block
+  h += partnerScheinLine() + incomingCard() + giftCards();
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
+  const terms = todayTerms(), dueT = S.items.filter(i => !i.chore && i.due === t && i.where !== 'heute');
+  const fixed = terms.map(b => `<div class="hh-fix">📅 <b>${esc(carDay(b.start) < t ? 'ganztags' : carTime(b.start))}</b> · ${esc(b.note || 'Termin')}</div>`).join('')
+    + (dueT.length ? `<div class="hh-fix">📌 Heute fällig: ${dueT.map(i => esc(i.text)).join(' · ')}</div>` : '');
   if (sch) h += scheinHome(); else h += `<div class="card today2"><button class="hcard today-card" data-a="go" data-tab="heute">
-    <svg class="ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${R}" class="ring-bg"/><circle cx="42" cy="42" r="${R}" class="ring-fg" style="stroke-dasharray:${U};stroke-dashoffset:${U * (1 - p)}"/></svg>
-    <span class="ring-n">${finished ? '🎉' : all ? done.length + '<small>/' + all + '</small>' : '–'}</span>
-    <span class="hc-txt"><b>${finished ? 'Tag geschafft!' : !S.today.planned && !done.length && !heute.length ? 'Noch nichts geplant' : heute.length === 0 ? 'Alles abgehakt! 🎉' : heute.length === 1 ? 'Noch eine Sache' : 'Noch ' + heute.length + ' Sachen'}</b>
-      <span class="muted">${finished ? 'Der Rest wartet bis morgen.' : !S.today.planned && !done.length && !heute.length ? 'Hol dir was aus der Liste.' : done.length ? done.length + ' heute schon geschafft' : 'Du schaffst das.'}</span></span><span class="hc-go">›</span></button>
+    <span class="hc-txt"><b class="hh-k">Heute</b><span class="muted">${finished ? 'Tag geschafft! 🎉 Der Rest wartet bis morgen.' : !S.today.planned && !done.length && !heute.length ? 'Noch nichts geplant – hol dir was aus der Liste.' : heute.length === 0 ? 'Alles abgehakt! 🎉' : done.length ? done.length + ' heute schon geschafft' : 'Du schaffst das.'}</span></span>
+    <span class="hh-ring"><svg class="ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${R}" class="ring-bg"/><circle cx="42" cy="42" r="${R}" class="ring-fg" style="stroke-dasharray:${U};stroke-dashoffset:${U * (1 - p)}"/></svg>
+    <span class="ring-n">${finished ? '🎉' : all ? done.length + '<small>/' + all + '</small>' : '–'}</span></span></button>
+    ${fixed}
     ${heute.slice(0, 3).map(i => { const c = i.chore && S.chores.find(x => x.id === i.chore);
       return `<div class="item home-item" data-id="${i.id}"><button class="chk" data-a="tick" data-id="${i.id}" aria-label="Erledigt"></button><div class="txt"><span>${c ? c.icon + ' ' : ''}${esc(i.text)}</span></div></div>`; }).join('')}
     ${heute.length > 3 ? `<button class="more-link" data-a="go" data-tab="heute">+ ${heute.length - 3} weitere ›</button>` : ''}</div>`;
-  h += relaxHomeCard() + entCard() + dogHomeCard();   // 🐕 G29: his devices only
-  // at home today: routines due, the shopping list, something to cook
-  // the last dish that was shopped for: time to go shopping again (user's wording, 2026-10-08)
-  if ((S.dishes || []).filter(x => recipeById(x.id)).length === 1) h += `<button class="last-dish" data-a="go" data-tab="ruhe" data-q="einkauf"><span class="ld-t">ZEIT FÜR EINEN WEITEREN VERDAMMTEN EINKAUF!</span> <span class="ld-e">😡</span></button>`;
+  h += essenCard();
   // next appointments (today + tomorrow), the car included
   const now = Car.localISO(new Date()), tm = addDays(t, 1);
   const soon = carAll(Car.live, false).filter(b => shared(b) && forMe(b) && carDay(b.start) <= tm && b.end > now).slice(0, 2);
   h += `<button class="card hcard" data-a="go" data-tab="termine"><span class="hc-txt"><b>📅 Als Nächstes</b>${soon.length
       ? soon.map(b => `<span class="hc-term"><i class="tdot" style="background:${b.color}"></i> ${esc(carDayLabel(carDay(b.start) < t ? t : carDay(b.start)))} ${esc(carTime(b.start))} · <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b>${isCar(b) ? ' 🚗' : ''}</span>`).join('')
       : '<span class="muted">Heute und morgen nichts Gemeinsames.</span>'}</span><span class="hc-go">›</span></button>`;
-  h += homeLine(st);
+  h += bubbles() + dogHomeCard();   // live events only (Picnic + Wochenplan sit in Essen now); 🐕 G29: his devices only
+  h += dogRulesLink();   // 🐕 G29: on her phone only the walk rules, quietly at the bottom
+  h += `<p class="home-foot"><button class="lnk" data-a="zeitung">📰 Zeitung</button> · <button class="lnk" data-a="pause">☕ Pause</button></p>`;
+  return h;
+}
+// 🍽️ G40 Essen: today's dish from the Wochenplan (or the cookbook), the cart, a Picnic on its way, the shopping reminder
+function essenCard() {
+  const pl = planNow(), rid = pl && pl.days[0], r = rid && recipeById(rid), cooked = pl && pl.done[0];
+  const open = shopList(false).filter(x => !x.done).length, pic = picNow();
+  const dish = r ? `<button class="es-row" data-a="recipe" data-id="${esc(rid)}" data-go="1"><span>Heute: <b>${esc(r.icon || '🍽️')} ${esc(r.title)}</b>${cooked ? ' ✓' : ''}</span><span class="hc-go">Kochen ›</span></button>`
+    : `<button class="es-row" data-a="go" data-tab="ruhe" data-q="kochbuch"><span>Was koche ich heute?</span><span class="hc-go">›</span></button>`;
+  const when = pic && new Date(pic.start);
+  const subs = `<button class="es-sub" data-a="go" data-tab="ruhe" data-q="einkauf">🛒 ${open ? open + ' auf der Liste' : 'Einkaufsliste'}</button>`
+    + (when ? `<button class="es-sub" data-a="picdeliv">🚚 Picnic ${esc(when.toLocaleDateString('de-DE', { weekday: 'short' }))} ${when.getHours()} Uhr</button>` : '');
+  const remind = (S.dishes || []).filter(x => recipeById(x.id)).length === 1 ? `<button class="es-sub es-remind" data-a="go" data-tab="ruhe" data-q="einkauf">🛒 Zeit für einen neuen Einkauf ›</button>` : '';
+  return `<div class="card essen"><div class="es-k">🍽️ Essen</div>${dish}<div class="es-subs">${subs}</div>${remind}</div>`;
+}
+// 📊 G40: what used to close Home (one sentence, the team total, the podium) now closes the Woche tab
+export function homeLookBack() {
+  const st = homeStats();
+  let h = homeLine(st);
   // the two of you: only the shared total (never who did more) + the partner's rank (user asked for it, 2026-10-05)
   const ps = S.partnerStats;
   if (ps && (ps.total || ps.earned != null)) {
@@ -258,16 +276,11 @@ export function viewHome() {
     h += `<div class="card team2"><div class="t2-n"><b>${st.total + (ps.total || 0)}</b><span>Sachen habt ihr zusammen erledigt</span></div>
       ${pr ? `<div class="team-rank">${emblem(pr.t, 34, pr.div)}<span>${esc(pn())} ist gerade <b style="color:${pr.tier.dark}">${esc(pr.name)}</b></span></div>` : ''}</div>`;
   }
-  if (false) h += `<button class="card hcard" data-a="events"><span class="hc-txt"><b>🗓️ Vergangene Events</b><span class="muted">${S.events.map(e => esc(e.icon + ' ' + e.title)).join(' · ')}</span></span><span class="hc-go">›</span></button>`;
   h += podium(st.top5);
-  // Nudel-Rush: she doesn't play it, but it stays (user) — just a small link at the bottom
-  const gl = Object.values((S.game && S.game.levels) || {}), gdone = gl.filter(p => p >= 100).length;
-  h += `<button class="gamelink gamecard" data-a="game">🍝 Kleine Pause? <b>Nudel-Rush</b>${gl.length ? ` <span class="muted">· ${gdone}/5</span>` : ''}</button>`;
-  // IQ MaXxing: its own single-file game in iq/ (own save per device, nothing shared or compared; user 2026-11-07)
-  h += `<a class="gamelink iqlink" href="iq/">🧠 Kopf trainieren? <b>IQ MaXxing</b></a>`;
-  h += dogRulesLink();   // 🐕 G29: on her phone only the walk rules, quietly at the bottom
   return h;
 }
+A.zeitung = () => { ui.tab = 'home'; ui.sub = 'zeitung'; render(); scrollTo(0, 0); };
+A.pause = () => modal(`<h2>☕ Kleine Pause?</h2><div class="row" style="flex-direction:column"><button class="btn soft wide gamecard" data-a="game">🍝 Nudel-Rush</button><a class="btn soft wide iqlink" href="iq/">🧠 IQ MaXxing</a></div><div class="row"><button class="btn" data-a="close">Zurück</button></div>`);
 A.splash = () => { pickSplash(); render(); };
 A.iq = () => { location.href = 'iq/'; };
 // Nudel-Rush (spiel.js): no stars, no comparison – just your own record on your own devices
