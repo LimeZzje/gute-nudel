@@ -117,9 +117,23 @@ function model() {
     if (e.from) yrt[e.from] = src.filter(x => x !== r); else yrt._w = src.filter(x => x !== r);
     yrt[e.to] = (yrt[e.to] || []).concat([{ ...r, fix: false }]);
   }
+  const took = {};   // rows handed to me (gone from her side) – kept, so an undo can put them back
   for (const e of pending()) {   // 🏠 G46: my household decisions on HER routines, until her phone posts them back
-    if (e.v === 'hh' && e.home === D.partner()) for (const d of Object.keys(yrt)) { const r = (yrt[d] || []).find(x => x.id === e.id && (x.due || d) === e.due); if (r) { yrt[d] = yrt[d].map(x => x === r ? { ...x, asg: e.a, gone: e.who !== D.partner() } : x); } }
-    if (e.v === 'hhx' && e.home === D.partner()) for (const d of Object.keys(yrt)) yrt[d] = (yrt[d] || []).map(x => x.asg === e.a ? { ...x, asg: null, gone: false } : x);
+    if (e.v === 'hh' && e.home === D.partner()) for (const d of Object.keys(yrt)) {   // planned: it leaves its old day and sits on the planned one at once
+      if (d === '_w' || !Array.isArray(yrt[d])) continue;
+      const r = yrt[d].find(x => x.id === e.id && (x.due || d) === e.due); if (!r) continue;
+      yrt[d] = yrt[d].filter(x => x !== r); took[e.a] = { ...r, due: e.due };
+      if (e.who === D.partner()) yrt[e.day] = (yrt[e.day] || []).concat([{ ...r, asg: e.a, due: e.due, fix: false }]);
+      break;
+    }
+    if (e.v === 'hhx' && e.home === D.partner()) for (const d of Object.keys(yrt)) {   // back into the week view, on its due day
+      if (d === '_w' || !Array.isArray(yrt[d])) continue;
+      const r = yrt[d].find(x => x.asg === e.a); if (!r) continue;
+      yrt[d] = yrt[d].filter(x => x !== r); const due = r.due || d;
+      if (days().includes(due)) yrt[due] = (yrt[due] || []).concat([{ ...r, asg: null, gone: false }]);
+      delete took[e.a]; break;
+    }
+    if (e.v === 'hhx' && e.home === D.partner() && took[e.a]) { const r = took[e.a]; delete took[e.a]; if (days().includes(r.due)) yrt[r.due] = (yrt[r.due] || []).concat([{ ...r, asg: null, gone: false }]); }
   }
   for (const d of Object.keys(yrt)) if (Array.isArray(yrt[d])) yrt[d] = yrt[d].filter(x => !x.gone);
   const rt = { me: mine, you: yrt };
