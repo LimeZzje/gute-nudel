@@ -56,6 +56,8 @@ export function mergeStates(local, remote, base = null) {
   m.favs = [...new Set([].concat(newer.favs || [], older.favs || []))];
   m.termSeen = newer.termSeen || older.termSeen ? [...new Set([].concat(newer.termSeen || [], older.termSeen || []))].slice(-300) : undefined;
   m.vrSeen = newer.vrSeen || older.vrSeen ? [...new Set([].concat(older.vrSeen || [], newer.vrSeen || []))].slice(-400) : undefined;
+  m.sprintSeen = [...new Set([].concat(newer.sprintSeen || [], older.sprintSeen || []))].slice(-400);   // 🏃 G42: applied on any of my devices = applied
+  { const g = new Map(); [].concat(older.sprintOut || [], newer.sprintOut || []).forEach(e => e && e.k && g.set(e.k, e)); m.sprintOut = [...g.values()].filter(e => Date.now() - e.ts < 14 * 864e5); }
   m.thanksSeen = [...new Set([].concat(newer.thanksSeen || [], older.thanksSeen || []))].slice(-200);
   m.cook = Object.assign({}, older.cook || {}, newer.cook || {});
   m.babyMine = B.mergeMine(older.babyMine, newer.babyMine);

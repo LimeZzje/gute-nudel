@@ -14,6 +14,7 @@ import { weekAhead, whyFor } from './builder.js';
 import { bzOn } from './babyzeit.js';
 import { seltenCard } from './daheim.js';
 import { render } from './app.js';
+import { sprintBtn, sprintPost, sprintReceive } from './sprint.js';
 
 const label = i => { const c = i.chore && S.chores.find(x => x.id === i.chore); return (c ? c.icon + ' ' : '') + i.text; };
 const openTodos = () => S.items.filter(i => !i.chore && (i.where === 'liste' || i.where === 'heute')).length;
@@ -28,12 +29,13 @@ export const fsPost = () => {
   listWeek();
   let week = [];
   try { week = weekAhead().days.map(d => ({ day: d.day, lines: [...d.routines.map(r => r.icon + ' ' + r.text), ...d.todos.map(x => x.text)].slice(0, C.DAY_LINES) })); } catch (e) {}
-  return { today: { day: today(), schein: scheinOn(), lines: S.items.filter(i => i.where === 'heute').map(label).slice(0, 12) }, week };
+  return { today: { day: today(), schein: scheinOn(), lines: S.items.filter(i => i.where === 'heute').map(label).slice(0, 12) }, week, ...sprintPost() };   // 🏃 G42: open list + sprint decisions
 };
 export function fsReceive(p) {
   let ch = false;
   if (p.today && JSON.stringify(p.today) !== JSON.stringify(S.partnerToday || null)) { S.partnerToday = p.today; ch = true; }
   if (p.week && JSON.stringify(p.week) !== JSON.stringify(S.partnerWeek || null)) { S.partnerWeek = p.week; ch = true; }
+  if (sprintReceive(p)) ch = true;   // 🏃 G42
   return ch;
 }
 export const fsTile = () => `<button class="card hcard fs-tile" data-a="fs"><span class="hc-txt"><b>☕ Unser Tag · Unsere Woche</b><span class="muted">Was heute und die nächsten Tage für euch dran ist</span></span><span class="hc-go">›</span></button>`;
@@ -77,6 +79,7 @@ function viewWeek() {
   const pw = new Map((S.partnerWeek || []).map(d => [d.day, d.lines]));
   let h = `<div class="card fs-count"><b>📉 Deine Liste: ${n} offen</b>${lw.n > n ? `<span class="muted">Montag waren es noch ${lw.n}.</span>` : ''}
     <span class="muted">${n === 0 ? 'Alles weg. 🎉' : left ? `So verteilt bleiben danach noch ${left} übrig.` : `So verteilt ist bis ${esc(parse((days.slice().reverse().find(d => d.todos.length) || days[0]).day).toLocaleDateString('de-DE', { weekday: 'long' }))} alles dran.`}</span></div>`;
+  h += sprintBtn();   // 🏃 G42: on demand, quiet once done this week
   h += `<p class="muted fs-wnote">Bis zu ${C.DAY_LINES} Sachen am Tag. Was liegen bleibt, geht zurück in die Liste und kommt neu dran.</p>`;
   for (const d of days) {
     const mine = [...d.routines.map(r => r.icon + ' ' + r.text), ...d.todos.map(x => x.text)], theirs = pw.get(d.day);
