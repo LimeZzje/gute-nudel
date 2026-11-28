@@ -78,9 +78,9 @@ function viewWeek() {
   const { days, left } = weekAhead(), n = openTodos(), lw = listWeek();
   const pw = new Map((S.partnerWeek || []).map(d => [d.day, d.lines]));
   let h = `<div class="card fs-count"><b>📉 Deine Liste: ${n} offen</b>${lw.n > n ? `<span class="muted">Montag waren es noch ${lw.n}.</span>` : ''}
-    <span class="muted">${n === 0 ? 'Alles weg. 🎉' : left ? `So verteilt bleiben danach noch ${left} übrig.` : `So verteilt ist bis ${esc(parse((days.slice().reverse().find(d => d.todos.length) || days[0]).day).toLocaleDateString('de-DE', { weekday: 'long' }))} alles dran.`}</span></div>`;
+    <span class="muted">${n === 0 ? 'Alles weg. 🎉' : left ? `${left} noch ohne Tag – in der Sprint-Planung verteilen.` : 'Alles hat einen Tag. ✨'}</span></div>`;
   h += sprintBtn();   // 🏃 G42: on demand, quiet once done this week
-  h += `<p class="muted fs-wnote">Bis zu ${C.DAY_LINES} Sachen am Tag. Was liegen bleibt, geht zurück in die Liste und kommt neu dran.</p>`;
+  h += `<p class="muted fs-wnote">Bis zu ${C.DAY_LINES} Sachen am Tag, so wie ihr es in der Sprint-Planung verteilt habt. Was liegen bleibt, geht zurück in die Liste.</p>`;
   for (const d of days) {
     const mine = [...d.routines.map(r => r.icon + ' ' + r.text), ...d.todos.map(x => x.text)], theirs = pw.get(d.day);
     h += `<div class="card fs-day"><h3>${esc(dayName(d.day))}</h3>

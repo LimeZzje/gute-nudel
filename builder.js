@@ -56,13 +56,19 @@ export function nextPicks(n, skip = new Set()) {
 }
 const put = (T, picks) => { picks.forEach(p => { p.it.where = 'heute'; p.it.carried = false; }); T.picked = (T.picked || []).concat(picks.map(p => ({ id: p.it.id, why: p.why }))); };
 
+// 🏃 G44 (his pick 2026-11-28): NO auto-fill. The day = the routines + exactly what the Sprint-Planung put on today
+// (item.sday). A plan date in the past is dropped: the item waits in the Liste again (no "von gestern").
 export function buildDay() {
   const T = S.today, d = today();
   if (T.day !== d || T.built) return false;
   T.built = true;
-  if (T.planned || scheinOn(d)) return false;   // she already planned today (or an upgrade mid-day): her page stays
-  if (!pool().length) return false;             // nothing to pick from: the old quiet page with the add field
-  put(T, nextPicks(places()));
+  for (const i of S.items) if (i.sday && i.sday < d) delete i.sday;
+  if (scheinOn(d)) return false;
+  const planned = S.items.filter(i => !i.chore && i.where === 'liste' && i.sday === d);
+  if (!planned.length && !pool().length) return false;   // nothing at all: the old quiet page with the add field
+  T.planned = true;   // no morning picker (G36): the day is what the sprint planned
+  if (!planned.length) return true;
+  put(T, planned.map(it => ({ it, why: '🏃 geplant' })));
   T.planned = true;
   return true;
 }
@@ -81,31 +87,24 @@ Object.assign(A, {
     put(T, [p]); T.closed = false; commit();
   },
 });
-// 'heute nicht' on a to-do the app picked: back to its pile, the next one takes the place, it does not come back today
+// 'heute nicht': back to the Liste (plan date dropped), nothing slides in (G44: no auto-fill), not again today
 export function swapOut(it) {
   const T = S.today;
-  it.where = 'liste';
+  it.where = 'liste'; delete it.sday;
   T.nope = (T.nope || []).concat([it.id]);
   T.picked = (T.picked || []).filter(p => p.id !== it.id);
-  const p = nextPicks(1, new Set(T.nope))[0];
-  if (p) put(T, [p]);
-  return p ? p.it : null;
+  return null;
 }
 
-// 🗓️ G41 Unsere Woche: the same rule played forward over the next 6 days (a forecast, re-rolled every morning:
-// what stays undone goes back into the pool, no day ever goes over C.DAY_LINES, no "from yesterday" mark)
-export function weekAhead(n = 6) {
-  const t = today(), end = addDays(t, n), plan = planAhead(end), used = new Set(), out = [];
-  const list = pool();
-  for (let k = addDays(t, 1); k <= end; k = addDays(k, 1)) {
+// 🗓️ Unsere Woche (G41 → G44): the next n days as PLANNED in the Sprint-Planung: routines (the routine rule played
+// forward) + the to-dos with that plan date. `left` = open to-dos with no day yet.
+export function weekAhead(n = 6, from = 1) {
+  const t = today(), end = addDays(t, n), plan = planAhead(end), out = [];
+  const mine = S.items.filter(i => !i.chore && (i.where === 'liste' || i.where === 'heute'));
+  for (let k = addDays(t, from); k <= end; k = addDays(k, 1)) {
     const routines = (plan[k] || []).filter(x => x.c).map(x => ({ icon: x.c.icon, text: x.c.name, chore: true }));
-    let room = Math.max(C.TODO_MIN, Math.min(C.TODO_MAX, C.DAY_LINES - routines.length)), heavy = false;
-    const todos = [], take = i => { used.add(i.id); todos.push({ text: i.text, id: i.id }); if (i.heavy) heavy = true; };
-    const open = list.filter(i => !used.has(i.id));
-    open.filter(i => i.due === k).forEach(take);   // due that day always comes along
-    const order = eisen([...open.filter(i => i.due && i.due < k && !used.has(i.id)).sort((a, b) => a.due.localeCompare(b.due)), ...open].filter((i, n, a) => a.indexOf(i) === n));
-    for (const i of order) { if (todos.length >= room) break; if (used.has(i.id)) continue; if (i.heavy && heavy) continue; take(i); }
+    const todos = eisen(mine.filter(i => k === t ? i.where === 'heute' : i.sday === k)).map(i => ({ text: i.text, id: i.id }));
     out.push({ day: k, routines, todos });
   }
-  return { days: out, left: list.filter(i => !used.has(i.id)).length };
+  return { days: out, left: mine.filter(i => !i.sday && i.where !== 'heute').length };
 }

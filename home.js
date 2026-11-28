@@ -28,6 +28,7 @@ import { render } from './app.js';
 import { dueCard } from './faellig.js';
 import { partnerScheinLine, scheinHome, todayTerms } from './schein.js';
 import { fsTile, viewFs } from './fruehstueck.js';
+import { viewSprint } from './sprint.js';
 import { shopList } from './sync.js';
 import { scheinOn } from './core.js';
 
@@ -226,6 +227,7 @@ export function viewHome() {
   if (ui.sub === 'hello') return viewHello();
   if (ui.sub === 'swipe') return viewSwipe();
   if (ui.sub === 'fs') return viewFs();   // ☕ G38
+  if (ui.sub === 'sprint') return viewSprint();   // 🏃 G44 the planning board
   if (ui.sub === 'zeitung') return `<button class="btn soft back-home" data-a="go" data-tab="home">‹ Zurück</button>` + (newspaper() || '<p class="muted">Noch keine Ausgabe.</p>');   // 📰 G40: its own quiet place
   const t = today(), slot = daySlot(), st = homeStats(), d = parse(t);
   const heute = S.items.filter(i => i.where === 'heute'), done = workToday();
