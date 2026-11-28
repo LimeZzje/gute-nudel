@@ -3,6 +3,7 @@ import * as C from './content.js';
 import { $, addDays, esc, modal, parse, scheinOn, shortDate, today } from './core.js';
 import { S, ui } from './state.js';
 import * as D from './data.js';
+import { walkCount, walkLines, walksInit } from './walks.js';
 import { pn } from './sync.js';
 import { buildDay } from './builder.js';
 import { bzEditorChip, bzOn } from './babyzeit.js';
@@ -10,7 +11,8 @@ import { bzEditorChip, bzOn } from './babyzeit.js';
 // ---------- recurring chores: due ones land on today's page by themselves ----------
 export const daysBetween = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
 export function choreDue(c, d) {
-  if (c.hh && c.hh.some(a => a.who !== D.me() && d >= a.due && d <= a.day)) return false;   // 🏠 G46: the other one does it this time
+  if (c.hh && c.hh.some(a => a.who !== D.me() && d >= a.due && d <= a.day)) return false;
+  if (c.walks && walkCount(c.walks, D.me(), d) === 0) return false;   // 🐶 no walk of mine that day   // 🏠 G46: the other one does it this time
   if (c.giveTo && c.giveAt && d >= c.giveAt) return false;   // 👶 G37: moving to the partner from that day on (hidden here, never lost)
   if (c.moved) {   // ⏭ moved one day on: due on the new day, not in between; the rhythm itself stays untouched
     if (d === c.moved.to) return c.last !== d;
@@ -143,6 +145,8 @@ export function scheduleChores(force) {
     take.forEach(c => { put(c); rp.push(c.id); });
     rest.forEach(c => { slide(c, d); slidCount(c, d); });   // 🐢 G34: found no place today
   }
+  walksInit();
+  if (!scheinOn(d)) added += walkLines(d);   // 🐶 Gassi mehrmals am Tag
   buildDay();   // 🧺 G36: once a day the app adds her small set of to-dos
   return added;
 }
@@ -193,7 +197,7 @@ export function rollover() {
   if (S.today.day) { // yesterday's leftovers go back to the top of the list, marked "von gestern" — chores just come back when due
     const old = S.today.day;   // 🧩 G33: a started round still open → back as ONE line with the open parts (a weekday one slides like G30)
     for (const c of S.chores) if ((c.round || []).length && openParts(c).length && !S.log.some(e => e.day === old && e.chore === c.id) && !(c.moved && c.moved.to > old)) slide(c, old);
-    S.items = S.items.filter(i => !(i.chore && i.where === 'heute'));
+    S.items = S.items.filter(i => !(i.chore && i.where === 'heute') && !i.gm);   // 🐶 walk lines are for their day only
     S.items.forEach(i => { i.carried = false; });
     const left = S.items.filter(i => i.where === 'heute');
     left.forEach(i => { i.where = 'liste'; });   // 🧺 G36: back to their pile, WITHOUT a "von gestern" mark

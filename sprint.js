@@ -14,7 +14,8 @@ import { A, S, ui } from './state.js';
 import { pn } from './sync.js';
 import { render } from './app.js';
 import { askFlags, eisen, flagTags, setFlags } from './flags.js';
-import { choreDone, choreDue, isDaily, moveRoutine, planAhead } from './chores.js';
+import { choreDone, choreDue, choreNext, isDaily, moveRoutine, planAhead } from './chores.js';
+import { setWalks, walkCount, walksPost } from './walks.js';
 
 const KEEP = 14 * 864e5, DAYS = 7;
 const mineOpen = () => S.items.filter(i => !i.chore && (i.where === 'liste' || i.where === 'heute'));
@@ -26,9 +27,11 @@ const days = () => Array.from({ length: DAYS }, (_, n) => addDays(today(), n));
 function myRoutines() {
   const t = today(), plan = planAhead(addDays(t, DAYS - 1)), out = {}, placed = new Set();
   for (const d of days()) out[d] = (plan[d] || []).filter(x => x.c).map(x => { placed.add(x.c.id); const a = (x.c.hh || []).find(y => y.who === D.me() && y.day === d);
-    return { id: x.c.id, t: x.c.icon + ' ' + x.c.name, fix: !!x.daily || x.st === 'done', daily: !!x.daily, done: x.st === 'done', hh: x.c.kind !== 'eigen', asg: a ? a.k : null, due: a ? a.due : d }; });
+    return { id: x.c.id, t: x.c.icon + ' ' + x.c.name, fix: !!x.daily || x.st === 'done', daily: !!x.daily, done: x.st === 'done', hh: x.c.kind !== 'eigen', asg: a ? a.k : null, due: a ? a.due : d, walk: !!x.c.walks }; });
   // 🏃 G45: due (or overdue) but no place in these 7 days → it waits in the Liste
   out._w = S.chores.filter(c => !isDaily(c) && !placed.has(c.id) && choreDue(c, t)).map(c => ({ id: c.id, t: c.icon + ' ' + c.name }));
+  // 🗓️ his ask 2026-11-28: every household routine NOT in these 7 days, plannable anyway (doing it early restarts its rhythm)
+  out._x = S.chores.filter(c => c.kind !== 'eigen' && !isDaily(c) && !placed.has(c.id) && !choreDue(c, t)).map(c => ({ id: c.id, t: c.icon + ' ' + c.name, next: choreNext(c) }));
   return out;
 }
 // an older phone posts plain labels / rows without the 🏠 info: treat them as household (all of hers were unmarked), so the
@@ -39,7 +42,7 @@ const rtNorm = r => (r || []).map(x => typeof x === 'string' ? { t: x, fix: true
 export const sprintPost = () => {
   let rt = {}; try { rt = myRoutines(); } catch (e) {}
   const hhDone = S.log.filter(e => e.hh && Date.now() - (e.ts || 0) < KEEP).map(e => ({ k: e.hh, cid: e.hhc, day: e.day }));
-  return { open: mineOpen().slice(0, 250).map(i => i.hh ? { ...strip(i), hh: i.hh } : strip(i)), rt, sprint: pending(), hhDone };
+  return { open: mineOpen().slice(0, 250).map(i => i.hh ? { ...strip(i), hh: i.hh } : strip(i)), rt, sprint: pending(), hhDone, walks: walksPost() };
 };
 // the partner's open list as I see it: their post with my decisions not yet applied over there laid on top
 export function partnerOpen() {
@@ -71,6 +74,7 @@ export function sprintReceive(p) {
   let ch = false;
   if (p.open && JSON.stringify(p.open) !== JSON.stringify(S.partnerOpen || null)) { S.partnerOpen = p.open; ch = true; }
   if (p.rt && JSON.stringify(p.rt) !== JSON.stringify(S.partnerRt || null)) { S.partnerRt = p.rt; ch = true; }
+  if (p.walks && JSON.stringify(p.walks) !== JSON.stringify(S.partnerWalks || null)) { S.partnerWalks = p.walks; ch = true; }
   const seen = new Set(S.sprintSeen || []);
   for (const e of p.sprint || []) {
     if (!e || !e.k || seen.has(e.k)) continue;
@@ -78,6 +82,7 @@ export function sprintReceive(p) {
     const it = S.items.find(i => i.id === e.id && !i.chore);
     if (e.v === 'day') { if (it) setDay(it, e.day && e.day >= today() ? e.day : null); }
     else if (e.v === 'flags' && e.f) { if (it) setFlags(it, e.f); }
+    else if (e.v === 'walks') { const c = S.chores.find(x => x.id === e.id); if (c) setWalks(c, e.days || [], e.n || {}); }
     else if (e.v === 'hh') applyHH(e);
     else if (e.v === 'hhx') applyHHX(e);
     else if (e.v === 'rkind') { const c = S.chores.find(x => x.id === e.id); if (c) c.kind = e.kind; }
@@ -136,14 +141,16 @@ function model() {
     if (e.v === 'hhx' && e.home === D.partner() && took[e.a]) { const r = took[e.a]; delete took[e.a]; if (days().includes(r.due)) yrt[r.due] = (yrt[r.due] || []).concat([{ ...r, asg: null, gone: false }]); }
   }
   for (const d of Object.keys(yrt)) if (Array.isArray(yrt[d])) yrt[d] = yrt[d].filter(x => !x.gone);
+  for (const e of pending()) if (e.v === 'hh' && e.home === D.partner() && Array.isArray(yrt._x) && yrt._x.some(x => x.id === e.id && x.next === e.due)) { yrt._x = yrt._x.filter(x => !(x.id === e.id && x.next === e.due)); if (e.who === D.partner()) yrt[e.day] = (yrt[e.day] || []).concat([{ id: e.id, t: e.t, hh: true, asg: e.a, due: e.due, fix: false }]); }
   const rt = { me: mine, you: yrt };
   return { all, rt, liste: eisen(all.filter(i => !dayOf(i)).sort((a, b) => (a.created || 0) - (b.created || 0))) };
 }
-const load = (M, who, d) => ((M.rt[who] || {})[d] || []).length + M.all.filter(i => i.who === who && dayOf(i) === d).length;
+const load = (M, who, d) => rtNorm((M.rt[who] || {})[d]).filter(r => !r.walk).length + M.all.filter(i => i.who === who && dayOf(i) === d).length + walksOf(M).reduce((a, w) => a + walkCount(w, abs(who), d), 0);
 const dayLabel = d => d === today() ? 'Heute' : parse(d).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' });
 
 // ---------- moving (one place for drag, phone sheet and trash) ----------
 function move(id, toWho, d) {   // toWho 'me'|'you'|null (= stays with the owner), d = day or null (Liste)
+  if (id.startsWith('x:')) return moveX(id, toWho, d);
   if (id.startsWith('s:') || id.startsWith('w:')) return moveS(id, toWho, d);
   if (id.startsWith('r:')) return moveR(id, toWho, d);
   const M = model(), it = M.all.find(i => i.id === id); if (!it) return false;
@@ -173,7 +180,7 @@ function column(M, col) {
   return `<div class="sp-col sp-p" data-col="${col}"><h3>${esc(nameOf(who))}</h3>${days().map(d => {
     const n = load(M, who, d), rts = rtNorm((M.rt[who] || {})[d]), its = eisen(M.all.filter(i => i.who === who && dayOf(i) === d));
     return `<div class="sp-day sp-drop${n >= C.DAY_LINES ? ' full' : ''}" data-who="${who}" data-day="${d}"><div class="sp-dh"><b>${esc(dayLabel(d))}</b><span>${n}/${C.DAY_LINES}</span></div>
-      ${rtFix(rts.filter(r => !inStrip(r)))}${rts.filter(r => !r.fix && !inStrip(r)).map(r => rchip(r, d)).join('')}${its.map(i => i.hh ? hchip(i) : chip(i, true)).join('')}</div>`;
+      ${(() => { const n = walksOf(M).map(w => [w, walkCount(w, abs(who), d)]).filter(x => x[1] > 0); return n.length ? `<div class="sp-rt">${n.map(([w, k]) => esc(w.t) + ' ×' + k).join(' · ')}</div>` : ''; })()}${rtFix(rts.filter(r => !inStrip(r) && !r.walk))}${rts.filter(r => !r.fix && !inStrip(r) && !r.walk).map(r => rchip(r, d)).join('')}${its.map(i => i.hh ? hchip(i) : chip(i, true)).join('')}</div>`;
   }).join('')}</div>`;
 }
 function middle(M, withTrash = true) {
@@ -235,7 +242,7 @@ function rsheet(id) {
 // Home phone: c.hh = [{k, due, who, day}] (who = 'stand'|'stefan'). Doer phone: a to-do 'hh-<k>' with it.hh = {k, cid, home, due}.
 const abs = r => r === 'me' ? D.me() : D.partner();
 const rel = a => a === D.me() ? 'me' : 'you';
-const inStrip = r => !!r.hh && !r.asg && !r.done && !!r.id;
+const inStrip = r => !!r.hh && !r.asg && !r.done && !!r.id && !r.walk;   // 🐶 walks have their own counter
 function stripRows(M) {
   const g = new Map();
   for (const who of ['me', 'you']) for (const d of days()) for (const r of rtNorm((M.rt[who] || {})[d])) if (inStrip(r)) {
@@ -253,8 +260,10 @@ function stripView(M) {
   return `<div class="sp-strip sp-drop" data-zone="strip"><h3>🏠 Haushalt diese Woche</h3>
     ${daily.length ? `<div class="sp-hrow"><span class="sp-hname">Jeden Tag:</span>${daily.map(g => `<div class="sp-item small sp-week" data-a="spitem" data-id="w:${g.who}:${esc(g.id)}"><span class="sp-t">${esc(g.t)}</span><span class="sp-m">ganze Woche</span></div>`).join('')}</div>` : ''}
     ${rows.length ? `<div class="sp-hweek">${days().map(d => { const here = rows.filter(g => g.days.includes(d)).sort((a, b) => a.daily - b.daily);
-      return `<div class="sp-hday"><div class="sp-dh"><b>${esc(dayLabel(d))}</b><span>${here.length}</span></div>${here.map(g => occ(g, d)).join('') || '<p class="muted" style="margin:0">–</p>'}</div>`; }).join('')}</div>`
-    : '<p class="muted">Alles verteilt. ✨</p>'}</div>`;
+      return `<div class="sp-hday"><div class="sp-dh"><b>${esc(dayLabel(d))}</b><span>${here.length}</span></div>${walksOf(M).map(w => wchip(w, d)).join('')}${here.map(g => occ(g, d)).join('') || (walksOf(M).length ? '' : '<p class="muted" style="margin:0">–</p>')}</div>`; }).join('')}</div>`
+    : '<p class="muted">Alles verteilt. ✨</p>'}
+    ${(() => { const xs = [...(M.rt.me._x || []).map(r => ({ ...r, who: 'me' })), ...(M.rt.you._x || []).map(r => ({ ...r, who: 'you' }))].filter(r => !(M.hidX || new Set()).has(r.who + ':' + r.id));
+      return xs.length ? `<div class="sp-hrow sp-xrow"><span class="sp-hname">Weitere Routinen:</span>${xs.map(r => `<div class="sp-item small sp-occ" data-a="spitem" data-id="x:${r.who}:${esc(r.id)}:${esc(r.next || '')}"><span class="sp-t">${esc(r.t)}</span><span class="sp-m"><span class="sp-o">${esc(nameOf(r.who).slice(0, 1))}</span></span></div>`).join('')}</div>` : ''; })()}</div>`;
 }
 const hchip = i => `<div class="sp-item small r hhi" data-a="spitem" data-id="${esc(i.id)}"><span class="sp-t">${esc(i.text)}</span><span class="sp-m"><span class="ftag">🏠</span></span></div>`;
 function assign(home, cid, due, to, day, t) {   // home/to relative ('me'|'you')
@@ -291,6 +300,12 @@ function moveS(id, toWho, d) {   // a strip chip (one day 's:' or the whole week
   if (load(M, to, d) - (to === home && d === due ? 1 : 0) >= C.DAY_LINES && !(to === home && d === due)) { toast(dayLabel(d) + ' ist voll (' + C.DAY_LINES + ').'); return false; }
   return assign(home, cid, due, to, d, r.t);
 }
+function moveX(id, toWho, d) {   // a routine not due this week, planned anyway
+  const [, home, cid, next] = id.split(':'); if (!d) return false;
+  const M = model(), to = toWho || home, r = [...(M.rt[home]._x || [])].find(x => x.id === cid); if (!r) return false;
+  if (load(M, to, d) >= C.DAY_LINES) { toast(dayLabel(d) + ' ist voll (' + C.DAY_LINES + ').'); return false; }
+  return assign(home, cid, next || d, to, d, r.t);
+}
 function weekTo(home, cid, to) {   // a daily household routine: the whole week to one person, each on its own day
   const M = model(), g = stripRows(M).find(x => x.who === home && x.id === cid); if (!g) return false;
   let n = 0;
@@ -305,10 +320,10 @@ function moveHH(M, it, toWho, d) {   // a hand-over line on the doer's side, mov
   if (d) assign(rel(h.home), h.cid, h.due, who, d, it.text); else commit(true);
   return true;
 }
-function hsheet(id, item) {
+function hsheet(id, item, xid) {
   const p = id.split(':'), home = p[1], cid = p[2], due = p[3], M = model();
-  ui.spItem = id; ui.spHH = item ? item.id : null;
-  const r = due ? rowOf(M, home, cid, due) : null, g = stripRows(M).find(x => x.who === home && x.id === cid);
+  ui.spItem = xid || id; ui.spHH = item ? item.id : null;
+  const r = xid ? (M.rt[home]._x || []).find(x => x.id === cid) : due ? rowOf(M, home, cid, due) : null, g = stripRows(M).find(x => x.who === home && x.id === cid);
   const name = item ? item.text : r ? r.t : g ? g.t : '';
   const who = ui.spWho || (item ? item.who : home), daily = (r && r.daily) || (g && g.daily) || id.startsWith('w:');
   const whoBtn = w => `<button class="btn wide ${who === w ? '' : 'soft'}" data-a="spwho" data-v="${w}">${esc(nameOf(w))}</button>`;
@@ -321,6 +336,28 @@ function hsheet(id, item) {
     ${item || (r && r.asg) ? '<button class="btn soft wide" data-a="sphhback">Zurück in den Haushalt</button>' : ''}
     ${item ? '' : `<button class="btn soft wide" data-a="spown">🙋 Eigene Routine von ${esc(nameOf(home))}</button>`}
     <p style="text-align:center;margin:10px 0 0"><button class="sc-undo" data-a="close">Fertig</button></p></div>`, '', true);
+}
+
+// ---------- 🐶 Gassi walks on the board: a counter per day "J 1 · S 2"; tap = steppers for that day or the whole week ----------
+function walksOf(M) {   // [{id, t, per, day, home}] for both phones, my pending changes laid on top
+  if (M._walks) return M._walks;
+  const mine = walksPost().map(w => ({ ...w, home: 'me' })), theirs = (S.partnerWalks || []).map(w => ({ ...w, day: { ...(w.day || {}) }, home: 'you' }));
+  for (const e of pending()) if (e.v === 'walks') { const w = theirs.find(x => x.id === e.id); if (w) for (const d of e.days || []) w.day[d] = { stand: walkCount(w, 'stand', d), stefan: walkCount(w, 'stefan', d), ...(e.n || {}) }; }
+  return (M._walks = [...mine, ...theirs]);
+}
+const wchip = (w, d) => `<div class="sp-item small sp-walk" data-a="spitem" data-id="g:${w.home}:${esc(w.id)}:${d}"><span class="sp-t">${esc(w.t)}</span><span class="sp-m">${['stand', 'stefan'].map(p => `<span class="sp-o">${esc(nameOf(rel(p)).slice(0, 1))} ${walkCount(w, p, d)}</span>`).join('')}</span></div>`;
+function wsheet(id) {
+  const [, home, cid, d] = id.split(':'), M = model(), w = walksOf(M).find(x => x.id === cid && x.home === home); if (!w) return closeModal();
+  ui.spItem = id;
+  const row = p => `<div class="sp-wrow"><b>${esc(nameOf(rel(p)))}</b><button class="btn soft" data-a="spwalk" data-p="${p}" data-v="-1" aria-label="weniger">−</button><span class="sp-wn">${walkCount(w, p, d)}</span><button class="btn soft" data-a="spwalk" data-p="${p}" data-v="1" aria-label="mehr">+</button></div>`;
+  modal(`<div class="sp-sheet"><p class="sp-who">🐶 ${esc(dayLabel(d))}</p><p class="psort-t">${esc(w.t)}</p>${row(julia() === 'me' ? D.me() : D.partner())}${row(julia() === 'me' ? D.partner() : D.me())}
+    <button class="btn soft wide" data-a="spwalkweek">So für die ganze Woche</button>
+    <p style="text-align:center;margin:10px 0 0"><button class="sc-undo" data-a="close">Fertig</button></p></div>`, '', true);
+}
+function walkSet(cid, home, ds, n) {
+  if (home === 'me') { const c = S.chores.find(x => x.id === cid); if (c) setWalks(c, ds, n); }
+  else out({ id: cid, v: 'walks', days: ds, n });
+  commit(true);
 }
 
 // the sheet (phone + tap on the board): who → which day / Liste / 🗑 / Merkmale
@@ -383,9 +420,20 @@ Object.assign(A, {
   sptab(el) { ui.spTab = el.dataset.v; render(); },
   spitem(el) { if (Date.now() - dragEnd < 400) return; ui.spItem = el.dataset.id; ui.spWho = null; const id = ui.spItem;
     if (id.startsWith('s:') || id.startsWith('w:')) return hsheet(id);
+    if (id.startsWith('g:')) return wsheet(id);
+    if (id.startsWith('x:')) { const p = id.split(':'); return hsheet('s:' + p[1] + ':' + p[2] + ':' + (p[3] || today()), null, id); }
     if (id.startsWith('r:')) { const [, cid, from] = id.split(':'), M = model(), w = rOwner(M, cid, from || ''), row = w && from && rtNorm(M.rt[w][from]).find(r => r.id === cid); return row && row.hh ? hsheet('s:' + w + ':' + cid + ':' + from) : rsheet(id); }
     const it = model().all.find(i => i.id === id); if (it && it.hh) return hsheet('s:' + rel(it.hh.home) + ':' + it.hh.cid + ':' + it.hh.due, it); sheet(id); },
   spown() { const [, w, cid] = ui.spItem.split(':'); if (w === 'me') { const c = S.chores.find(x => x.id === cid); if (c) c.kind = 'eigen'; } else out({ id: cid, v: 'rkind', kind: 'eigen' }); commit(true); closeModal(); render(); toast('🙋 Gehört jetzt zu ' + nameOf(w) + '.'); },
+  spwalk(el) {
+    const [, home, cid, d] = ui.spItem.split(':'), M = model(), w = walksOf(M).find(x => x.id === cid && x.home === home); if (!w) return;
+    const p = el.dataset.p, n = Math.max(0, Math.min(5, walkCount(w, p, d) + (+el.dataset.v)));
+    walkSet(cid, home, [d], { stand: walkCount(w, 'stand', d), stefan: walkCount(w, 'stefan', d), [p]: n }); wsheet(ui.spItem);
+  },
+  spwalkweek() {
+    const [, home, cid, d] = ui.spItem.split(':'), M = model(), w = walksOf(M).find(x => x.id === cid && x.home === home); if (!w) return;
+    walkSet(cid, home, days(), { stand: walkCount(w, 'stand', d), stefan: walkCount(w, 'stefan', d) }); closeModal(); render(); toast('🐶 So für die ganze Woche.');
+  },
   spweek(el) { const [, w, cid] = ui.spItem.split(':'); if (weekTo(w, cid, el.dataset.v)) { closeModal(); render(); } },
   sphhback() {
     const M = model(), it = ui.spHH && M.all.find(i => i.id === ui.spHH);

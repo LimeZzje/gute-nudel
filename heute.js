@@ -150,7 +150,7 @@ export function tick(id, el) {
   setTimeout(() => {
     S.items = S.items.filter(i => i !== it);
     const ch = it.chore && S.chores.find(c => c.id === it.chore);
-    S.log.push({ id: uid(), text: it.text, kind: 'task', day: today(), ts: Date.now(), stars, ...(it.hh ? { hh: it.hh.k, hhc: it.hh.cid } : {}), ...(it.did ? { did: it.did, from: it.from } : {}), ...(ch ? { chore: ch.id, prevLast: ch.last || null, prevMoved: ch.moved || null } : {}) });
+    S.log.push({ id: uid(), text: it.text, kind: 'task', day: today(), ts: Date.now(), stars, ...(it.hh ? { hh: it.hh.k, hhc: it.hh.cid } : {}), ...(it.gm ? { gm: it.id } : {}), ...(it.did ? { did: it.did, from: it.from } : {}), ...(ch ? { chore: ch.id, prevLast: ch.last || null, prevMoved: ch.moved || null } : {}) });
     earn(stars);
     if (ch) { choreDone(ch, today()); if (ch.reward) S.gifts.push({ id: uid(), cid: ch.id, day: today(), icon: ch.icon, name: ch.name, reward: ch.reward }); }
     const combo = S.combo && S.combo.iid === it.id && S.combo.phase === 'work' && C.COMBOS.find(c => c.id === S.combo.id);
