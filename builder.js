@@ -62,6 +62,7 @@ export function buildDay() {
   const T = S.today, d = today();
   if (T.day !== d || T.built) return false;
   T.built = true;
+  S.items = S.items.filter(i => !(i.hh && i.sday && i.sday < d));   // 🏠 G46: not done → it is due again at home
   for (const i of S.items) if (i.sday && i.sday < d) delete i.sday;
   if (scheinOn(d)) return false;
   const planned = S.items.filter(i => !i.chore && i.where === 'liste' && i.sday === d);

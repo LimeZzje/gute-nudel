@@ -2,6 +2,7 @@
 import * as C from './content.js';
 import { $, addDays, esc, modal, parse, scheinOn, shortDate, today } from './core.js';
 import { S, ui } from './state.js';
+import * as D from './data.js';
 import { pn } from './sync.js';
 import { buildDay } from './builder.js';
 import { bzEditorChip, bzOn } from './babyzeit.js';
@@ -9,6 +10,7 @@ import { bzEditorChip, bzOn } from './babyzeit.js';
 // ---------- recurring chores: due ones land on today's page by themselves ----------
 export const daysBetween = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
 export function choreDue(c, d) {
+  if (c.hh && c.hh.some(a => a.who !== D.me() && d >= a.due && d <= a.day)) return false;   // 🏠 G46: the other one does it this time
   if (c.giveTo && c.giveAt && d >= c.giveAt) return false;   // 👶 G37: moving to the partner from that day on (hidden here, never lost)
   if (c.moved) {   // ⏭ moved one day on: due on the new day, not in between; the rhythm itself stays untouched
     if (d === c.moved.to) return c.last !== d;
@@ -121,7 +123,8 @@ export function scheduleChores(force) {
   backfillCookLog();
   dedupeChoreItems();
   const d = today(), T = S.today;
-  for (const c of S.chores) if (c.moved && c.moved.to < d) c.moved = null;   // the moved day is over (not done → it's just overdue, like any other)
+  for (const c of S.chores) if (c.moved && c.moved.to < d) c.moved = null;
+  for (const c of S.chores) if (c.hh) { c.hh = c.hh.filter(a => a.day >= d); if (!c.hh.length) delete c.hh; }   // 🏠 G46: a past hand-over is over (not done → due again here)   // the moved day is over (not done → it's just overdue, like any other)
   const onPage = c => S.items.some(i => i.chore === c.id), doneToday = c => S.log.some(e => e.day === d && e.chore === c.id);
   if (T.day === d && !Array.isArray(T.rplaced)) {   // upgrade in the middle of a day: what is there stays, nothing more today
     T.rplaced = S.chores.filter(c => !isDaily(c) && (onPage(c) || doneToday(c))).map(c => c.id); T.rfull = true;

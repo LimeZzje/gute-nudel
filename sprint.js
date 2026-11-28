@@ -14,7 +14,7 @@ import { A, S, ui } from './state.js';
 import { pn } from './sync.js';
 import { render } from './app.js';
 import { askFlags, eisen, flagTags, setFlags } from './flags.js';
-import { choreDue, isDaily, moveRoutine, planAhead } from './chores.js';
+import { choreDone, choreDue, isDaily, moveRoutine, planAhead } from './chores.js';
 
 const KEEP = 14 * 864e5, DAYS = 7;
 const mineOpen = () => S.items.filter(i => !i.chore && (i.where === 'liste' || i.where === 'heute'));
@@ -25,7 +25,8 @@ const days = () => Array.from({ length: DAYS }, (_, n) => addDays(today(), n));
 // my routines per day (today = what is really on the page or done), for the greyed lines + the load
 function myRoutines() {
   const t = today(), plan = planAhead(addDays(t, DAYS - 1)), out = {}, placed = new Set();
-  for (const d of days()) out[d] = (plan[d] || []).filter(x => x.c).map(x => { placed.add(x.c.id); return { id: x.c.id, t: x.c.icon + ' ' + x.c.name, fix: !!x.daily || x.st === 'done' }; });
+  for (const d of days()) out[d] = (plan[d] || []).filter(x => x.c).map(x => { placed.add(x.c.id); const a = (x.c.hh || []).find(y => y.who === D.me() && y.day === d);
+    return { id: x.c.id, t: x.c.icon + ' ' + x.c.name, fix: !!x.daily || x.st === 'done', daily: !!x.daily, done: x.st === 'done', hh: x.c.kind !== 'eigen', asg: a ? a.k : null, due: a ? a.due : d }; });
   // 🏃 G45: due (or overdue) but no place in these 7 days → it waits in the Liste
   out._w = S.chores.filter(c => !isDaily(c) && !placed.has(c.id) && choreDue(c, t)).map(c => ({ id: c.id, t: c.icon + ' ' + c.name }));
   return out;
@@ -35,7 +36,8 @@ const rtNorm = r => (r || []).map(x => typeof x === 'string' ? { t: x, fix: true
 // ---------- what travels ----------
 export const sprintPost = () => {
   let rt = {}; try { rt = myRoutines(); } catch (e) {}
-  return { open: mineOpen().slice(0, 250).map(strip), rt, sprint: pending() };
+  const hhDone = S.log.filter(e => e.hh && Date.now() - (e.ts || 0) < KEEP).map(e => ({ k: e.hh, cid: e.hhc, day: e.day }));
+  return { open: mineOpen().slice(0, 250).map(i => i.hh ? { ...strip(i), hh: i.hh } : strip(i)), rt, sprint: pending(), hhDone };
 };
 // the partner's open list as I see it: their post with my decisions not yet applied over there laid on top
 export function partnerOpen() {
@@ -74,6 +76,9 @@ export function sprintReceive(p) {
     const it = S.items.find(i => i.id === e.id && !i.chore);
     if (e.v === 'day') { if (it) setDay(it, e.day && e.day >= today() ? e.day : null); }
     else if (e.v === 'flags' && e.f) { if (it) setFlags(it, e.f); }
+    else if (e.v === 'hh') applyHH(e);
+    else if (e.v === 'hhx') applyHHX(e);
+    else if (e.v === 'rkind') { const c = S.chores.find(x => x.id === e.id); if (c) c.kind = e.kind; }
     else if (e.v === 'rmove') { const c = S.chores.find(x => x.id === e.id); if (c && e.to >= today()) moveRoutine(c, e.from || today(), e.to); }
     else if (e.v === 'weg' || e.v === 'take') { if (it) S.items = S.items.filter(i => i !== it); }
     else if (e.v === 'give' && e.item && !S.items.some(i => i.id === e.item.id)) {
@@ -81,6 +86,13 @@ export function sprintReceive(p) {
       S.items.push(x);
       if (e.item.sday && e.item.sday >= today()) setDay(x, e.item.sday);
     }
+  }
+  for (const x of p.hhDone || []) {   // 🏠 G46: the other one did my routine → its rhythm starts over here
+    if (!x || !x.k || seen.has('d:' + x.k)) continue;
+    seen.add('d:' + x.k); ch = true;
+    const c = S.chores.find(y => y.id === x.cid); if (!c) continue;
+    if (!(c.last && c.last >= x.day)) choreDone(c, x.day);
+    if (c.hh) { c.hh = c.hh.filter(a => a.k !== x.k); if (!c.hh.length) delete c.hh; }
   }
   if (ch) S.sprintSeen = [...seen].slice(-400);
   return ch;
@@ -103,6 +115,11 @@ function model() {
     if (e.from) yrt[e.from] = src.filter(x => x !== r); else yrt._w = src.filter(x => x !== r);
     yrt[e.to] = (yrt[e.to] || []).concat([{ ...r, fix: false }]);
   }
+  for (const e of pending()) {   // 🏠 G46: my household decisions on HER routines, until her phone posts them back
+    if (e.v === 'hh' && e.home === D.partner()) for (const d of Object.keys(yrt)) { const r = (yrt[d] || []).find(x => x.id === e.id && (x.due || d) === e.due); if (r) { yrt[d] = yrt[d].map(x => x === r ? { ...x, asg: e.a, gone: e.who !== D.partner() } : x); } }
+    if (e.v === 'hhx' && e.home === D.partner()) for (const d of Object.keys(yrt)) yrt[d] = (yrt[d] || []).map(x => x.asg === e.a ? { ...x, asg: null, gone: false } : x);
+  }
+  for (const d of Object.keys(yrt)) if (Array.isArray(yrt[d])) yrt[d] = yrt[d].filter(x => !x.gone);
   const rt = { me: mine, you: yrt };
   return { all, rt, liste: eisen(all.filter(i => !dayOf(i)).sort((a, b) => (a.created || 0) - (b.created || 0))) };
 }
@@ -111,8 +128,10 @@ const dayLabel = d => d === today() ? 'Heute' : parse(d).toLocaleDateString('de-
 
 // ---------- moving (one place for drag, phone sheet and trash) ----------
 function move(id, toWho, d) {   // toWho 'me'|'you'|null (= stays with the owner), d = day or null (Liste)
+  if (id.startsWith('s:') || id.startsWith('w:')) return moveS(id, toWho, d);
   if (id.startsWith('r:')) return moveR(id, toWho, d);
   const M = model(), it = M.all.find(i => i.id === id); if (!it) return false;
+  if (it.hh) return moveHH(M, it, toWho, d);
   const who = toWho || it.who;
   if (who !== it.who && it.own) { toast('🙋 Das kann nur ' + nameOf(it.who) + '.'); return false; }
   if (d && (dayOf(it) !== d || who !== it.who) && load(M, who, d) >= C.DAY_LINES) { toast(dayLabel(d) + ' ist voll (' + C.DAY_LINES + ').'); return false; }
@@ -123,7 +142,8 @@ function move(id, toWho, d) {   // toWho 'me'|'you'|null (= stays with the owner
   commit(true); return true;
 }
 function trash(id) {
-  if (id.startsWith('r:')) { toast('Routinen änderst du unter Daheim → Routinen.'); return; }
+  if (id.startsWith('r:') || id.startsWith('s:') || id.startsWith('w:')) { toast('Routinen änderst du unter Daheim → Routinen.'); return; }
+  { const M0 = model(), h = M0.all.find(i => i.id === id && i.hh); if (h) { moveHH(M0, h, null, null); return; } }
   const M = model(), it = M.all.find(i => i.id === id); if (!it) return;
   if (it.who === 'me') S.items = S.items.filter(i => i.id !== id); else out({ id, v: 'weg' });
   commit(true); toast('Weg: ' + it.text);
@@ -137,7 +157,7 @@ function column(M, col) {
   return `<div class="sp-col sp-p" data-col="${col}"><h3>${esc(nameOf(who))}</h3>${days().map(d => {
     const n = load(M, who, d), rts = rtNorm((M.rt[who] || {})[d]), its = eisen(M.all.filter(i => i.who === who && dayOf(i) === d));
     return `<div class="sp-day sp-drop${n >= C.DAY_LINES ? ' full' : ''}" data-who="${who}" data-day="${d}"><div class="sp-dh"><b>${esc(dayLabel(d))}</b><span>${n}/${C.DAY_LINES}</span></div>
-      ${rtFix(rts)}${rtNorm(rts).filter(r => !r.fix).map(r => rchip(r, d)).join('')}${its.map(i => chip(i, true)).join('')}</div>`;
+      ${rtFix(rts.filter(r => !inStrip(r)))}${rts.filter(r => !r.fix && !inStrip(r)).map(r => rchip(r, d)).join('')}${its.map(i => i.hh ? hchip(i) : chip(i, true)).join('')}</div>`;
   }).join('')}</div>`;
 }
 function middle(M, withTrash = true) {
@@ -151,10 +171,10 @@ function middle(M, withTrash = true) {
 export function viewSprint() {
   const M = model(), back = `<button class="btn soft back-home" data-a="spback">‹ Zurück</button>`;
   const head = `<div class="sp-head"><h2>🏃 Sprint-Planung</h2><span class="muted">Eure Liste zusammen: ${M.all.length}</span></div>`;
-  if (wide()) return `${back}<section class="spboard wide">${head}<div class="sp-cols">${column(M, 'J')}${middle(M)}${column(M, 'S')}</div><p class="hint">Ziehen zum Verteilen · Antippen für Merkmale, Wer und Wann.</p></section>`;
+  if (wide()) return `${back}<section class="spboard wide">${head}${stripView(M)}<div class="sp-cols">${column(M, 'J')}${middle(M)}${column(M, 'S')}</div><p class="hint">Ziehen zum Verteilen · Antippen für Merkmale, Wer und Wann.</p></section>`;
   const tab = ui.spTab || 'L', t = (k, l) => `<button class="chip${tab === k ? ' on' : ''}" data-a="sptab" data-v="${k}">${l}</button>`;
-  return `${back}<section class="spboard phone">${head}<div class="chips sp-tabs">${t('J', esc(nameOf(sideOf('J'))))}${t('L', 'Liste')}${t('S', esc(nameOf(sideOf('S'))))}</div>
-    ${tab === 'L' ? middle(M, false) : column(M, tab)}<p class="hint">Antippen = Wer, Wann, Merkmale.</p></section>`;
+  return `${back}<section class="spboard phone">${head}<div class="chips sp-tabs four">${t('H', '🏠')}${t('J', esc(nameOf(sideOf('J'))))}${t('L', 'Liste')}${t('S', esc(nameOf(sideOf('S'))))}</div>
+    ${tab === 'H' ? stripView(M) : tab === 'L' ? middle(M, false) : column(M, tab)}<p class="hint">Antippen = Wer, Wann, Merkmale.</p></section>`;
 }
 export const sprintBtn = () => `<button class="btn wide sprint-btn" data-a="sprintstart">🏃 Sprint-Planung</button>`;
 
@@ -168,6 +188,12 @@ function rOwner(M, cid, from) {
 function moveR(id, toWho, d) {
   const [, cid, from] = id.split(':'), M = model(), who = rOwner(M, cid, from || '');
   if (!who) return false;
+  const row = from && rtNorm(M.rt[who][from]).find(r => r.id === cid);
+  if (row && row.hh && row.asg) {   // 🏠 a planned household one: plan it again (or back into the strip)
+    hhUndo({ a: row.asg, id: cid, home: abs(who), who: abs(who) });
+    if (d) assign(who, cid, row.due || from, toWho || who, d, row.t); else commit(true);
+    return true;
+  }
   if (toWho && toWho !== who) { toast('🔁 Routinen bleiben bei ' + nameOf(who) + '.'); return false; }
   if (!d) { toast('🔁 Eine Routine braucht einen Tag.'); return false; }
   if (d === from) return true;
@@ -183,6 +209,97 @@ function rsheet(id) {
     <p class="muted" style="margin:0 0 10px">Nur dieses eine Mal verschieben – der Rhythmus läuft danach weiter.</p>
     <div class="sp-days">${days().map(d => { const here = d === from, n = load(M, who, d), full = !here && n >= C.DAY_LINES;
       return `<button class="btn ${here ? '' : 'soft'} sp-dbtn" data-a="spday" data-v="${d}" ${full ? 'disabled' : ''}><b>${esc(dayLabel(d))}</b><small>${n}/${C.DAY_LINES}</small></button>`; }).join('')}</div>
+    <p style="text-align:center;margin:10px 0 0"><button class="sc-undo" data-a="close">Fertig</button></p></div>`, '', true);
+}
+
+// ---------- 🏠 G46 Haushalt strip (his design 2026-11-28): every household routine occurrence of both phones in the
+// next 7 days that nobody planned yet. Drag one onto a person's day = that person does it THIS time (no trace).
+// Daily ones (Kochen, Gassi …) can go for the whole week at once (the routine name chip). Nobody planned it → it
+// lands with its owner as before. Handed to the other one and not done → due again at home the next day.
+// Home phone: c.hh = [{k, due, who, day}] (who = 'stand'|'stefan'). Doer phone: a to-do 'hh-<k>' with it.hh = {k, cid, home, due}.
+const abs = r => r === 'me' ? D.me() : D.partner();
+const rel = a => a === D.me() ? 'me' : 'you';
+const inStrip = r => !!r.hh && !r.asg && !r.done && !!r.id;
+function stripRows(M) {
+  const g = new Map();
+  for (const who of ['me', 'you']) for (const d of days()) for (const r of rtNorm((M.rt[who] || {})[d])) if (inStrip(r)) {
+    const key = who + ':' + r.id; if (!g.has(key)) g.set(key, { who, id: r.id, t: r.t, daily: !!r.daily, days: [] });
+    g.get(key).days.push(d);
+  }
+  return [...g.values()];
+}
+const dshort = d => d === today() ? 'heute' : parse(d).toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '');
+function stripView(M) {
+  const rows = stripRows(M);
+  return `<div class="sp-strip sp-drop" data-zone="strip"><h3>🏠 Haushalt diese Woche</h3>${rows.length ? '<div class="sp-hgrid">' + rows.map(g => `<div class="sp-hrow">
+    ${g.daily && g.days.length > 1 ? `<div class="sp-item small sp-week" data-a="spitem" data-id="w:${g.who}:${esc(g.id)}"><span class="sp-t">${esc(g.t)}</span><span class="sp-m">ganze Woche</span></div>` : `<span class="sp-hname">${esc(g.t)}</span>`}
+    ${g.days.map(d => `<div class="sp-item small sp-occ" data-a="spitem" data-id="s:${g.who}:${esc(g.id)}:${d}"><span class="sp-t">${esc(dshort(d))}</span></div>`).join('')}</div>`).join('') + '</div>'
+    : '<p class="muted">Alles verteilt. ✨</p>'}</div>`;
+}
+const hchip = i => `<div class="sp-item small r hhi" data-a="spitem" data-id="${esc(i.id)}"><span class="sp-t">${esc(i.text)}</span><span class="sp-m"><span class="ftag">🏠</span></span></div>`;
+function assign(home, cid, due, to, day, t) {   // home/to relative ('me'|'you')
+  const e = { v: 'hh', a: uid(), id: cid, home: abs(home), who: abs(to), due, day, t };
+  applyHH(e); out(e); commit(true); return true;
+}
+function hhUndo(e) { const x = { v: 'hhx', a: e.a, id: e.id, home: e.home, who: e.who }; applyHHX(x); out(x); }   // own sprint key k (out), the hand-over key a
+export function applyHH(e) {
+  const me = D.me();
+  if (e.home === me) {
+    const c = S.chores.find(x => x.id === e.id); if (!c) return;
+    c.hh = (c.hh || []).filter(a => a.due !== e.due && a.k !== e.a).concat([{ k: e.a, due: e.due, who: e.who, day: e.day }]);
+    if (e.who === me) { if (e.day !== e.due) moveRoutine(c, e.due, e.day); }
+    else { if (c.moved && c.moved.pin) c.moved = null; if (e.due <= today() && today() <= e.day) S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute')); }
+  }
+  if (e.who === me && e.home !== me && !S.items.some(i => i.id === 'hh-' + e.a)) {
+    const x = { id: 'hh-' + e.a, text: e.t || 'Haushalt', where: 'liste', created: Date.now(), hh: { k: e.a, cid: e.id, home: e.home, due: e.due } };
+    S.items.push(x); setDay(x, e.day);
+  }
+}
+export function applyHHX(e) {
+  const me = D.me();
+  if (e.home === me) { const c = S.chores.find(x => x.id === e.id); if (c && c.hh) { c.hh = c.hh.filter(a => a.k !== e.a); if (!c.hh.length) delete c.hh; } }
+  if (e.who === me) S.items = S.items.filter(i => i.id !== 'hh-' + e.a);
+}
+function rowOf(M, who, cid, d) { return rtNorm((M.rt[who] || {})[d]).find(r => r.id === cid); }
+function moveS(id, toWho, d) {   // a strip chip (one day 's:' or the whole week 'w:') dropped somewhere
+  const p = id.split(':'), home = p[1], cid = p[2];
+  if (!d) return false;   // dropped on the Liste / strip: stays unplanned
+  const M = model(), to = toWho || home;
+  if (id.startsWith('w:')) return weekTo(home, cid, to);
+  const r = rowOf(M, home, cid, p[3]); if (!r) return false;
+  const due = r.due || p[3];
+  if (load(M, to, d) - (to === home && d === due ? 1 : 0) >= C.DAY_LINES && !(to === home && d === due)) { toast(dayLabel(d) + ' ist voll (' + C.DAY_LINES + ').'); return false; }
+  return assign(home, cid, due, to, d, r.t);
+}
+function weekTo(home, cid, to) {   // a daily household routine: the whole week to one person, each on its own day
+  const M = model(), g = stripRows(M).find(x => x.who === home && x.id === cid); if (!g) return false;
+  let n = 0;
+  for (const d of g.days) { if (to !== home && load(M, to, d) >= C.DAY_LINES) continue; const e = { v: 'hh', a: uid(), id: cid, home: abs(home), who: abs(to), due: d, day: d, t: g.t }; applyHH(e); out(e); n++; }
+  commit(true);
+  if (n < g.days.length) toast(`${n} von ${g.days.length} Tagen – die vollen Tage bleiben oben.`);
+  return n > 0;
+}
+function moveHH(M, it, toWho, d) {   // a hand-over line on the doer's side, moved again (or back into the strip)
+  const h = it.hh, who = toWho || it.who;
+  hhUndo({ a: h.k, id: h.cid, home: h.home, who: abs(it.who) });
+  if (d) assign(rel(h.home), h.cid, h.due, who, d, it.text); else commit(true);
+  return true;
+}
+function hsheet(id, item) {
+  const p = id.split(':'), home = p[1], cid = p[2], due = p[3], M = model();
+  ui.spItem = id; ui.spHH = item ? item.id : null;
+  const r = due ? rowOf(M, home, cid, due) : null, g = stripRows(M).find(x => x.who === home && x.id === cid);
+  const name = item ? item.text : r ? r.t : g ? g.t : '';
+  const who = ui.spWho || (item ? item.who : home), daily = (r && r.daily) || (g && g.daily) || id.startsWith('w:');
+  const whoBtn = w => `<button class="btn wide ${who === w ? '' : 'soft'}" data-a="spwho" data-v="${w}">${esc(nameOf(w))}</button>`;
+  modal(`<div class="sp-sheet"><p class="sp-who">🏠 Haushalt${due ? ' · fällig ' + esc(dayLabel(due)) : ''}</p><p class="psort-t">${esc(name)}</p>
+    <p class="muted" style="margin:0 0 8px">Wer macht es dieses Mal?</p>
+    <div class="sp-whos">${whoBtn(julia())}${whoBtn(julia() === 'me' ? 'you' : 'me')}</div>
+    ${id.startsWith('w:') ? '' : `<div class="sp-days">${days().map(d => { const n = load(M, who, d), full = n >= C.DAY_LINES && !(d === due && who === home);
+      return `<button class="btn soft sp-dbtn" data-a="spday" data-v="${d}" ${full ? 'disabled' : ''}><b>${esc(dayLabel(d))}</b><small>${n}/${C.DAY_LINES}</small></button>`; }).join('')}</div>`}
+    ${daily && g && g.days.length > 1 ? `<div class="sp-whos">${['me', 'you'].map(w => `<button class="btn soft wide" data-a="spweek" data-v="${w}">Ganze Woche: ${esc(nameOf(w))}</button>`).join('')}</div>` : ''}
+    ${item || (r && r.asg) ? '<button class="btn soft wide" data-a="sphhback">Zurück in den Haushalt</button>' : ''}
+    ${item ? '' : `<button class="btn soft wide" data-a="spown">🙋 Eigene Routine von ${esc(nameOf(home))}</button>`}
     <p style="text-align:center;margin:10px 0 0"><button class="sc-undo" data-a="close">Fertig</button></p></div>`, '', true);
 }
 
@@ -219,7 +336,7 @@ function endDrag(x, y) {
   dragEnd = Date.now();
   const el = document.elementFromPoint(x, y), z = el && el.closest('.sp-drop'); if (!z) return;
   if (z.dataset.zone === 'trash') trash(d.id);
-  else if (z.dataset.zone === 'liste') move(d.id, null, null);
+  else if (z.dataset.zone === 'liste' || z.dataset.zone === 'strip') move(d.id, null, null);
   else move(d.id, z.dataset.who, z.dataset.day);
 }
 if (typeof document !== 'undefined') {
@@ -244,9 +361,20 @@ Object.assign(A, {
   sprintstart() { ui.tab = 'heute'; ui.htab = 'sprint'; ui.spOpen = true; ui.sub = null; ui.spTab = 'L'; render(); scrollTo(0, 0); },
   spback() { ui.tab = 'heute'; ui.htab = 'sprint'; ui.spOpen = false; ui.fsTab = 'woche'; render(); scrollTo(0, 0); },
   sptab(el) { ui.spTab = el.dataset.v; render(); },
-  spitem(el) { if (Date.now() - dragEnd < 400) return; ui.spItem = el.dataset.id; ui.spWho = null; if (ui.spItem.startsWith('r:')) rsheet(ui.spItem); else sheet(ui.spItem); },
+  spitem(el) { if (Date.now() - dragEnd < 400) return; ui.spItem = el.dataset.id; ui.spWho = null; const id = ui.spItem;
+    if (id.startsWith('s:') || id.startsWith('w:')) return hsheet(id);
+    if (id.startsWith('r:')) { const [, cid, from] = id.split(':'), M = model(), w = rOwner(M, cid, from || ''), row = w && from && rtNorm(M.rt[w][from]).find(r => r.id === cid); return row && row.hh ? hsheet('s:' + w + ':' + cid + ':' + from) : rsheet(id); }
+    const it = model().all.find(i => i.id === id); if (it && it.hh) return hsheet('s:' + rel(it.hh.home) + ':' + it.hh.cid + ':' + it.hh.due, it); sheet(id); },
+  spown() { const [, w, cid] = ui.spItem.split(':'); if (w === 'me') { const c = S.chores.find(x => x.id === cid); if (c) c.kind = 'eigen'; } else out({ id: cid, v: 'rkind', kind: 'eigen' }); commit(true); closeModal(); render(); toast('🙋 Gehört jetzt zu ' + nameOf(w) + '.'); },
+  spweek(el) { const [, w, cid] = ui.spItem.split(':'); if (weekTo(w, cid, el.dataset.v)) { closeModal(); render(); } },
+  sphhback() {
+    const M = model(), it = ui.spHH && M.all.find(i => i.id === ui.spHH);
+    if (it) moveHH(M, it, null, null);
+    else { const [, w, cid, due] = ui.spItem.split(':'), r = due && rtNorm((M.rt[w] || {})[due]).find(x => x.id === cid); if (r && r.asg) { hhUndo({ a: r.asg, id: cid, home: abs(w), who: abs(w) }); commit(true); } }
+    ui.spHH = null; closeModal(); render();
+  },
   spwho(el) { ui.spWho = el.dataset.v; sheet(ui.spItem); },
-  spday(el) { if (move(ui.spItem, ui.spWho, el.dataset.v || null)) { closeModal(); render(); } },
+  spday(el) { const id = ui.spHH || ui.spItem; if (move(id, ui.spWho, el.dataset.v || null)) { ui.spHH = null; closeModal(); render(); } },
   sptrash() { trash(ui.spItem); closeModal(); render(); },
   spflags() {
     const M = model(), it = M.all.find(i => i.id === ui.spItem); if (!it) return;

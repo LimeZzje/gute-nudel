@@ -1579,3 +1579,17 @@ main:has(.spboard.wide) { max-width: none; }
 .sp-sheet .btn[disabled] { opacity: .4; }
 .flagcard .sc-undo, .sp-sheet .sc-undo { display: inline-block; min-height: 44px; padding: 10px 18px; }
 .qtabs.three { grid-template-columns: 1fr 1fr 1fr; }
+
+/* 🏠 G46 Haushalt strip */
+.sp-strip { background: var(--paper2); border-radius: 16px; padding: 10px 12px; margin: 0 0 14px; }
+.sp-strip h3 { margin: 0 0 8px; font-size: 20px; }
+.sp-hrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 6px; }
+.sp-hrow .sp-item { margin: 0; }
+.sp-hname { font-weight: 700; margin-right: 4px; }
+.sp-occ { min-width: 54px; justify-content: center; }
+.sp-week { background: var(--accent2); }
+.sp-week .sp-m { font-size: 12px; font-weight: 800; color: var(--ink2); margin-left: 6px; }
+.sp-item.hhi { border-left: 4px solid var(--green); }
+.sp-tabs.four { grid-template-columns: .6fr 1fr 1fr 1fr; }
+.spboard.wide .sp-hgrid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; }
+.sp-hname { min-width: 0; }
