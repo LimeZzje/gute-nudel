@@ -1578,3 +1578,4 @@ main:has(.spboard.wide) { max-width: none; }
 .sp-sheet .sp-dbtn small { font-weight: 600; opacity: .8; }
 .sp-sheet .btn[disabled] { opacity: .4; }
 .flagcard .sc-undo, .sp-sheet .sc-undo { display: inline-block; min-height: 44px; padding: 10px 18px; }
+.qtabs.three { grid-template-columns: 1fr 1fr 1fr; }

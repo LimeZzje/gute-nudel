@@ -46,8 +46,8 @@ function tabs() {
   return `<div class="chips fs-tabs"><button class="chip${w ? '' : ' on'}" data-a="fstab" data-v="heute">Heute</button><button class="chip${w ? ' on' : ''}" data-a="fstab" data-v="woche">Unsere Woche</button></div>`;
 }
 
-export function viewFs() {
-  let h = `<button class="btn soft back-home" data-a="go" data-tab="home">‹ Zurück</button><section class="fs">${tabs()}`;
+export function viewFs(back = true) {   // back = false inside To-Dos → 🏃 Sprint (its own tab there)
+  let h = `${back ? '<button class="btn soft back-home" data-a="go" data-tab="home">‹ Zurück</button>' : ''}<section class="fs">${tabs()}`;
   return h + (ui.fsTab === 'woche' ? viewWeek() : viewDay()) + `</section>`;
 }
 
@@ -91,7 +91,7 @@ function viewWeek() {
 }
 
 Object.assign(A, {
-  fs() { ui.tab = 'home'; ui.sub = 'fs'; render(); scrollTo(0, 0); },
+  fs() { ui.tab = 'heute'; ui.htab = 'sprint'; ui.spOpen = false; ui.sub = null; render(); scrollTo(0, 0); },   // the Home tile opens the To-Dos tab
   fstab(el) { ui.fsTab = el.dataset.v; render(); },
   fsweek() { S.fsWeek = monday(today()); commit(); A.psortstart(); },
 });

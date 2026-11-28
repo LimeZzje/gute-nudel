@@ -1,6 +1,8 @@
 // Gute Nudel – the entry module (index.html loads only this). Header, render(), tab chips, Android back button,
 // event binding (click → A[data-a]), welcome, takeRemote/syncDevices/refresh, one-time FIXES, start(), window.__gn for tests.
 // The rest lives in one module per screen/concern – see CODEMAP.md in the docs repo.
+import { viewFs } from './fruehstueck.js';
+import { viewSprint } from './sprint.js';
 import * as C from './content.js';
 import * as D from './data.js';
 import * as Bk from './book.js';
@@ -42,10 +44,10 @@ export function renderTop() {
 
 
 // ---------- render ----------
-const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Liste']];
+const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Liste'], ['sprint', '🏃 Sprint']];   // 🏃 his ask 2026-11-28: Sprint as its own tab
 function viewHeuteTab() {
   const n = weekCount();   // 📚 G35: the chip counts only Diese Woche
-  return `<div class="chips qtabs two">${HTABS.map(([k, l]) => `<button class="chip ${ui.htab === k ? 'on' : ''}" data-a="htab" data-v="${k}">${l}${k === 'liste' && n ? ' <span class="cnt">' + n + '</span>' : ''}</button>`).join('')}</div>` + incomingCard() + (ui.htab === 'liste' ? viewListe() : viewHeute());
+  return `<div class="chips qtabs three">${HTABS.map(([k, l]) => `<button class="chip ${ui.htab === k ? 'on' : ''}" data-a="htab" data-v="${k}">${l}${k === 'liste' && n ? ' <span class="cnt">' + n + '</span>' : ''}</button>`).join('')}</div>` + incomingCard() + (ui.htab === 'liste' ? viewListe() : ui.htab === 'sprint' ? (ui.spOpen ? viewSprint(false) : viewFs(false)) : viewHeute());
 }
 const VIEWS = { home: viewHome, heute: viewHeuteTab, ruhe: viewRuhe, hello: viewHN, schaetze: viewSchaetze, woche: viewWoche };
 // a tab opened without a chip (bottom bar, links) shows the chip it had last; Hello Nudel remembers across app starts
@@ -96,7 +98,7 @@ function goBack() {
   if (ui.sub === 'ent') { A.entback(); return; }
   if (ui.sub) { A.babyback(); return; }
   if (inQ('relax') && !S.ritual && ui.rx.size) { A.rxback(); return; }
-  if (ui.tab === 'heute' && ui.htab === 'liste') { ui.htab = 'heute'; render(); scrollTo(0, 0); return; }
+  if (ui.tab === 'heute' && ui.htab !== 'heute') { ui.htab = 'heute'; ui.spOpen = false; render(); scrollTo(0, 0); return; }
   if (ui.tab !== 'home') { ui.tab = 'home'; render(); scrollTo(0, 0); return; }
   toast('Du bist zu Hause 🙂');
 }

@@ -198,8 +198,8 @@ if (typeof document !== 'undefined') {
 }
 
 Object.assign(A, {
-  sprintstart() { ui.tab = 'home'; ui.sub = 'sprint'; ui.spTab = 'L'; render(); scrollTo(0, 0); },
-  spback() { ui.sub = 'fs'; ui.fsTab = 'woche'; render(); scrollTo(0, 0); },
+  sprintstart() { ui.tab = 'heute'; ui.htab = 'sprint'; ui.spOpen = true; ui.sub = null; ui.spTab = 'L'; render(); scrollTo(0, 0); },
+  spback() { ui.tab = 'heute'; ui.htab = 'sprint'; ui.spOpen = false; ui.fsTab = 'woche'; render(); scrollTo(0, 0); },
   sptab(el) { ui.spTab = el.dataset.v; render(); },
   spitem(el) { if (Date.now() - dragEnd < 400) return; ui.spItem = el.dataset.id; ui.spWho = null; sheet(ui.spItem); },
   spwho(el) { ui.spWho = el.dataset.v; sheet(ui.spItem); },

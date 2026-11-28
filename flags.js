@@ -15,12 +15,12 @@ export const eisen = list => list.map((i, n) => [i, n]).sort((a, b) => bucket(a[
 export const lowValue = i => i.flagged && !i.imp && !isUrg(i) && !i.joy;
 // small read-only marks after the text (lists, Heute)
 export const flagTags = i => i.chore ? '' : (i.imp ? '<span class="ftag" title="wichtig">❗</span>' : '') + (isUrg(i) ? '<span class="ftag" title="dringend">⏰</span>' : '')
-  + (i.heavy ? '<span class="ftag" title="anstrengend">🥵</span>' : '') + (i.own ? '<span class="ftag" title="nur ich">🙋</span>' : '');
+  + (i.heavy ? '<span class="ftag" title="anstrengend">🥵</span>' : '') + (i.joy ? '<span class="ftag" title="macht Freude">💛</span>' : '') + (i.own ? '<span class="ftag" title="nur ich">🙋</span>' : '');
 
 // ---------- the big card ----------
 // opts: { item (own item or a plain copy of the partner's), whose (name, partner only), skip: 'Später' label or null, done(f) }
 let cur = null;
-const ROWS = [['own', '🙋 Kann nur ich', '🏠 Kann jeder von uns'], ['imp', '❗ Wichtig', '❗ Wichtig'], ['urg', '⏰ Dringend', '⏰ Dringend'], ['heavy', '🥵 Anstrengend', '🥵 Anstrengend']];
+const ROWS = [['own', '🙋 Kann nur ich', '🏠 Kann jeder von uns'], ['imp', '❗ Wichtig', '❗ Wichtig'], ['urg', '⏰ Dringend', '⏰ Dringend'], ['heavy', '🥵 Anstrengend', '🥵 Anstrengend'], ['joy', '💛 Macht Freude', '💛 Macht Freude']];   // 💛 his ask 2026-11-28
 function draw() {
   const { it, f, whose, skip } = cur;
   modal(`<div class="flagcard">${whose ? `<p class="sp-who">${esc(whose)}</p>` : ''}<p class="psort-t">${esc(it.text)}</p>
@@ -30,10 +30,10 @@ function draw() {
 }
 export function askFlags(it, opts = {}) {
   cur = { it, whose: opts.whose || '', skip: opts.skip === undefined ? 'Später' : opts.skip, done: opts.done || null,
-    f: { own: !!it.own, imp: !!it.imp, urg: !!it.urg, heavy: !!it.heavy } };
+    f: { own: !!it.own, imp: !!it.imp, urg: !!it.urg, heavy: !!it.heavy, joy: !!it.joy } };
   draw();
 }
-export const setFlags = (it, f) => { for (const k of ['own', 'imp', 'urg', 'heavy']) { if (f[k]) it[k] = true; else delete it[k]; } it.flagged = true; };
+export const setFlags = (it, f) => { for (const k of ['own', 'imp', 'urg', 'heavy', 'joy']) { if (f[k]) it[k] = true; else delete it[k]; } it.flagged = true; };
 
 Object.assign(A, {
   flagtog(el) { if (!cur) return; const k = el.dataset.k; cur.f[k] = !cur.f[k]; draw(); },
