@@ -232,6 +232,7 @@ export function viewHome() {
   let h = flowerGarden(done.length, t) + `<section class="hello2"><div class="hg">${GREET[slot]}${slot === 'nacht' ? '?' : ','} <b>${esc(S.name || 'gute Nudel')}</b></div><div class="hd">${C.DAYNAMES[d.getDay()]}, ${d.getDate()}. ${C.MONTHS[d.getMonth()]}</div></section>`;
   // 🏠 G40 (his pick "Today first"): Heute · Essen · Als Nächstes; the rest moved (Zeitung behind a link, the look back to Woche)
   const sch = scheinOn(t);   // 🟡 G32: her Gelber Schein day = the yellow card instead of the Heute block
+  h += bubbles();   // 🫧 user 2026-11-28: the Instagram rings are the top of Home again, right under the greeting
   h += partnerScheinLine() + incomingCard() + giftCards();
   const finished = dayDone(), all = heute.length + done.length, p = all ? done.length / all : 0, R = 34, U = 2 * Math.PI * R;
   const terms = todayTerms(), dueT = S.items.filter(i => !i.chore && i.due === t && i.where !== 'heute');
@@ -253,7 +254,7 @@ export function viewHome() {
       ? soon.map(b => `<span class="hc-term"><i class="tdot" style="background:${b.color}"></i> ${esc(carDayLabel(carDay(b.start) < t ? t : carDay(b.start)))} ${esc(carTime(b.start))} · <b>${esc(b.note || (isCar(b) ? 'Auto' : 'Termin'))}</b>${isCar(b) ? ' 🚗' : ''}</span>`).join('')
       : '<span class="muted">Heute und morgen nichts Gemeinsames.</span>'}</span><span class="hc-go">›</span></button>`;
   h += fsTile();   // ☕ G38: one quiet tile, no badge
-  h += bubbles() + dogHomeCard();   // live events only (Picnic + Wochenplan sit in Essen now); 🐕 G29: his devices only
+  h += dogHomeCard();   // 🐕 G29: his devices only (the bubbles moved to the top, 2026-11-28)
   h += dogRulesLink();   // 🐕 G29: on her phone only the walk rules, quietly at the bottom
   h += `<p class="home-foot"><button class="lnk" data-a="zeitung">📰 Zeitung</button> · <button class="lnk" data-a="pause">☕ Pause</button></p>`;
   return h;

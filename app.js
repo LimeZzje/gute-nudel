@@ -4,7 +4,7 @@
 import * as C from './content.js';
 import * as D from './data.js';
 import * as Bk from './book.js';
-import { $, closeModal, commit, esc, modal, toast, today } from './core.js';
+import { $, closeModal, commit, esc, postToday, modal, toast, today } from './core.js';
 import { A, S, setS, ui } from './state.js';
 import { consumeFor, fmtQty, parseQty, postObj, shopSnapNow, splitAmount, syncPost, vorrat, vorratGroups } from './sync.js';
 import { emblem, rankModal } from './rank.js';
@@ -135,10 +135,10 @@ function bind() {
   setInterval(() => { if (document.visibilityState === 'visible') syncPost(); }, 90000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') D.flushBackup();
-    else { if (rollover()) commit(); checkEvening(); syncPost(); syncDevices(); picDeliveries(); }
+    else { if (rollover()) commit(); else postToday(); checkEvening(); syncPost(); syncDevices(); picDeliveries(); }
   });
   setTimeout(picDeliveries, 2500);
-  setInterval(() => { if (rollover()) commit(); checkEvening(); }, 60000);
+  setInterval(() => { if (rollover()) commit(); else postToday(); checkEvening(); }, 60000);
 }
 
 function welcome() {

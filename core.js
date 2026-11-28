@@ -4,13 +4,14 @@ import * as C from './content.js';
 import * as D from './data.js';
 import { S } from './state.js';
 import { postObj, shopStamp } from './sync.js';
+import { fsPost } from './fruehstueck.js';
 import { checkPromotion } from './rank.js';
 import { myStats } from './home.js';
 import { render } from './app.js';
 import { dueTag, pushSync } from './faellig.js';
 import { knBtn } from './kniff.js';
 
-export const VERSION = '2026-11-27.13';
+export const VERSION = '2026-11-28.2';
 
 export const $ = s => document.querySelector(s);
 export const tags = (i, tap) => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '') + dueTag(i, tap);
@@ -45,6 +46,12 @@ export const scheinOn = (d = today()) => (S.scheine || []).some(x => x && x.id =
 export const dayDone = () => !scheinOn() && S.today.planned && (S.today.closed || (allTicked() && evening()));
 
 // ---------- saving ----------
+// ☕ G38 fix: the breakfast page needs my lines of TODAY at the partner, even when nothing else changed since yesterday
+export function postToday() {   // only the post, never a backup: safe on a timer
+  const td = JSON.stringify(fsPost().today);
+  if (!D.canPost() || S.postedToday === td) return;
+  S.postedToday = td; D.saveLocal(S); D.schedulePost(postObj());
+}
 export function commit(post = false) {
   checkPromotion();
   if (shopStamp()) post = true;   // the shopping list is shared: every change goes to the partner
@@ -52,8 +59,8 @@ export function commit(post = false) {
   D.saveLocal(S);
   D.scheduleBackup(S);
   pushSync();   // G16: changed due dates go to the push worker (debounced, only if she said yes)
-  const stats = JSON.stringify(myStats());
-  if (post || S.postedName !== S.name || S.postedStats !== stats) { S.postedName = S.name; S.postedStats = stats; D.schedulePost(postObj()); }
+  const stats = JSON.stringify(myStats()), td = JSON.stringify(fsPost().today);   // ☕ G38 fix 2026-11-28: today's lines changed (or a new day) = post too
+  if (post || S.postedName !== S.name || S.postedStats !== stats || S.postedToday !== td) { S.postedName = S.name; S.postedStats = stats; S.postedToday = td; D.schedulePost(postObj()); }
   render();
 }
 
