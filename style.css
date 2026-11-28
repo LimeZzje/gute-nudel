@@ -1593,3 +1593,11 @@ main:has(.spboard.wide) { max-width: none; }
 .sp-tabs.four { grid-template-columns: .6fr 1fr 1fr 1fr; }
 .spboard.wide .sp-hgrid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; }
 .sp-hname { min-width: 0; }
+/* 🗓️ Haushalt as a week view */
+.sp-hweek { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.spboard.phone .sp-hweek { grid-template-columns: 1fr; }
+.sp-hday { background: var(--card); border-radius: 12px; padding: 6px; min-width: 0; }
+.sp-hday .sp-item { margin: 0 0 5px; font-size: 13px; padding: 6px 8px; }
+.sp-hday .sp-item .sp-t { overflow: hidden; text-overflow: ellipsis; }
+.sp-occ.daily { opacity: .7; }
+.spboard.wide .sp-hgrid { display: block; }

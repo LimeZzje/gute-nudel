@@ -31,7 +31,9 @@ function myRoutines() {
   out._w = S.chores.filter(c => !isDaily(c) && !placed.has(c.id) && choreDue(c, t)).map(c => ({ id: c.id, t: c.icon + ' ' + c.name }));
   return out;
 }
-const rtNorm = r => (r || []).map(x => typeof x === 'string' ? { t: x, fix: true } : x);   // an older phone posts plain labels
+// an older phone posts plain labels / rows without the 🏠 info: treat them as household (all of hers were unmarked), so the
+// central planning on ONE device still sees every chore (his point 2026-11-28)
+const rtNorm = r => (r || []).map(x => typeof x === 'string' ? { t: x, fix: true, hh: true, daily: true } : 'hh' in x ? x : { ...x, hh: true, daily: !!x.fix, due: x.due });
 
 // ---------- what travels ----------
 export const sprintPost = () => {
@@ -229,11 +231,15 @@ function stripRows(M) {
   return [...g.values()];
 }
 const dshort = d => d === today() ? 'heute' : parse(d).toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '');
+// 🗓️ his ask 2026-11-28: a WEEK VIEW (7 day columns, what is up each day); the every-day ones also get one
+// "ganze Woche" chip each in the line on top
 function stripView(M) {
-  const rows = stripRows(M);
-  return `<div class="sp-strip sp-drop" data-zone="strip"><h3>🏠 Haushalt diese Woche</h3>${rows.length ? '<div class="sp-hgrid">' + rows.map(g => `<div class="sp-hrow">
-    ${g.daily && g.days.length > 1 ? `<div class="sp-item small sp-week" data-a="spitem" data-id="w:${g.who}:${esc(g.id)}"><span class="sp-t">${esc(g.t)}</span><span class="sp-m">ganze Woche</span></div>` : `<span class="sp-hname">${esc(g.t)}</span>`}
-    ${g.days.map(d => `<div class="sp-item small sp-occ" data-a="spitem" data-id="s:${g.who}:${esc(g.id)}:${d}"><span class="sp-t">${esc(dshort(d))}</span></div>`).join('')}</div>`).join('') + '</div>'
+  const rows = stripRows(M), daily = rows.filter(g => g.daily && g.days.length > 1);
+  const occ = (g, d) => `<div class="sp-item small sp-occ${g.daily ? ' daily' : ''}" data-a="spitem" data-id="s:${g.who}:${esc(g.id)}:${d}"><span class="sp-t">${esc(g.t)}</span><span class="sp-m"><span class="sp-o">${esc(nameOf(g.who).slice(0, 1))}</span></span></div>`;
+  return `<div class="sp-strip sp-drop" data-zone="strip"><h3>🏠 Haushalt diese Woche</h3>
+    ${daily.length ? `<div class="sp-hrow"><span class="sp-hname">Jeden Tag:</span>${daily.map(g => `<div class="sp-item small sp-week" data-a="spitem" data-id="w:${g.who}:${esc(g.id)}"><span class="sp-t">${esc(g.t)}</span><span class="sp-m">ganze Woche</span></div>`).join('')}</div>` : ''}
+    ${rows.length ? `<div class="sp-hweek">${days().map(d => { const here = rows.filter(g => g.days.includes(d)).sort((a, b) => a.daily - b.daily);
+      return `<div class="sp-hday"><div class="sp-dh"><b>${esc(dayLabel(d))}</b><span>${here.length}</span></div>${here.map(g => occ(g, d)).join('') || '<p class="muted" style="margin:0">–</p>'}</div>`; }).join('')}</div>`
     : '<p class="muted">Alles verteilt. ✨</p>'}</div>`;
 }
 const hchip = i => `<div class="sp-item small r hhi" data-a="spitem" data-id="${esc(i.id)}"><span class="sp-t">${esc(i.text)}</span><span class="sp-m"><span class="ftag">🏠</span></span></div>`;
