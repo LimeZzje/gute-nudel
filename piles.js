@@ -1,6 +1,6 @@
 // 📚 G35 three piles on the Liste: Diese Woche (open) · Diesen Monat · Irgendwann (closed doors, no counts).
 // Item fields (additive, old versions just show everything as before): pile 'woche'|'monat'|'spaeter' (none = not sorted
-// yet), pileTs (when it got its pile), heavy 🏋, joy 💛, rank (order inside Diese Woche, from "Was zuerst?"), oldAsked.
+// yet), pileTs (when it got its pile), heavy 🥵 (anstrengend, G43), joy 💛, rank (order inside Diese Woche, from "Was zuerst?"), oldAsked.
 // A dated to-do follows its date: within 7 days it is in the week pile whatever its pile says.
 import { closeModal, commit, esc, modal, monday, tags, today, toast, undoToast } from './core.js';
 import { A, S, ui } from './state.js';
@@ -21,7 +21,7 @@ export const pileOf = k => listed().filter(i => i.pile === k && !inWeek(i)).sort
 export const weekCount = () => listed().filter(inWeek).length;
 const isOld = i => i.pile === 'woche' && !i.oldAsked && !i.due && Date.now() - (i.pileTs || i.created || Date.now()) > OLD_DAYS * 864e5;
 
-const marks = i => i.chore ? '' : `<span class="pmarks"><button class="pmark ${i.joy ? 'on' : ''}" data-a="pjoy" data-id="${i.id}" aria-label="Macht Freude" title="Macht Freude">💛</button><button class="pmark ${i.heavy ? 'on' : ''}" data-a="pheavy" data-id="${i.id}" aria-label="Schwer" title="Schwer">🏋</button></span>`;
+const marks = i => i.chore ? '' : `<span class="pmarks"><button class="pmark ${i.joy ? 'on' : ''}" data-a="pjoy" data-id="${i.id}" aria-label="Macht Freude" title="Macht Freude">💛</button><button class="pmark ${i.heavy ? 'on' : ''}" data-a="pheavy" data-id="${i.id}" aria-label="Anstrengend" title="Anstrengend">🥵</button></span>`;
 const row = (i, week) => `<div class="item"><button class="chk" data-a="toheute" data-id="${i.id}" aria-label="Für heute einplanen" title="Für heute">☀</button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i, true)}${week ? marks(i) : ''}</div>${dueBtns(i)}${week ? '' : `<button class="mini-btn" data-a="pmove" data-id="${i.id}" data-v="woche" aria-label="In diese Woche" title="In diese Woche">↑</button>`}<button class="mini-btn" data-a="del" data-id="${i.id}" aria-label="Löschen">✕</button></div>`;
 
 export function viewPiles() {
@@ -42,7 +42,7 @@ export function viewPiles() {
     if (open) h += `<div class="ppile">${list.map(i => row(i, false)).join('') || '<p class="muted">Leer.</p>'}</div>`;
   }
   if (D.canPost() && S.items.length) h += bzOn() ? `<p style="text-align:center;margin:12px 0 0"><button class="sc-undo" data-a="delegate">🤝 An ${esc(pn())} abgeben</button></p>` : `<button class="btn soft wide" data-a="delegate" style="margin-top:12px">🤝 An ${esc(pn())} abgeben</button>`;
-  h += `<p class="hint">Mit ☀ kommt eine Aufgabe auf die Seite von heute. 💛 = macht Freude, 🏋 = eher schwer.</p></section>`;
+  h += `<p class="hint">Mit ☀ kommt eine Aufgabe auf die Seite von heute. 💛 = macht Freude, 🥵 = anstrengend. ❗ wichtig, ⏰ dringend, 🙋 nur ich.</p></section>`;
   return h;
 }
 

@@ -5,6 +5,7 @@
 import * as C from './content.js';
 import { addDays, commit, scheinOn, today, toast, workToday } from './core.js';
 import { planAhead } from './chores.js';
+import { eisen, isUrg } from './flags.js';
 import { A, S } from './state.js';
 import { unsorted, weekPile } from './piles.js';
 import { dueDays } from './faellig.js';
@@ -30,6 +31,9 @@ function whyOf(i) {
   if (i.due && dueDays(i.due) === 0) return '📅 heute fällig';
   if (i.due && dueDays(i.due) < 0) return '📅 wartet schon';
   if (i.due && dueDays(i.due) === 1) return '📅 morgen fällig';
+  if (i.imp && isUrg(i)) return '❗⏰ wichtig + dringend';
+  if (i.urg) return '⏰ dringend';
+  if (i.imp) return '❗ wichtig';
   if (i.joy) return '💛 macht Freude';
   if (typeof i.rank === 'number') return 'zuerst gewählt';
   if (Date.now() - (i.created || Date.now()) > OLD) return 'wartet schon länger';
@@ -45,7 +49,7 @@ export function nextPicks(n, skip = new Set()) {
   const rest = list.filter(i => !out.some(o => o.it === i));
   const joy = rest.find(i => i.joy && !i.heavy) || rest.find(i => i.joy);
   const over = rest.filter(i => i.due && dueDays(i.due) < 0).sort((a, b) => a.due.localeCompare(b.due));
-  const order = [...over, ...rest.filter(i => i.due && dueDays(i.due) === 1), ...(joy ? [joy] : []), ...rest].filter((i, k, a) => a.indexOf(i) === k);
+  const order = eisen([...over, ...rest.filter(i => i.due && dueDays(i.due) === 1), ...(joy ? [joy] : []), ...rest].filter((i, k, a) => a.indexOf(i) === k));   // 🏷️ G43 Eisenhower
   let got = 0;
   for (const i of order) { if (got >= n) break; if (i.heavy && heavy) continue; take(i); got++; }
   return out;
@@ -99,7 +103,7 @@ export function weekAhead(n = 6) {
     const todos = [], take = i => { used.add(i.id); todos.push({ text: i.text, id: i.id }); if (i.heavy) heavy = true; };
     const open = list.filter(i => !used.has(i.id));
     open.filter(i => i.due === k).forEach(take);   // due that day always comes along
-    const order = [...open.filter(i => i.due && i.due < k && !used.has(i.id)).sort((a, b) => a.due.localeCompare(b.due)), ...open];
+    const order = eisen([...open.filter(i => i.due && i.due < k && !used.has(i.id)).sort((a, b) => a.due.localeCompare(b.due)), ...open].filter((i, n, a) => a.indexOf(i) === n));
     for (const i of order) { if (todos.length >= room) break; if (used.has(i.id)) continue; if (i.heavy && heavy) continue; take(i); }
     out.push({ day: k, routines, todos });
   }

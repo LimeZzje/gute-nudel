@@ -1530,4 +1530,14 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .fs-them span { color: var(--ink2); }
 /* 🏃 G42 Sprint-Planung */
 .sprint-btn { margin: 0 0 10px; }
-.sprint .sp-who { margin: 8px 0 0; font-weight: 800; font-size: 13px; color: var(--ink2); text-transform: uppercase; letter-spacing: .05em; }
+.sp-who { margin: 8px 0 0; font-weight: 800; font-size: 13px; color: var(--ink2); text-transform: uppercase; letter-spacing: .05em; }
+
+/* 🏷️ G43 flags: one big card, full-width rows (her phone is small) */
+.flagcard .flagrow { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 56px; margin: 0 0 8px; padding: 10px 16px; border: 2px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); font-size: 18px; font-weight: 700; text-align: left; }
+.flagcard .flagrow.on { border-color: var(--blue); background: var(--paper2); }
+.flagcard .flagrow b { font-size: 15px; color: var(--ink2); }
+.flagcard .flagrow.on b { color: var(--blue); }
+.flagcard .psort-t { margin-bottom: 12px; }
+.ftag { margin-left: 4px; font-size: 14px; }
+.sprint .sp-flags { margin: 0 0 10px; text-align: center; }
+.sprint .sp-low { margin: 0 0 8px; text-align: center; font-weight: 700; color: var(--ink2); }

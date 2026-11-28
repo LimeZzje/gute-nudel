@@ -11,19 +11,22 @@ import { A, S, ui } from './state.js';
 import { setPile } from './piles.js';
 import { pn } from './sync.js';
 import { render } from './app.js';
+import { askFlags, flagTags, lowValue, setFlags } from './flags.js';
 
 const KEEP = 14 * 864e5, PILES = ['woche', 'monat', 'spaeter'];
 const mineOpen = () => S.items.filter(i => i.where === 'liste' && !i.chore);
-const strip = i => ({ id: i.id, text: String(i.text || '').slice(0, 160), pile: i.pile || null, due: i.due || null, heavy: !!i.heavy, joy: !!i.joy, created: i.created || 0 });
+const strip = i => ({ id: i.id, text: String(i.text || '').slice(0, 160), pile: i.pile || null, due: i.due || null, heavy: !!i.heavy, joy: !!i.joy, own: !!i.own, imp: !!i.imp, urg: !!i.urg, flagged: !!i.flagged, created: i.created || 0 });
+// 🏷️ G43: what a moved item keeps (own never moves: a 🙋 item has no → button)
+const carry = (from, to) => { for (const k of ['due', 'heavy', 'joy', 'imp', 'urg', 'flagged']) if (from[k]) to[k] = from[k]; if (from.pile) { to.pile = from.pile; to.pileTs = Date.now(); } return to; };
 const pending = () => (S.sprintOut || []).filter(e => Date.now() - e.ts < KEEP);
 
 // what travels
 export const sprintPost = () => ({ open: mineOpen().slice(0, 200).map(strip), sprint: pending() });
 // the partner's open list as I see it: their post, with my decisions not yet applied over there laid on top
 export function partnerOpen() {
-  const gone = new Set(), pile = {};
-  for (const e of pending()) { if (e.v === 'weg' || e.v === 'take') gone.add(e.id); else if (PILES.includes(e.v)) pile[e.id] = e.v; }
-  return (S.partnerOpen || []).filter(i => !gone.has(i.id) && !S.items.some(x => x.id === i.id)).map(i => pile[i.id] ? { ...i, pile: pile[i.id] } : i);
+  const gone = new Set(), pile = {}, fl = {};
+  for (const e of pending()) { if (e.v === 'weg' || e.v === 'take') gone.add(e.id); else if (PILES.includes(e.v)) pile[e.id] = e.v; else if (e.v === 'flags' && e.f) fl[e.id] = e.f; }
+  return (S.partnerOpen || []).filter(i => !gone.has(i.id) && !S.items.some(x => x.id === i.id)).map(i => { let y = pile[i.id] ? { ...i, pile: pile[i.id] } : i; if (fl[i.id]) { y = { ...y }; setFlags(y, fl[i.id]); } return y; });
 }
 export function sprintReceive(p) {
   let ch = false;
@@ -34,12 +37,10 @@ export function sprintReceive(p) {
     seen.add(e.k); ch = true;
     const it = S.items.find(i => i.id === e.id && !i.chore);
     if (PILES.includes(e.v)) { if (it) setPile(it, e.v); }
+    else if (e.v === 'flags' && e.f) { if (it) setFlags(it, e.f); }
     else if (e.v === 'weg' || e.v === 'take') { if (it) S.items = S.items.filter(i => i !== it); }
     else if (e.v === 'give' && e.item && !S.items.some(i => i.id === e.item.id)) {
-      const x = { id: e.item.id, text: e.item.text, where: 'liste', created: e.item.created || Date.now() };
-      if (e.item.pile) { x.pile = e.item.pile; x.pileTs = Date.now(); }
-      if (e.item.due) x.due = e.item.due; if (e.item.heavy) x.heavy = true; if (e.item.joy) x.joy = true;
-      S.items.push(x);
+      S.items.push(carry(e.item, { id: e.item.id, text: e.item.text, where: 'liste', created: e.item.created || Date.now() }));
     }
   }
   if (ch) S.sprintSeen = [...seen].slice(-400);
@@ -59,12 +60,23 @@ function step() {
   if (!q.length) return finish();
   const x = q[0], it = x.mine ? S.items.find(i => i.id === x.id) : partnerOpen().find(i => i.id === x.id);
   const owner = x.mine ? (S.name || 'Ich') : pn(), other = x.mine ? pn() : (S.name || 'mich');
+  if (!it.flagged) return flagsFor(x, it, owner);   // 🏷️ G43: the flag card first, once per item
+  const low = lowValue(it);
   const btn = (v, l, cls = '') => `<button class="btn ${cls} wide" data-a="sprintdo" data-v="${v}">${l}</button>`;
   modal(`<div class="psort sprint"><p class="muted" style="margin:0">🏃 Sprint-Planung · noch ${q.length}</p>
-    <p class="sp-who">${esc(owner)}</p><p class="psort-t">${esc(it.text)}</p>
-    ${btn('woche', 'Diese Woche')}${btn('monat', 'Diesen Monat', 'blue')}${btn('spaeter', 'Irgendwann', 'soft')}
-    ${btn('move', '→ ' + esc(other), 'soft')}${btn('weg', 'Brauchen wir nicht mehr', 'soft')}
+    <p class="sp-who">${esc(owner)}</p><p class="psort-t">${esc(it.text)}</p><p class="sp-flags">${flagTags(it) || '<span class="muted">kein Merkmal</span>'} <button class="sc-undo" data-a="sprintflags">ändern</button></p>
+    ${low ? '<p class="sp-low">Weder wichtig noch dringend – Irgendwann oder weg?</p>' : ''}
+    ${btn('woche', 'Diese Woche', low ? 'soft' : '')}${btn('monat', 'Diesen Monat', 'blue')}${btn('spaeter', 'Irgendwann', low ? '' : 'soft')}
+    ${it.own ? '' : btn('move', '→ ' + esc(other), 'soft')}${btn('weg', 'Brauchen wir nicht mehr', 'soft')}
     <p style="text-align:center;margin:10px 0 0"><button class="sc-undo" data-a="sprintstop">Pause – später weiter</button></p></div>`);
+}
+function flagsFor(x, it, owner) {
+  askFlags(it, { whose: owner, skip: 'Pause – später weiter', done: f => {
+    if (!f) return A.sprintstop();
+    if (x.mine) { const m = S.items.find(i => i.id === x.id); if (m) setFlags(m, f); }
+    else out({ id: x.id, v: 'flags', f });
+    commit(true); step();
+  } });
 }
 function finish() {
   const n0 = ui.sprint.n0, n = teamTotal();
@@ -78,6 +90,11 @@ Object.assign(A, {
     const wk = monday(today()), r = S.sprintRun && S.sprintRun.wk === wk && S.sprintWk !== wk ? S.sprintRun : { wk, done: [], n0: teamTotal() };
     S.sprintRun = r; ui.sprint = r; step();
   },
+  sprintflags() {   // reopen the flag card for the current one
+    const x = ui.sprint && queue()[0]; if (!x) return;
+    const it = x.mine ? S.items.find(i => i.id === x.id) : partnerOpen().find(i => i.id === x.id); if (!it) return;
+    flagsFor(x, it, x.mine ? (S.name || 'Ich') : pn());
+  },
   sprintstop() { ui.sprint = null; closeModal(); render(); },
   sprintdo(el) {
     const x = ui.sprint && queue()[0]; if (!x) return;
@@ -86,16 +103,13 @@ Object.assign(A, {
       const it = S.items.find(i => i.id === x.id); if (!it) return;
       if (PILES.includes(v)) setPile(it, v);
       else if (v === 'weg') S.items = S.items.filter(i => i !== it);
-      else if (v === 'move') { out({ id: it.id, v: 'give', item: strip(it) }); S.items = S.items.filter(i => i !== it); }
+      else if (v === 'move' && !it.own) { out({ id: it.id, v: 'give', item: strip(it) }); S.items = S.items.filter(i => i !== it); }
     } else {
       const it = partnerOpen().find(i => i.id === x.id); if (!it) return;
       if (PILES.includes(v) || v === 'weg') out({ id: it.id, v });
-      else if (v === 'move') {
+      else if (v === 'move' && !it.own) {
         out({ id: it.id, v: 'take' });
-        const y = { id: it.id, text: it.text, where: 'liste', created: it.created || Date.now() };
-        if (it.pile) { y.pile = it.pile; y.pileTs = Date.now(); }
-        if (it.due) y.due = it.due; if (it.heavy) y.heavy = true; if (it.joy) y.joy = true;
-        S.items.push(y);
+        S.items.push(carry(it, { id: it.id, text: it.text, where: 'liste', created: it.created || Date.now() }));
       }
     }
     ui.sprint.done.push(x.id);
