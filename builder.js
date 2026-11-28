@@ -3,7 +3,8 @@
 // ticked it offers one more at a time up to the 10 stars. Her own choice (☀, Aus der Liste holen, add field) still wins.
 // State: S.today.built (done for today), S.today.picked = [{id, why}], S.today.nope = ids not again today.
 import * as C from './content.js';
-import { commit, scheinOn, today, toast, workToday } from './core.js';
+import { addDays, commit, scheinOn, today, toast, workToday } from './core.js';
+import { planAhead } from './chores.js';
 import { A, S } from './state.js';
 import { unsorted, weekPile } from './piles.js';
 import { dueDays } from './faellig.js';
@@ -85,4 +86,22 @@ export function swapOut(it) {
   const p = nextPicks(1, new Set(T.nope))[0];
   if (p) put(T, [p]);
   return p ? p.it : null;
+}
+
+// 🗓️ G41 Unsere Woche: the same rule played forward over the next 6 days (a forecast, re-rolled every morning:
+// what stays undone goes back into the pool, no day ever goes over C.DAY_LINES, no "from yesterday" mark)
+export function weekAhead(n = 6) {
+  const t = today(), end = addDays(t, n), plan = planAhead(end), used = new Set(), out = [];
+  const list = pool();
+  for (let k = addDays(t, 1); k <= end; k = addDays(k, 1)) {
+    const routines = (plan[k] || []).filter(x => x.c).map(x => ({ icon: x.c.icon, text: x.c.name, chore: true }));
+    let room = Math.max(C.TODO_MIN, Math.min(C.TODO_MAX, C.DAY_LINES - routines.length)), heavy = false;
+    const todos = [], take = i => { used.add(i.id); todos.push({ text: i.text, id: i.id }); if (i.heavy) heavy = true; };
+    const open = list.filter(i => !used.has(i.id));
+    open.filter(i => i.due === k).forEach(take);   // due that day always comes along
+    const order = [...open.filter(i => i.due && i.due < k && !used.has(i.id)).sort((a, b) => a.due.localeCompare(b.due)), ...open];
+    for (const i of order) { if (todos.length >= room) break; if (used.has(i.id)) continue; if (i.heavy && heavy) continue; take(i); }
+    out.push({ day: k, routines, todos });
+  }
+  return { days: out, left: list.filter(i => !used.has(i.id)).length };
 }
