@@ -26,6 +26,7 @@ import { babyParty, babyReconcile, gbParty, gbReconcile, hnDeckClose, snParty, s
 import { entReconcile, wireEntSwipe } from './entdecker.js';
 import { mergeStates } from './merge.js';
 import { knParty, knReconcile } from './kniff.js';   // 💡 KNIFFlicheNudel (also fills A with kniff / knv / …)
+import { plParty, plReconcile } from './platz.js';   // 🍪 Plätzchen-Rush (also fills A with plaetz / plopen / …)
 import { pushSync } from './faellig.js';   // due dates: fills A with duepick / snooze / push* ...
 import './actions.js';   // fills the action table A (exports nothing)
 
@@ -94,7 +95,7 @@ function goBack() {
     if (ui.cstep != null) { endCookMode(); render(); return; }
     backToList(); return;
   }
-  if ((ui.sub === 'kuchen' || ui.sub === 'snack') && ui.rid) { if (ui.cstep != null) endCookMode(); else { ui.rid = null; ui.sides = []; } render(); scrollTo(0, 0); return; }
+  if ((ui.sub === 'kuchen' || ui.sub === 'snack' || ui.sub === 'plaetz') && ui.rid) { if (ui.cstep != null) endCookMode(); else { ui.rid = null; ui.sides = []; } render(); scrollTo(0, 0); return; }
   if (ui.sub === 'ent') { A.entback(); return; }
   if (ui.sub) { A.babyback(); return; }
   if (inQ('relax') && !S.ritual && ui.rx.size) { A.rxback(); return; }
@@ -157,11 +158,11 @@ A.welcomego = () => { const n = $('#w-name').value.trim(); S.name = n; S.welcome
 
 function takeRemote(remote, adopt, base) {
   setS(adopt ? Object.assign(D.freshState(), remote, { me: D.me() }) : mergeStates(S, remote, base)); shopSnapNow();
-  const br = babyReconcile(); if (br.add + br.sub | gbReconcile() | snReconcile() | knReconcile()) S.updatedAt = Date.now();
+  const br = babyReconcile(); if (br.add + br.sub | gbReconcile() | snReconcile() | knReconcile() | plReconcile()) S.updatedAt = Date.now();
   D.saveLocal(S);
   rollover(); scheduleChores(); render();
   toast(adopt ? '🔄 Auf dem neuesten Stand' : '🔄 Mit dem anderen Gerät zusammengeführt');
-  babyParty(); gbParty(); snParty(); knParty();
+  babyParty(); gbParty(); snParty(); knParty(); plParty();
   return S;
 }
 async function syncDevices() { await D.pull(S); }
@@ -226,11 +227,12 @@ export async function start() {
   shopSnapNow();   // from here on, what leaves the shopping list was deleted on this phone
   rollover();
   scheduleChores();
-  babyReconcile(); gbReconcile(); snReconcile(); knReconcile(); entReconcile();
+  babyReconcile(); gbReconcile(); snReconcile(); knReconcile(); entReconcile(); plReconcile();
   if (applyFixes()) { S.updatedAt = Date.now(); D.saveLocal(S); D.scheduleBackup(S); }
   D.setRemoteHandler(takeRemote);
   bind();
   render();
+  plParty();   // (a Plätzchen the partner rated while this phone was closed: the plate shows on start)
   pushSync();   // G16: a due list that did not reach the push worker last time (offline) goes now
   await D.saveLocal(S);
   if ('serviceWorker' in navigator && !localStorage.getItem('gn_nosw')) {

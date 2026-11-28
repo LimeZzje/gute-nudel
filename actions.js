@@ -30,6 +30,8 @@ import { babyLive, gbParty, gbReconcile, snParty, snReconcile } from './events.j
 import { entReconcile } from './entdecker.js';
 import { knLive } from './kniff.js';
 import * as SN from './snacks.js';
+import * as PL from './plaetzchen.js';
+import { plParty, plReconcile } from './platz.js';
 import { render, tabChip } from './app.js';
 
 // ---------- actions ----------
@@ -390,6 +392,7 @@ Object.assign(A, {
     (S.cookLog = S.cookLog || []).push({ id: uid(), rid: r.id, title: r.title, icon: r.icon, day: today(), ts: Date.now(), taste: v });
     if (G.isCake(r.id)) gbReconcile();   // 🎂 the first cake ends the event: +5 ⭐ each
     if (SN.counts(r.id)) snReconcile();   // 🥜 the third different snack ends the Snack-Labor: +5 ⭐ each
+    if (PL.counts(r.id)) plReconcile();   // 🍪 the first Plätzchen from an Advent's tin: on the plate, +5 ⭐ each
     entReconcile();   // 🧭 a kitchen cooked from for the first time: +3 ⭐
     let qc = null;   // ✅ "Schon gekocht": what it used leaves the Vorrat now (cooking mode did that at its start)
     if (ui.quick) { ui.quick = false; S.dishes = (S.dishes || []).filter(x => x.id !== r.id); qc = consumeFor(r); }
@@ -397,10 +400,10 @@ Object.assign(A, {
     // the "Kochen" chore on today's page counts as done
     const k = S.items.find(i => i.where === 'heute' && i.chore && ((S.chores.find(x => x.id === i.chore) || {}).tools || []).includes('recipes'));
     ui.rid = null; ui.sides = [];
-    if (k) tick(k.id, null); else commit(SN.counts(r.id));   // (a 🥜 snack goes to the partner's phone at once: the Snack-Labor counts together)
+    if (k) tick(k.id, null); else commit(SN.counts(r.id) || PL.counts(r.id));   // (a 🥜 snack goes to the partner's phone at once: the Snack-Labor counts together)
     const pl = planNow(), planned = pl && today() <= pl.end && pl.days.includes(r.id) ? ' · 🗓️ im Wochenplan abgehakt' : '';
     toast((v === 3 ? 'Notiert: Lieblingsessen 😍 – kommt öfter dran' : v === 1 ? 'Notiert 😕 – das schlage ich nicht mehr vor' : 'Notiert 🙂') + planned);
-    gbParty(); snParty();
+    gbParty(); snParty(); plParty();
     if (qc) {
       if (qc.taken.length || qc.ask.length) commit(true);
       if (qc.taken.length) setTimeout(() => toast('🧊 Aus dem Vorrat: ' + qc.taken.join(', ')), 2700);

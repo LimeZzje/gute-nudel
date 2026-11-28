@@ -7,6 +7,8 @@ import * as SL from './hn_slides.js';
 import * as SN from './snacks.js';
 import * as KN from './kniffe.js';
 import { knCounts } from './kniff.js';
+import * as PL from './plaetzchen.js';
+import { plPlate } from './platz.js';
 import { $, closeModal, commit, confetti, esc, floatStar, key, lockScroll, longDate, modal, toast, today, uid, unlockScroll } from './core.js';
 import { A, S, ui } from './state.js';
 import { earn, pn, vorrat } from './sync.js';
@@ -104,6 +106,7 @@ export function pastEvents() {
       ['🧺', 'Hello Nudel bleibt – unten im Tab 🧺 Hello Nudel.']] });
   }
   if (!has(SN.ID) && now >= SN.END) { const m = snMade(); out.push({ id: SN.ID, icon: '🥜', title: SN.TITLE, done: SN.END, ended: true, lines: [...(m.length ? [['🥜', `${m.length === 1 ? 'Ein Snack' : m.length + ' Snacks'} zusammen gemacht.`]] : []), ['📖', 'Alle Snacks stehen jetzt im Kochbuch unter 🥜 Snacks.']] }); }
+  if (!has(PL.ID) && now >= PL.END) out.push({ ...PL.record(plPlate(), true), done: PL.END, ended: true });
   if (!has(KN.ID) && now >= KN.END) { const c = knCounts(); out.push({ id: KN.ID, icon: '💡', title: KN.TITLE, done: KN.END, ended: true, lines: [...(c.tested ? [['💡', `${c.tested === 1 ? 'Ein Kniff' : c.tested + ' Kniffe'} zusammen ausprobiert.`]] : []), ...(c.kept ? [['💚', `${c.kept === 1 ? 'Einer bleibt' : c.kept + ' bleiben'} – als 💡 bei euren Routinen.`]] : []), ['📖', 'Alle Kniffe stehen weiter unter 💡 bei den Routinen.']] }); }
   if (!has(B.ID) && now >= B.END) {
     const n = B.ITEMS.filter(it => babyOn(it.id)).length;
@@ -116,7 +119,7 @@ export function viewEvents() {
   for (const e of pastEvents()) {
     h += `<div class="card evcard">${e.id === B.ID ? BSKY : ''}<h3>${esc(e.icon + ' ' + e.title)}</h3><p class="muted">${e.ended ? 'Vorbei seit' : 'Abgeschlossen am'} ${esc(longDate(key(new Date(e.done))))}</p>
       <ul class="evlines">${e.lines.map(([ic, t]) => `<li><span>${esc(ic)}</span><span>${esc(t)}</span></li>`).join('')}</ul>
-      ${e.go ? `<button class="btn soft wide" data-a="${e.go}" style="margin-top:10px">${esc(e.btn)}</button>` : e.id === SN.ID ? `<button class="btn soft wide" data-a="snbook" style="margin-top:10px">🥜 Zu den Snacks im Kochbuch</button>` : ''}</div>`;
+      ${e.go ? `<button class="btn soft wide" data-a="${e.go}" style="margin-top:10px">${esc(e.btn)}</button>` : e.id === SN.ID ? `<button class="btn soft wide" data-a="snbook" style="margin-top:10px">🥜 Zu den Snacks im Kochbuch</button>` : e.id === PL.ID ? `<button class="btn soft wide" data-a="plbook" style="margin-top:10px">🍪 Zu den Plätzchen im Kochbuch</button>` : ''}</div>`;
   }
   return h;
 }

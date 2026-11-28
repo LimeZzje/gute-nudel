@@ -1229,6 +1229,30 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .mx-jar .chips { flex-wrap: wrap; overflow: visible; }
 .mx-name { width: 100%; font: 700 24px Caveat, cursive; border: 0; border-bottom: 2px solid var(--line); background: transparent; color: var(--ink); padding: 6px 2px; margin-bottom: 4px; }
 .snparty .snjar { width: 130px; display: block; margin: 0 auto; }
+/* 🍪 Plätzchen-Rush (2026-11-28): Advent red + fir green, a plate from above that fills per Advent, four candles */
+:root { --pl1: #fff4ec; --pl2: #fbe4d8; --plink: #4a2a22; --plred: #b23a3a; --plgreen: #3f7a52; --plplate: #fdfbf7; --plrim: #e3d6c9; --plwax: #f4ead8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pl1: #34221f; --pl2: #2a2420; --plink: #f6e6dc; --plred: #ef7f7f; --plgreen: #8fc79f; --plplate: #3d3531; --plrim: #574a42; --plwax: #e9dcc5; } }
+:root[data-theme="dark"] { --pl1: #34221f; --pl2: #2a2420; --plink: #f6e6dc; --plred: #ef7f7f; --plgreen: #8fc79f; --plplate: #3d3531; --plrim: #574a42; --plwax: #e9dcc5; }
+.plcard { display: grid; justify-items: center; text-align: center; width: 100%; border: 0; color: var(--plink); font: inherit; position: relative; overflow: hidden; padding: 12px 16px 18px;
+  background: radial-gradient(circle at 20% 30%, rgba(178, 58, 58, .1) 0 2px, transparent 3px) 0 0 / 34px 34px, linear-gradient(160deg, var(--pl1), var(--pl2)); }
+.plplate { width: 170px; height: auto; }
+.pt-sh { fill: rgba(74, 42, 34, .12); } .pt-rim { fill: var(--plplate); stroke: var(--plrim); stroke-width: 2; } .pt-in { fill: none; stroke: var(--plrim); stroke-width: 1.2; }
+.pt-g { animation: plpop .5s ease-out both; transform-box: fill-box; transform-origin: 50% 50%; }
+@keyframes plpop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.pt-twig { fill: none; stroke: var(--plgreen); stroke-width: 5; stroke-linecap: round; opacity: .85; }
+.pt-wax { fill: var(--plwax); stroke: var(--plred); stroke-width: 1.4; } .pt-fl { fill: #f4b23c; } .pt-wick { stroke: var(--plink); stroke-width: 1.4; }
+.pl-eye { display: block; font: 700 21px/1.1 Caveat, cursive; color: var(--plgreen); }
+.pl-t { display: block; font: 700 36px/1.15 Caveat, cursive; color: var(--plred); margin: 2px 0 8px; text-wrap: balance; }
+.pl-info { display: block; font-size: 14.5px; line-height: 1.45; max-width: 34em; opacity: .92; }
+.pl-made { display: block; margin-top: 10px; font-size: 14px; font-weight: 700; color: var(--plgreen); }
+.gbcake.pl-done { box-shadow: 0 0 0 2px var(--plgreen), var(--shadow); }
+.gbcake.pl-done .gbk-rib { background: var(--plgreen); color: #fff; }
+.gbcake .gbk-rib.pl-star { background: var(--plred); color: #fff; }
+.gbcake.pl-dim { opacity: .72; }
+.pl-extra { margin: -2px 0 8px; font-size: 13.5px; }
+.pl-closed { display: flex; align-items: center; gap: 14px; margin-top: 12px; border: 2px dashed var(--plrim); }
+.pl-closed .pl-lock { font-size: 30px; } .pl-closed > span:last-child { display: grid; gap: 2px; }
+.plparty .plplate { width: 150px; display: block; margin: 0 auto; }
 /* 💡 KNIFFlicheNudel (2026-11-10): workshop yellow + pencil grey, a light bulb with ten rays (one per routine tried) */
 :root { --kn1: #fffbe8; --kn2: #fdf1c9; --knink: #3d3a2e; --kngold: #c9900f; --kngold2: #fff1c2; --kngreen: #4f8f5b; --kngrey: #8c8778; --kntile: rgba(255, 255, 255, .75); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --kn1: #2f2b1d; --kn2: #28261c; --knink: #f4ecd2; --kngold: #f0c14b; --kngold2: rgba(240, 193, 75, .16); --kngreen: #9cc98a; --kngrey: #a59f8c; --kntile: rgba(255, 255, 255, .07); } }

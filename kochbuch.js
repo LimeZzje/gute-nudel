@@ -6,6 +6,7 @@ import * as Nw from './naehr.js';
 import * as D from './data.js';
 import * as G from './geburtstag.js';
 import * as SN from './snacks.js';
+import * as PL from './plaetzchen.js';
 import * as Bk from './book.js';
 import { closeModal, esc, key, modal, shortDate, tags, today, uid } from './core.js';
 import { A, S, ui } from './state.js';
@@ -45,8 +46,10 @@ export function allRecipes() {
   const mine = (S.myRecipes || []).filter(r => !r.del), ids = new Set(mine.map(r => r.id)), hidden = new Set([...(S.hiddenRecipes || []), ...nopes()]), free = r => !ids.has(r.id) && !hidden.has(r.id);
   return K.RECIPES.filter(free).concat(bookRecipes().filter(free).map(r => fixRec({ ...r, book: true })), mine.filter(r => !hidden.has(r.id)).map(r => fixRec({ ...r, own: true })),
     vorratRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true })), archRecipes().filter(r => free(r) && !r.dupOf).map(r => fixRec({ ...r, vr: true, arch: true })),
-    snBook() ? SN.RECIPES.filter(free).map(r => fixRec({ ...r })) : []);
+    snBook() ? SN.RECIPES.filter(free).map(r => fixRec({ ...r })) : [], plBook() ? PL.RECIPES.filter(free).map(r => fixRec({ ...r })) : []);
 }
+// 🍪 the Plätzchen-Rush's twelve move into the book (🧁 Backen) once the plate is full or the tins closed (2027-01-07)
+const plBook = () => Date.now() >= PL.END || (S.events || []).some(e => e.id === PL.ID);
 // 🥜 the Snack-Labor's nine move into the book (chip 🥜 Snacks) once the event is done or its time ran out (user 2026-11-07)
 const snBook = () => Date.now() >= SN.END || (S.events || []).some(e => e.id === SN.ID);
 // the original a changed recipe came from (built-in, photographed book or Claude's Vorrat), if any
@@ -62,6 +65,7 @@ const tripDate = ts => { const d = new Date(ts); return d.getDate() + '. ' + ['J
 export const recipeById = id => allRecipes().find(r => r.id === id) || (r => r && fixRec({ ...r, vr: true }))(vorratRecipes().concat(archRecipes()).find(r => r.id === id))
   || (r => r && fixRec({ ...r, gb: true }))(G.CAKES.find(r => r.id === id))   // (🎂 the birthday cakes: only in their event)
   || (r => r && fixRec({ ...r }))(SN.RECIPES.find(r => r.id === id))   // (🥜 the snacks: in their event until it is done)
+  || (r => r && fixRec({ ...r }))(PL.RECIPES.find(r => r.id === id))   // (🍪 the Plätzchen: in their tins until the rush is done)
   || (r => r && fixRec({ ...r, ent: true }))(entById(id));   // (🧭 the Entdecker dishes: on their own shelf)
 const isOurs = r => r.book || r.own;   // (Claude's Vorrat recipes, r.vr, are not "ours": they change with the fridge)
 // how much she'd want it: her favourites and what she rated well count more (and their kind), what she just had less,

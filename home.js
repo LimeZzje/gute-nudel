@@ -22,6 +22,8 @@ import { babyLive, gbLive, hnUnwrapped, pastEvents, snLive, viewBaby, viewEvents
 import * as SN from './snacks.js';
 import * as KN from './kniffe.js';
 import { knLive, viewKniffe } from './kniff.js';
+import * as PL from './plaetzchen.js';
+import { plLive, plWaiting, viewPlaetzchen } from './platz.js';
 import { dogHomeCard, dogRulesLink, viewHund } from './hund.js';   // 🐕 Hundeschule (G29; also fills A with hund / hundwalk / …)
 import { flowerGarden } from './flowers.js';
 import { render } from './app.js';
@@ -101,6 +103,7 @@ function bubbles() {
   if (n) b.push({ a: 'swipe', ic: '🍽️', l: 'Rezepte', n, on: true });
   if (Date.now() < HN.END) b.push(hnUnwrapped() ? { a: 'hello', ic: '🕊️', l: 'Hello Nudel', t0: HN.START, t1: HN.END } : { a: 'hello', ic: '🎁', l: 'Geschenk!', on: true, t0: HN.START, t1: HN.END });
   if (gbLive()) b.push({ a: 'kuchen', ic: '🎂', l: 'Geburtstag', on: true, t0: G.START, t1: G.END });
+  if (plLive()) b.push({ a: 'plaetz', ic: '🍪', l: 'Plätzchen', on: plWaiting(), t0: PL.START, t1: PL.END });
   if (snLive()) b.push({ a: 'snack', ic: '🥜', l: 'Snack-Labor', on: true, t0: SN.START, t1: SN.END });
   if (knLive()) b.push({ a: 'kniff', ic: '💡', l: 'Kniffe', on: true, t0: KN.START, t1: KN.END });
   if (babyLive()) b.push({ a: 'baby', ic: '👶', l: 'Baby', on: true, t0: B.START, t1: B.END });
@@ -123,6 +126,8 @@ function storyLeft(t0, t1) {
 // Newest unread article = the headline, two more below, ✓ Gelesen marks it (S.newsRead, merged as a union).
 export const ZETTEL = ['buch-bitch-lasagna', 'buch-kimchi-eintopf', 'buch-thai-garnelen-curry', 'buch-chili', 'buch-chili-cheese-nupels', 'buch-ofenkartoffeln-eier-dip', 'buch-sushi-reis', 'buch-eingelegter-ingwer', 'buch-kaiserschmarrn', 'buch-mexikanische-apfeltorte', 'buch-vanillekipferl'];   // Julia's sticky notes, 2026-10-26
 export const NEWS = [
+  { id: 'n-plaetzchen', d: '2026-11-29', show: () => Date.now() >= PL.START, ic: '🍪', t: 'Neues Event: der Plätzchen-Rush – vier Advents, vier Dosen, ein Teller', x: 'Heute ist der erste Advent, und auf Home steht eine neue Blase. Jeden Sonntag bis Weihnachten geht eine Plätzchendose auf, mit drei Sorten aus drei Familien: ein deutscher Klassiker, eine aus einem anderen Land (Schweden, Italien, USA, Griechenland) und eine kinderleichte, die auch ohne Ausstechen klappt. Ihr sucht euch eine aus, backt sie und am Ende ist der Teller voll.',
+    how: ['Home: oben die Blase „🍪 Plätzchen“', 'Eine Sorte aus der offenen Dose antippen → „Backen“ → Kochmodus', 'Am Ende bewerten: der Advent kommt auf den Teller, eine Kerze geht an, +5 ⭐ für jeden von euch', 'Eine Woche nicht geschafft? Die Dose bleibt offen – nachbacken geht immer', 'Alles schwangerschaftssicher: kein Alkohol, Guss ohne Eiweiß, rohen Teig nur nicht naschen', 'Nach dem Rush stehen alle zwölf im Kochbuch unter 🧁 Backen'], go: 'plaetz', btn: 'Zu den Plätzchendosen' },
   { id: 'n-ruhig', d: '2026-11-27', ic: '🌿', t: 'Dein Tag ist jetzt klein genug', x: 'Bisher lag morgens die ganze Liste vor dir, und wenn ein Tag mal ausgefallen ist, stand am nächsten alles doppelt da. Das ist vorbei. Die App stellt deinen Tag jetzt selbst zusammen: ein paar Routinen, ein paar Aufgaben, jede mit einem kurzen Grund. Was nicht reinpasst, wartet in Ruhe auf einen Tag mit Platz. Nichts geht verloren, nichts stapelt sich.',
     how: ['Heute: dein Tag steht morgens schon da – „▶ Fang hier an“ zeigt den ersten Schritt', 'Höchstens 3 Routinen am Tag, Kochen, Gassi & Co. laufen jeden Tag nebenher', '↩ bei einer Aufgabe = heute nicht, dafür rückt eine andere nach', 'Alles abgehakt? Dann ist der Tag geschafft. Wer mag, holt sich danach noch eine – bis zu den 10 Sternen', '🟡 Gelber Schein unten auf Heute: ein Tipp, und heute ist offiziell Pause', 'Liste: vorne „Diese Woche“, dahinter „Diesen Monat“ und „Irgendwann“ – mit „📚 Liste sortieren“ einmal in Ruhe durchgehen', '☕ Frühstücksplan auf Home: euer Tag zu zweit auf einer Seite'], go: 'fs', btn: 'Zum Frühstücksplan' },
   { id: 'n-picnic4', d: '2026-11-25', ic: '💶', t: 'Picnic: schneller da – und mit Spar-Wahl', x: 'Die Bestell-Liste hat bisher gemütlich ein Produkt nach dem anderen gesucht. Jetzt stehen deine gemerkten Produkte sofort da, der Rest kommt im Schwung. Und wo Picnic zuerst das teure Produkt zeigt, schlägt die App das günstigste vor, das wirklich dasselbe ist.',
@@ -221,6 +226,7 @@ export function viewHome() {
   if (ui.sub === 'snack') return viewSnacks();
   if (ui.sub === 'ent') { const v = viewEnt(); if (v) return v; }
   if (ui.sub === 'kniff') return viewKniffe();
+  if (ui.sub === 'plaetz') return viewPlaetzchen();
   if (ui.sub === 'hund') { const v = viewHund(); if (v) return v; }
   if (ui.sub === 'events') return viewEvents();
   if (ui.sub === 'plan') return viewPlan();

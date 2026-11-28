@@ -17,6 +17,7 @@ import { babyParty, babyReconcile, gbParty, gbReconcile, snParty, snReconcile } 
 import { entReconcile } from './entdecker.js';
 import * as SN from './snacks.js';
 import { knParty, knReconcile } from './kniff.js';
+import { plParty, plReconcile } from './platz.js';
 import { priceMerge } from './budget.js';
 import { retryBons } from './bon.js';
 
@@ -249,7 +250,7 @@ export async function syncPost() {
     if (p.plan && (p.plan.u || 0) > ((S.plan || {}).u || 0)) { S.plan = p.plan; changed = true; }
     if (p.wb && (p.wb.u || 0) > ((S.wb || {}).u || 0)) { S.wb = p.wb; changed = true; }
     if (p.prices) { const m = priceMerge(S.prices, p.prices); if (JSON.stringify(m) !== JSON.stringify(S.prices || {})) { S.prices = m; changed = true; } }
-    if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; entReconcile(); if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); if (snReconcile()) toast(`🥜 Snack-Labor geschafft · +${SN.STARS} ⭐`); }
+    if (p.cooked && JSON.stringify(p.cooked) !== JSON.stringify(S.partnerCooked)) { S.partnerCooked = p.cooked; changed = true; entReconcile(); if (gbReconcile()) toast(`🎂 ${pn()} hat den Geburtstagskuchen gebacken · +${G.STARS} ⭐`); if (snReconcile()) toast(`🥜 Snack-Labor geschafft · +${SN.STARS} ⭐`); plReconcile(); }
     if (p.dishPics && JSON.stringify(p.dishPics) !== JSON.stringify(S.partnerDishPics)) { S.partnerDishPics = p.dishPics; changed = true; }
     let babyNews = 0;
     if (p.baby && JSON.stringify(p.baby) !== JSON.stringify(S.partnerBaby || {})) { S.partnerBaby = p.baby; babyNews = babyReconcile().add; changed = true; }
@@ -274,7 +275,7 @@ export async function syncPost() {
     if (S.sent.length !== before) changed = true;
     if (changed) commit();
     if (babyNews) toast(`🍼 ${pn()} hat ${babyNews === 1 ? 'eine Sache' : babyNews + ' Sachen'} für den kleinen Menschen abgehakt · +${babyNews} ⭐`);
-    babyParty(); gbParty(); snParty(); knParty();
+    babyParty(); gbParty(); snParty(); knParty(); plParty();
     if (pulled.length) toast(pn() + ' hat zurückgenommen: ' + pulled.map(i => i.text).join(', '));
     if (back.length) modal(`<h2>Kommt zurück</h2><p>${esc(pn())} kann das gerade nicht übernehmen:</p><div style="text-align:left">${back.map(x => `<p><b>${esc(x.text)}</b><br><span class="muted">„${esc(x.reason)}“</span></p>`).join('')}</div><p class="muted">${back.length > 1 ? 'Die Aufgaben sind' : 'Die Aufgabe ist'} wieder auf deiner Liste.</p><div class="row"><button class="btn" data-a="close">Okay</button></div>`);
     else if (done.length) doneModal(done);
