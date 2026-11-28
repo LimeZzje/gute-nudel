@@ -44,7 +44,7 @@ export function renderTop() {
 
 
 // ---------- render ----------
-const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Liste'], ['sprint', '🏃 Sprint']];   // 🏃 his ask 2026-11-28: Sprint as its own tab
+const HTABS = [['heute', '📝 Heute'], ['liste', '📋 Meine Liste'], ['sprint', '🏃 Sprint']];   // 🏃 his ask 2026-11-28: Sprint as its own tab
 function viewHeuteTab() {
   const n = weekCount();   // 📚 G35: the chip counts only Diese Woche
   return `<div class="chips qtabs three">${HTABS.map(([k, l]) => `<button class="chip ${ui.htab === k ? 'on' : ''}" data-a="htab" data-v="${k}">${l}${k === 'liste' && n ? ' <span class="cnt">' + n + '</span>' : ''}</button>`).join('')}</div>` + incomingCard() + (ui.htab === 'liste' ? viewListe() : ui.htab === 'sprint' ? (ui.spOpen ? viewSprint(false) : viewFs(false)) : viewHeute());

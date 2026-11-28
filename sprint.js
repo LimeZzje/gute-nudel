@@ -14,7 +14,7 @@ import { A, S, ui } from './state.js';
 import { pn } from './sync.js';
 import { render } from './app.js';
 import { askFlags, eisen, flagTags, setFlags } from './flags.js';
-import { planAhead } from './chores.js';
+import { choreDue, isDaily, moveRoutine, planAhead } from './chores.js';
 
 const KEEP = 14 * 864e5, DAYS = 7;
 const mineOpen = () => S.items.filter(i => !i.chore && (i.where === 'liste' || i.where === 'heute'));
@@ -24,10 +24,13 @@ const pending = () => (S.sprintOut || []).filter(e => Date.now() - e.ts < KEEP);
 const days = () => Array.from({ length: DAYS }, (_, n) => addDays(today(), n));
 // my routines per day (today = what is really on the page or done), for the greyed lines + the load
 function myRoutines() {
-  const t = today(), plan = planAhead(addDays(t, DAYS - 1)), out = {};
-  for (const d of days()) out[d] = (plan[d] || []).filter(x => x.c).map(x => x.c.icon + ' ' + x.c.name);
+  const t = today(), plan = planAhead(addDays(t, DAYS - 1)), out = {}, placed = new Set();
+  for (const d of days()) out[d] = (plan[d] || []).filter(x => x.c).map(x => { placed.add(x.c.id); return { id: x.c.id, t: x.c.icon + ' ' + x.c.name, fix: !!x.daily || x.st === 'done' }; });
+  // 🏃 G45: due (or overdue) but no place in these 7 days → it waits in the Liste
+  out._w = S.chores.filter(c => !isDaily(c) && !placed.has(c.id) && choreDue(c, t)).map(c => ({ id: c.id, t: c.icon + ' ' + c.name }));
   return out;
 }
+const rtNorm = r => (r || []).map(x => typeof x === 'string' ? { t: x, fix: true } : x);   // an older phone posts plain labels
 
 // ---------- what travels ----------
 export const sprintPost = () => {
@@ -71,6 +74,7 @@ export function sprintReceive(p) {
     const it = S.items.find(i => i.id === e.id && !i.chore);
     if (e.v === 'day') { if (it) setDay(it, e.day && e.day >= today() ? e.day : null); }
     else if (e.v === 'flags' && e.f) { if (it) setFlags(it, e.f); }
+    else if (e.v === 'rmove') { const c = S.chores.find(x => x.id === e.id); if (c && e.to >= today()) moveRoutine(c, e.from || today(), e.to); }
     else if (e.v === 'weg' || e.v === 'take') { if (it) S.items = S.items.filter(i => i !== it); }
     else if (e.v === 'give' && e.item && !S.items.some(i => i.id === e.item.id)) {
       const x = carry(e.item, { id: e.item.id, text: e.item.text, where: 'liste', created: e.item.created || Date.now() });
@@ -92,7 +96,14 @@ function model() {
   const me = mineOpen().map(i => ({ ...i, who: 'me' })), you = partnerOpen().map(i => ({ ...i, who: 'you' }));
   const all = [...me, ...you];
   let mine = {}; try { mine = myRoutines(); } catch (e) {}
-  const rt = { me: mine, you: S.partnerRt || {} };
+  const yrt = {}; for (const [k, v] of Object.entries(S.partnerRt || {})) yrt[k] = rtNorm(v);
+  for (const e of pending()) if (e.v === 'rmove') {
+    const src = e.from ? (yrt[e.from] || []) : (yrt._w || []), r = src.find(x => x.id === e.id);
+    if (!r || !days().includes(e.to)) continue;
+    if (e.from) yrt[e.from] = src.filter(x => x !== r); else yrt._w = src.filter(x => x !== r);
+    yrt[e.to] = (yrt[e.to] || []).concat([{ ...r, fix: false }]);
+  }
+  const rt = { me: mine, you: yrt };
   return { all, rt, liste: eisen(all.filter(i => !dayOf(i)).sort((a, b) => (a.created || 0) - (b.created || 0))) };
 }
 const load = (M, who, d) => ((M.rt[who] || {})[d] || []).length + M.all.filter(i => i.who === who && dayOf(i) === d).length;
@@ -100,6 +111,7 @@ const dayLabel = d => d === today() ? 'Heute' : parse(d).toLocaleDateString('de-
 
 // ---------- moving (one place for drag, phone sheet and trash) ----------
 function move(id, toWho, d) {   // toWho 'me'|'you'|null (= stays with the owner), d = day or null (Liste)
+  if (id.startsWith('r:')) return moveR(id, toWho, d);
   const M = model(), it = M.all.find(i => i.id === id); if (!it) return false;
   const who = toWho || it.who;
   if (who !== it.who && it.own) { toast('🙋 Das kann nur ' + nameOf(it.who) + '.'); return false; }
@@ -111,6 +123,7 @@ function move(id, toWho, d) {   // toWho 'me'|'you'|null (= stays with the owner
   commit(true); return true;
 }
 function trash(id) {
+  if (id.startsWith('r:')) { toast('Routinen änderst du unter Daheim → Routinen.'); return; }
   const M = model(), it = M.all.find(i => i.id === id); if (!it) return;
   if (it.who === 'me') S.items = S.items.filter(i => i.id !== id); else out({ id, v: 'weg' });
   commit(true); toast('Weg: ' + it.text);
@@ -122,15 +135,17 @@ const chip = (i, small) => `<div class="sp-item${i.own ? ' own' : ''}${small ? '
 function column(M, col) {
   const who = sideOf(col);
   return `<div class="sp-col sp-p" data-col="${col}"><h3>${esc(nameOf(who))}</h3>${days().map(d => {
-    const n = load(M, who, d), rts = (M.rt[who] || {})[d] || [], its = eisen(M.all.filter(i => i.who === who && dayOf(i) === d));
+    const n = load(M, who, d), rts = rtNorm((M.rt[who] || {})[d]), its = eisen(M.all.filter(i => i.who === who && dayOf(i) === d));
     return `<div class="sp-day sp-drop${n >= C.DAY_LINES ? ' full' : ''}" data-who="${who}" data-day="${d}"><div class="sp-dh"><b>${esc(dayLabel(d))}</b><span>${n}/${C.DAY_LINES}</span></div>
-      ${rts.length ? `<div class="sp-rt">${rts.map(r => esc(r)).join(' · ')}</div>` : ''}${its.map(i => chip(i, true)).join('')}</div>`;
+      ${rtFix(rts)}${rtNorm(rts).filter(r => !r.fix).map(r => rchip(r, d)).join('')}${its.map(i => chip(i, true)).join('')}</div>`;
   }).join('')}</div>`;
 }
 function middle(M, withTrash = true) {
   const top = M.liste.filter(i => i.imp || i.urg || i.joy || (i.due && i.due <= addDays(today(), 3))), rest = M.liste.filter(i => !top.includes(i));
-  return `<div class="sp-col sp-mid"><div class="sp-liste sp-drop" data-zone="liste"><h3>Liste <span class="muted">${M.liste.length}</span></h3>
-    ${M.liste.length ? '' : '<p class="muted">Alles hat einen Tag. ✨</p>'}${top.map(i => chip(i)).join('')}${top.length && rest.length ? '<div class="sp-sep">Rest</div>' : ''}${rest.map(i => chip(i)).join('')}</div>
+  const wait = [...rtNorm(M.rt.me._w).map(r => ({ ...r, who: 'me' })), ...rtNorm(M.rt.you._w).map(r => ({ ...r, who: 'you' }))];
+  return `<div class="sp-col sp-mid"><div class="sp-liste sp-drop" data-zone="liste"><h3>Liste <span class="muted">${M.liste.length + wait.length}</span></h3>
+    ${wait.length ? `<div class="sp-sep">🔁 Routinen ohne Tag</div>${wait.map(r => rchip(r, '', r.who)).join('')}` : ''}
+    ${M.liste.length || wait.length ? '' : '<p class="muted">Alles hat einen Tag. ✨</p>'}${top.map(i => chip(i)).join('')}${top.length && rest.length ? '<div class="sp-sep">Rest</div>' : ''}${rest.map(i => chip(i)).join('')}</div>
     ${withTrash ? '<div class="sp-trash sp-drop" data-zone="trash">🗑 Hierher ziehen = brauchen wir nicht mehr</div>' : ''}</div>`;
 }
 export function viewSprint() {
@@ -142,6 +157,34 @@ export function viewSprint() {
     ${tab === 'L' ? middle(M, false) : column(M, tab)}<p class="hint">Antippen = Wer, Wann, Merkmale.</p></section>`;
 }
 export const sprintBtn = () => `<button class="btn wide sprint-btn" data-a="sprintstart">🏃 Sprint-Planung</button>`;
+
+// ---------- 🏃 G45 routines on the board: one occurrence at a time, only within its own person ----------
+const rtFix = rts => { const f = rtNorm(rts).filter(r => r.fix); return f.length ? `<div class="sp-rt">${f.map(r => esc(r.t)).join(' · ')}</div>` : ''; };
+const rchip = (r, d, who) => `<div class="sp-item small r" data-a="spitem" data-id="r:${esc(r.id)}:${esc(d)}"${who ? ` data-owner="${who}"` : ''}><span class="sp-t">${esc(r.t)}</span><span class="sp-m"><span class="ftag">🔁</span>${who ? `<span class="sp-o">${esc(nameOf(who).slice(0, 1))}</span>` : ''}</span></div>`;
+function rOwner(M, cid, from) {
+  for (const w of ['me', 'you']) { const list = from ? rtNorm((M.rt[w] || {})[from]) : rtNorm(M.rt[w]._w); if (list.some(r => r.id === cid && !r.fix)) return w; }
+  return null;
+}
+function moveR(id, toWho, d) {
+  const [, cid, from] = id.split(':'), M = model(), who = rOwner(M, cid, from || '');
+  if (!who) return false;
+  if (toWho && toWho !== who) { toast('🔁 Routinen bleiben bei ' + nameOf(who) + '.'); return false; }
+  if (!d) { toast('🔁 Eine Routine braucht einen Tag.'); return false; }
+  if (d === from) return true;
+  if (load(M, who, d) >= C.DAY_LINES) { toast(dayLabel(d) + ' ist voll (' + C.DAY_LINES + ').'); return false; }
+  if (who === 'me') { const c = S.chores.find(x => x.id === cid); if (!c || !moveRoutine(c, from || today(), d)) return false; }
+  else out({ id: cid, v: 'rmove', from: from || null, to: d });
+  commit(true); return true;
+}
+function rsheet(id) {
+  const [, cid, from] = id.split(':'), M = model(), who = rOwner(M, cid, from || ''); if (!who) return closeModal();
+  const r = (from ? rtNorm(M.rt[who][from]) : rtNorm(M.rt[who]._w)).find(x => x.id === cid);
+  modal(`<div class="sp-sheet"><p class="sp-who">${esc(nameOf(who))} · 🔁 Routine</p><p class="psort-t">${esc(r ? r.t : '')}</p>
+    <p class="muted" style="margin:0 0 10px">Nur dieses eine Mal verschieben – der Rhythmus läuft danach weiter.</p>
+    <div class="sp-days">${days().map(d => { const here = d === from, n = load(M, who, d), full = !here && n >= C.DAY_LINES;
+      return `<button class="btn ${here ? '' : 'soft'} sp-dbtn" data-a="spday" data-v="${d}" ${full ? 'disabled' : ''}><b>${esc(dayLabel(d))}</b><small>${n}/${C.DAY_LINES}</small></button>`; }).join('')}</div>
+    <p style="text-align:center;margin:10px 0 0"><button class="sc-undo" data-a="close">Fertig</button></p></div>`, '', true);
+}
 
 // the sheet (phone + tap on the board): who → which day / Liste / 🗑 / Merkmale
 function sheet(id) {
@@ -201,7 +244,7 @@ Object.assign(A, {
   sprintstart() { ui.tab = 'heute'; ui.htab = 'sprint'; ui.spOpen = true; ui.sub = null; ui.spTab = 'L'; render(); scrollTo(0, 0); },
   spback() { ui.tab = 'heute'; ui.htab = 'sprint'; ui.spOpen = false; ui.fsTab = 'woche'; render(); scrollTo(0, 0); },
   sptab(el) { ui.spTab = el.dataset.v; render(); },
-  spitem(el) { if (Date.now() - dragEnd < 400) return; ui.spItem = el.dataset.id; ui.spWho = null; sheet(ui.spItem); },
+  spitem(el) { if (Date.now() - dragEnd < 400) return; ui.spItem = el.dataset.id; ui.spWho = null; if (ui.spItem.startsWith('r:')) rsheet(ui.spItem); else sheet(ui.spItem); },
   spwho(el) { ui.spWho = el.dataset.v; sheet(ui.spItem); },
   spday(el) { if (move(ui.spItem, ui.spWho, el.dataset.v || null)) { closeModal(); render(); } },
   sptrash() { trash(ui.spItem); closeModal(); render(); },

@@ -30,6 +30,7 @@ export function choreWhen(c) { // "heute", "morgen", "in 3 Tagen", "Mo"
 // done on day d: a moved one counts for its planned day, so "alle N Tage" keeps its gaps (weekday plans just go on)
 export function choreDone(c, d) {
   c.last = c.moved && c.moved.to === d && !(c.week && c.week.length) ? c.moved.orig : d;
+  if (c.moved && c.moved.pin && c.moved.to === d && c.moved.to < c.moved.orig && c.week && c.week.length) c.skip = addDays(c.moved.orig, 1);   // 🏃 G45: pulled earlier = its own weekday is covered
   c.moved = null;
   if (c.round && c.round.length) c.round = [];   // 🧩 G33: a new round of parts starts next time
   if (c.slid) { delete c.slid; delete c.slidOn; }   // 🐢 G34: done = the count starts over
@@ -102,10 +103,13 @@ export const weightOf = c => (c && C.SIZE_W[c.size]) || 1;
 // one too big is passed over for a smaller one behind it and keeps its turn. On an empty day the first always lands.
 // 👶 his pick 2026-11-27: a weekday routine marked 🌱 Für mich lands FIRST on its own day (Büro, Homeoffice …); the rest after
 const anchored = c => c.kind === 'eigen' && !!(c.week && c.week.length) && !c.moved;
+const pinnedOn = (c, d) => !!(c.moved && c.moved.pin && c.moved.to === d);   // 🏃 G45: planned in the Sprint-Planung
 function pick(list, d, room, empty) {
+  const pins = list.filter(c => pinnedOn(c, d)); list = list.filter(c => !pinnedOn(c, d));
+  room -= pins.reduce((a, c) => a + weightOf(c), 0); if (pins.length) empty = false;
   const sorted = list.map((c, i) => [c, waitOf(c, d), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]).map(x => x[0]);
   const order = [...sorted.filter(anchored), ...sorted.filter(c => !anchored(c))];
-  const take = [], rest = []; let left = room;
+  const take = [...pins], rest = []; let left = room;
   for (const c of order) { const w = weightOf(c); if (w <= left + 1e-9 || (empty && !take.length && room > 0)) { take.push(c); left -= w; } else rest.push(c); }
   return { take, rest };
 }
@@ -140,6 +144,17 @@ export function scheduleChores(force) {
   return added;
 }
 
+// 🏃 G45 Sprint-Planung: one occurrence of a routine moved from day `from` to day `to` (pinned there, beats the
+// day budget). The rhythm goes on from its original day. Moving off today takes it off the page; onto today puts it on.
+export function moveRoutine(c, from, to) {
+  const d = today(), T = S.today;
+  if (!c || !to || to < d || from === to) return false;
+  if (from === d) { S.items = S.items.filter(i => !(i.chore === c.id && i.where === 'heute')); if (Array.isArray(T.rplaced)) T.rplaced = T.rplaced.filter(id => id !== c.id); }
+  const orig = c.moved && c.moved.to === from ? c.moved.orig : from;
+  c.moved = { orig, to, pin: true };
+  scheduleChores(to === d ? c.id : undefined);
+  return true;
+}
 // play the days forward from today as if everything placed gets done: { day: [{ c, st: 'done'|'open'|'plan', daily }] }
 // (Meine Woche, the Gelber Schein's "morgen", and the ⏭ toast all read the same plan that fills the days)
 export function planAhead(until) {
