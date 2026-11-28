@@ -22,7 +22,7 @@ export const weekCount = () => listed().filter(inWeek).length;
 const isOld = i => i.pile === 'woche' && !i.oldAsked && !i.due && Date.now() - (i.pileTs || i.created || Date.now()) > OLD_DAYS * 864e5;
 
 const marks = i => i.chore ? '' : `<span class="pmarks"><button class="pmark ${i.joy ? 'on' : ''}" data-a="pjoy" data-id="${i.id}" aria-label="Macht Freude" title="Macht Freude">💛</button><button class="pmark ${i.heavy ? 'on' : ''}" data-a="pheavy" data-id="${i.id}" aria-label="Anstrengend" title="Anstrengend">🥵</button></span>`;
-const row = (i, week) => `<div class="item"><button class="chk" data-a="toheute" data-id="${i.id}" aria-label="Für heute einplanen" title="Für heute">☀</button><div class="txt ${i.carried ? 'carried' : ''}"><span>${esc(i.text)}</span>${tags(i, true)}${week ? marks(i) : ''}</div>${dueBtns(i)}${week ? '' : `<button class="mini-btn" data-a="pmove" data-id="${i.id}" data-v="woche" aria-label="In diese Woche" title="In diese Woche">↑</button>`}<button class="mini-btn" data-a="del" data-id="${i.id}" aria-label="Löschen">✕</button></div>`;
+const row = (i, week) => `<div class="item"><button class="chk" data-a="toheute" data-id="${i.id}" aria-label="Für heute einplanen" title="Für heute">☀</button><div class="txt ${i.carried ? 'carried' : ''}"><span${i.chore ? '' : ` class="ftxt" data-a="flagedit" data-id="${i.id}"`}>${esc(i.text)}</span>${tags(i, true)}${week ? marks(i) : ''}</div>${dueBtns(i)}${week ? '' : `<button class="mini-btn" data-a="pmove" data-id="${i.id}" data-v="woche" aria-label="In diese Woche" title="In diese Woche">↑</button>`}<button class="mini-btn" data-a="del" data-id="${i.id}" aria-label="Löschen">✕</button></div>`;
 
 export function viewPiles() {
   const week = weekPile(), loose = dueSort(listed().filter(unsorted)), monat = pileOf('monat');
@@ -42,7 +42,7 @@ export function viewPiles() {
     if (open) h += `<div class="ppile">${list.map(i => row(i, false)).join('') || '<p class="muted">Leer.</p>'}</div>`;
   }
   if (D.canPost() && S.items.length) h += bzOn() ? `<p style="text-align:center;margin:12px 0 0"><button class="sc-undo" data-a="delegate">🤝 An ${esc(pn())} abgeben</button></p>` : `<button class="btn soft wide" data-a="delegate" style="margin-top:12px">🤝 An ${esc(pn())} abgeben</button>`;
-  h += `<p class="hint">Mit ☀ kommt eine Aufgabe auf die Seite von heute. 💛 = macht Freude, 🥵 = anstrengend. ❗ wichtig, ⏰ dringend, 🙋 nur ich.</p></section>`;
+  h += `<p class="hint">Mit ☀ kommt eine Aufgabe auf die Seite von heute. 💛 = macht Freude, 🥵 = anstrengend. ❗ wichtig, ⏰ dringend, 🙋 nur ich – Aufgabe antippen zum Ändern.</p></section>`;
   return h;
 }
 

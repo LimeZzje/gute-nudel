@@ -1541,3 +1541,4 @@ div.diaryrow.plan-empty { cursor: default; opacity: .45; }
 .ftag { margin-left: 4px; font-size: 14px; }
 .sprint .sp-flags { margin: 0 0 10px; text-align: center; }
 .sprint .sp-low { margin: 0 0 8px; text-align: center; font-weight: 700; color: var(--ink2); }
+.ftxt { cursor: pointer; }

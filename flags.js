@@ -43,6 +43,7 @@ Object.assign(A, {
     const it = S.items.find(i => i.id === c.it.id); if (it) setFlags(it, c.f);
     closeModal(); commit();
   },
+  flagedit(el) { const it = S.items.find(i => i.id === el.dataset.id); if (it && !it.chore) askFlags(it, { skip: 'Abbrechen' }); },   // tap a to-do's text: the same card
   flagskip() { if (!cur) return; const c = cur; cur = null; if (c.done) return c.done(null); closeModal(); },
 });
 // right after + on any to-do field
