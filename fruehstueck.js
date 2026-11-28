@@ -38,7 +38,7 @@ export function fsReceive(p) {
   if (sprintReceive(p)) ch = true;   // 🏃 G42
   return ch;
 }
-export const fsTile = () => `<button class="card hcard fs-tile" data-a="fs"><span class="hc-txt"><b>☕ Unser Tag · Unsere Woche</b><span class="muted">Was heute und die nächsten Tage für euch dran ist</span></span><span class="hc-go">›</span></button>`;
+export const fsTile = () => `<button class="card hcard fs-tile" data-a="fs"><span class="hc-txt"><b>🏃 Sprint</b><span class="muted">Wer macht was – heute und diese Woche</span></span><span class="hc-go">›</span></button>`;
 
 const dayName = k => parse(k).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'numeric' });
 function tabs() {
