@@ -12,7 +12,7 @@ import { dueTag, pushSync } from './faellig.js';
 import { knBtn } from './kniff.js';
 import { flagTags } from './flags.js';
 
-export const VERSION = '2026-11-28.17';
+export const VERSION = '2026-11-28.18';
 
 export const $ = s => document.querySelector(s);
 export const tags = (i, tap) => (i.chore ? choreTag(i) : i.list ? toolBtns(null, i) : '') + (i.quest ? `<span class="tag">${i.quest} Doppel-Quest</span>` : '') + (i.from ? `<span class="tag">von ${esc(i.from)}</span>` : '') + (i.back ? `<span class="tag">zurück: ${esc(i.back)}</span>` : '') + (i.urgent ? '<span class="tag hot">bitte heute</span>' : '') + dueTag(i, tap) + flagTags(i);   // 🏷️ G43

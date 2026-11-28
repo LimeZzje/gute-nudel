@@ -8,9 +8,10 @@
 export const ID = 'plaetzchen-2026';
 export const TITLE = 'Plätzchen-Rush';
 export const STARS = 5;
-// the four Advent Sundays (local midnight); the first one is the start
+// the four Advent Sundays (local midnight). The first tin opened a day early, Saturday 28 Nov (user: "make it live now")
 export const ADVENT = [new Date(2026, 10, 29), new Date(2026, 11, 6), new Date(2026, 11, 13), new Date(2026, 11, 20)].map(d => d.getTime());
-export const START = ADVENT[0];
+export const START = new Date(2026, 10, 28).getTime();
+export const openAt = a => a ? ADVENT[a] : START;   // when tin a opens (its Sunday; the first one at START)
 export const END = new Date(2027, 0, 7, 0, 0, 0).getTime();   // after Heilige Drei Könige: the tins close, the recipes go into the book
 // per Advent: [German classic, from abroad, Kinderleicht] — twelve different families, so every tin is new
 export const TINS = [
@@ -221,7 +222,7 @@ export const ids = new Set(RECIPES.map(r => r.id));
 export const counts = rid => ids.has(rid);
 export const advOf = rid => TINS.findIndex(t => t.includes(rid));   // 0-3, -1 = not a Plätzchen
 export const kindOf = rid => { const a = advOf(rid); return a < 0 ? null : KINDS[TINS[a].indexOf(rid)]; };
-export const opened = (now = Date.now()) => ADVENT.filter(t => now >= t).length;   // how many tins are open
+export const opened = (now = Date.now()) => ADVENT.filter((t, a) => now >= openAt(a)).length;   // how many tins are open
 
 // the event's card under "Vergangene Events"; plate = [{adv, rid, title, icon}] in Advent order
 export function record(plate, endedByTime) {

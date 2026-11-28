@@ -15,7 +15,7 @@ export const plLive = () => !plDone() && Date.now() >= PL.START && Date.now() < 
 // every Plätzchen baked + rated so far, both phones together (team, never per person), oldest first
 function bakes() {
   return [...(S.cookLog || []), ...(S.partnerCooked || [])]
-    .filter(x => x && PL.counts(x.rid) && (x.ts || 0) >= PL.ADVENT[PL.advOf(x.rid)]).sort((a, b) => a.ts - b.ts);
+    .filter(x => x && PL.counts(x.rid) && (x.ts || 0) >= PL.openAt(PL.advOf(x.rid))).sort((a, b) => a.ts - b.ts);
 }
 // the plate: per Advent the first one baked from its tin → [{adv, rid, title, icon}]
 export function plPlate() {
