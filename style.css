@@ -1607,3 +1607,8 @@ main:has(.spboard.wide) { max-width: none; }
 .sp-wrow { display: grid; grid-template-columns: 1fr 56px 44px 56px; align-items: center; gap: 8px; margin: 0 0 8px; text-align: left; }
 .sp-wrow .btn { margin: 0; min-height: 48px; font-size: 22px; }
 .sp-wn { text-align: center; font-size: 22px; font-weight: 800; }
+/* 🏢 Büro days */
+.sp-off { border: 0; background: transparent; font-size: 14px; padding: 2px 6px; border-radius: 99px; opacity: .45; min-height: 28px; }
+.sp-off.on { opacity: 1; background: var(--accent2); font-weight: 800; }
+.sp-day.office { background: var(--paper2); }
+.fs-office.on { background: var(--accent2); }

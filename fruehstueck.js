@@ -14,7 +14,8 @@ import { weekAhead, whyFor } from './builder.js';
 import { bzOn } from './babyzeit.js';
 import { seltenCard } from './daheim.js';
 import { render } from './app.js';
-import { sprintBtn, sprintPost, sprintReceive } from './sprint.js';
+import { officeMine, sprintBtn, sprintPost, sprintReceive } from './sprint.js';
+import { isOfficeMe } from './office.js';
 
 const label = i => { const c = i.chore && S.chores.find(x => x.id === i.chore); return (c ? c.icon + ' ' : '') + i.text; };
 const openTodos = () => S.items.filter(i => !i.chore && (i.where === 'liste' || i.where === 'heute')).length;
@@ -62,7 +63,7 @@ function viewDay() {
   h += `<div class="card fs-me"><h3>${esc(S.name || 'Ich')}</h3>`;
   if (scheinOn()) h += `<p class="fs-pause">🟡 Heute ist Pause.</p>`;
   else h += mine.length ? mine.map(i => `<div class="fs-line"><span>${esc(label(i))}</span>${i.chore ? `<button class="mini-btn" data-a="choreskip" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht">⏭</button>` : `<button class="mini-btn" data-a="later" data-id="${i.id}" aria-label="Heute nicht" title="Heute nicht">${whyFor(i.id) ? '↻' : '↩'}</button>`}</div>`).join('') : `<p class="muted">Noch nichts für heute.</p>`;
-  h += scheinBtn() + `</div>`;
+  h += scheinBtn() + `<button class="btn soft wide fs-office${isOfficeMe(t) ? ' on' : ''}" data-a="fsoffice">🏢 ${isOfficeMe(t) ? 'Heute Büro – zurücknehmen' : 'Heute Büro'}</button></div>`;
   // the partner's, read only
   const p = S.partnerToday;
   h += `<div class="card fs-you"><h3>${esc(pn())}</h3>${!p || p.day !== t ? `<p class="muted">noch nicht da</p>` : p.schein ? `<p class="fs-pause">🟡 Heute ist Pause.</p>` : p.lines.length ? p.lines.map(x => `<div class="fs-line"><span>${esc(x)}</span></div>`).join('') : `<p class="muted">Nichts geplant.</p>`}</div>`;
@@ -93,5 +94,6 @@ function viewWeek() {
 Object.assign(A, {
   fs() { ui.tab = 'heute'; ui.htab = 'sprint'; ui.spOpen = false; ui.sub = null; render(); scrollTo(0, 0); },   // the Home tile opens the To-Dos tab
   fstab(el) { ui.fsTab = el.dataset.v; render(); },
+  fsoffice() { officeMine(today(), !isOfficeMe(today())); render(); },
   fsweek() { S.fsWeek = monday(today()); commit(); A.psortstart(); },
 });

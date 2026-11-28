@@ -4,6 +4,7 @@ import { $, addDays, esc, modal, parse, scheinOn, shortDate, today } from './cor
 import { S, ui } from './state.js';
 import * as D from './data.js';
 import { walkCount, walkLines, walksInit } from './walks.js';
+import { isOfficeMe, routineRoom } from './office.js';
 import { pn } from './sync.js';
 import { buildDay } from './builder.js';
 import { bzEditorChip, bzOn } from './babyzeit.js';
@@ -109,11 +110,13 @@ export const weightOf = c => (c && C.SIZE_W[c.size]) || 1;
 const anchored = c => c.kind === 'eigen' && !!(c.week && c.week.length) && !c.moved;
 const pinnedOn = (c, d) => !!(c.moved && c.moved.pin && c.moved.to === d);   // 🏃 G45: planned in the Sprint-Planung
 function pick(list, d, room, empty) {
+  let off = [];
+  if (isOfficeMe(d)) { off = list.filter(c => c.heavy && !(c.moved && c.moved.pin && c.moved.to === d)); list = list.filter(c => !off.includes(c)); room = routineRoom(d, room); }   // 🏢 Büro: little room, nothing 🥵
   const pins = list.filter(c => pinnedOn(c, d)); list = list.filter(c => !pinnedOn(c, d));
   room -= pins.reduce((a, c) => a + weightOf(c), 0); if (pins.length) empty = false;
   const sorted = list.map((c, i) => [c, waitOf(c, d), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]).map(x => x[0]);
   const order = [...sorted.filter(anchored), ...sorted.filter(c => !anchored(c))];
-  const take = [...pins], rest = []; let left = room;
+  const take = [...pins], rest = [...off]; let left = room;
   for (const c of order) { const w = weightOf(c); if (w <= left + 1e-9 || (empty && !take.length && room > 0)) { take.push(c); left -= w; } else rest.push(c); }
   return { take, rest };
 }
@@ -252,6 +255,7 @@ export function choreModal() {
       ${e.start === 'datum' ? `<label class="field"><span>Beginnt am</span><input type="date" id="ce-date" min="${today()}" value="${e.startDate || addDays(today(), 1)}" oninput="const h=document.getElementById('ce-datehint'); if(h) h.textContent=''"></label><p class="hint" id="ce-datehint">${e.startDate ? 'beginnt ' + esc(C.DAYNAMES[parse(e.startDate).getDay()]) + ', ' + esc(shortDate(e.startDate)) : ''}</p>` : ''}`}
     <p class="muted" style="font-weight:800;margin:12px 0 4px">Wie viel vom Tag?</p>
     <div class="chips">${C.SIZES.map(([k, l]) => `<button class="chip ${(e.size || 'n') === k ? 'on' : ''}" data-a="cesize" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="chips"><button class="chip ${e.heavy ? 'on' : ''}" data-a="ceheavy">🥵 Anstrengend</button></div>
     <p class="muted" style="font-weight:800;margin:12px 0 4px">🧩 Teile <span style="font-weight:400">(optional)</span></p>
     ${(e.parts || []).map(p => `<div class="ce-prow"><input class="ce-part" data-pid="${p.id}" value="${esc(p.name)}" autocomplete="off"><button class="mini-btn" data-a="cepartdel" data-v="${p.id}" aria-label="Teil entfernen">✕</button></div>`).join('')}
     <div class="ce-prow"><input id="ce-newpart" value="${esc(e.newPart || '')}" placeholder="${(e.parts || []).length ? 'Noch ein Teil…' : 'z.B. Wanne'}" autocomplete="off"><button class="mini-btn" data-a="cepartadd" aria-label="Teil hinzufügen">+</button></div>
