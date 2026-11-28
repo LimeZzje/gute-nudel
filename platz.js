@@ -15,7 +15,7 @@ export const plLive = () => !plDone() && Date.now() >= PL.START && Date.now() < 
 // every Plätzchen baked + rated so far, both phones together (team, never per person), oldest first
 function bakes() {
   return [...(S.cookLog || []), ...(S.partnerCooked || [])]
-    .filter(x => x && PL.counts(x.rid) && (x.ts || 0) >= PL.openAt(PL.advOf(x.rid))).sort((a, b) => a.ts - b.ts);
+    .filter(x => x && PL.counts(x.rid) && (x.ts || 0) >= PL.START).sort((a, b) => a.ts - b.ts);
 }
 // the plate: per Advent the first one baked from its tin → [{adv, rid, title, icon}]
 export function plPlate() {
@@ -23,8 +23,14 @@ export function plPlate() {
   for (let a = 0; a < 4; a++) { const x = b.find(y => PL.advOf(y.rid) === a); if (x) out.push({ adv: a, rid: x.rid, title: x.title, icon: x.icon }); }
   return out;
 }
+// which tins are open: its Sunday has come OR the tin before it is on the plate (user 2026-11-28: "open the next one as soon
+// as we baked one") — whatever comes first
+export function plOpen(plate = plPlate()) {
+  const on = new Set(plate.map(p => p.adv)), now = Date.now();
+  return [0, 1, 2, 3].filter(a => now >= PL.openAt(a) || on.has(a - 1));
+}
 // a tin that is open and not on the plate yet (the bubble's coloured ring)
-export const plWaiting = () => plLive() && plPlate().length < PL.opened();
+export const plWaiting = () => { if (!plLive()) return false; const p = plPlate(), on = new Set(p.map(x => x.adv)); return plOpen(p).some(a => !on.has(a)); };
 export function plReconcile() {   // → true when something changed (stars granted / event done)
   if (!S || plDone() || Date.now() < PL.START) return false;
   const plate = plPlate(); let n = 0;
@@ -53,10 +59,11 @@ export function plParty() {
       <div class="row"><button class="btn" data-a="plbook">Zu den Plätzchen</button><button class="btn soft" data-a="close">Frohe Weihnachten 🎄</button></div>`);
     return;
   }
-  const open = PL.opened(), left = open - plate.length, nx = open < 4 ? advDate(open) : '';
+  const on = new Set(plate.map(x => x.adv)), wait = plOpen(plate).filter(a => !on.has(a)), fresh = p && wait.includes(p.adv + 1);
+  const left = wait.length, nx = [0, 1, 2, 3].find(a => !plOpen(plate).includes(a));
   modal(`<div class="plparty">${plateSvg(plate)}</div><h2>${p ? esc(p.icon + ' ' + p.title) : 'Plätzchen'} – ab auf den Teller!</h2>
     <p>${p ? `Der ${p.adv + 1}. Advent ist geschafft.` : ''} <b>+${PL.STARS} ⭐</b> für dich und für ${esc(pn())}.</p>
-    <p class="muted">${left > 0 ? `Noch ${left === 1 ? 'eine Dose wartet' : left + ' Dosen warten'} auf euch – ganz ohne Eile.` : nx ? `Die nächste Dose geht am ${esc(nx)} auf.` : ''}</p>
+    <p class="muted">${fresh ? `🎁 Die Dose vom ${p.adv + 2}. Advent ist jetzt offen!` : left > 0 ? `Noch ${left === 1 ? 'eine Dose wartet' : left + ' Dosen warten'} auf euch – ganz ohne Eile.` : nx != null ? `Die nächste Dose geht am ${esc(advDate(nx))} auf.` : ''}</p>
     <div class="row"><button class="btn soft" data-a="close">Lecker 🍪</button></div>`);
 }
 
@@ -102,21 +109,21 @@ export function viewPlaetzchen() {
     return `<button class="btn soft" data-a="pllist" style="margin:4px 0 12px">← Zu den Plätzchendosen</button>
       <div class="cbook cb-top gb-cbook"><div class="cb-body"><div class="bk-stage"><div class="bk-page cur bp-${styleOf(r)}" data-key="r-${esc(r.id)}"><div class="bp">${recipePage(r)}</div></div></div></div></div>`;
   }
-  const V = vorrat(), plate = plPlate(), byAdv = new Map(plate.map(p => [p.adv, p])), open = PL.opened();
+  const V = vorrat(), plate = plPlate(), byAdv = new Map(plate.map(p => [p.adv, p])), open = plOpen(plate);
   let h = `<button class="btn soft" data-a="babyback" style="margin:4px 0 12px">← Zurück</button>`;
   h += `<div class="card plcard hero">${plateSvg(plate)}<span class="pl-eye">Gute-Nudel-Event · Advent</span><span class="pl-t">🍪 ${esc(PL.TITLE)}</span>
-    <span class="pl-info">Jeden Adventssonntag geht eine neue Plätzchendose auf: drei Sorten aus drei Familien – ein Klassiker, eine aus aller Welt, eine kinderleichte. Sucht euch eine aus, backt sie und bewertet sie im Kochmodus: dann kommt der Advent auf den Teller, eine Kerze geht an, und es gibt <b>+${PL.STARS} ⭐ für dich und für ${esc(pn())}</b>. Eine Woche verpasst? Die Dose bleibt offen.</span>
+    <span class="pl-info">Jeden Adventssonntag geht eine neue Plätzchendose auf – oder sofort, wenn ihr aus der Dose davor gebacken habt: drei Sorten aus drei Familien – ein Klassiker, eine aus aller Welt, eine kinderleichte. Sucht euch eine aus, backt sie und bewertet sie im Kochmodus: dann kommt der Advent auf den Teller, eine Kerze geht an, und es gibt <b>+${PL.STARS} ⭐ für dich und für ${esc(pn())}</b>. Eine Woche verpasst? Die Dose bleibt offen.</span>
     <span class="pl-made">${plate.length} von 4 Advents auf dem Teller</span></div>`;
   // open tins: the ones still waiting first (oldest first), then the ones already on the plate
-  const order = [...Array(open).keys()].sort((a, b) => (byAdv.has(a) - byAdv.has(b)) || a - b);
+  const order = open.slice().sort((a, b) => (byAdv.has(a) - byAdv.has(b)) || a - b);
   for (const a of order) {
     const got = byAdv.get(a);
     h += `<div class="sec-title">🕯️ ${a + 1}. Advent <span class="muted" style="font-weight:600">· ${esc(advDate(a))}${got ? ' · ✓ auf dem Teller' : ''}</span></div>`;
     if (got) h += `<p class="muted pl-extra">Noch Lust auf eine zweite Sorte? Geht immer – nur die Sterne gibt’s einmal pro Advent.</p>`;
     h += PL.TINS[a].map(id => recipeById(id)).filter(Boolean).map(c => plRow(c, V, got)).join('');
   }
-  for (let a = open; a < 4; a++)
-    h += `<div class="card pl-closed"><span class="pl-lock">🎁</span><span><b>${a + 1}. Advent</b><span class="muted">Die Dose geht am ${esc(advDate(a))} auf – was drin ist, bleibt bis dahin eine Überraschung.</span></span></div>`;
+  for (const a of [0, 1, 2, 3].filter(x => !open.includes(x)))
+    h += `<div class="card pl-closed"><span class="pl-lock">🎁</span><span><b>${a + 1}. Advent</b><span class="muted">Geht auf, sobald ihr aus der Dose davor gebacken habt – spätestens am ${esc(advDate(a))}. Was drin ist, bleibt bis dahin eine Überraschung.</span></span></div>`;
   return h;
 }
 function plRow(c, V, got) {

@@ -1,6 +1,6 @@
 // Offline support. Online: always the newest app files from the network (so updates apply at once);
 // offline: the copy from the cache. GitHub (backup + photos) never goes through here.
-const V = 'gn-204';
+const V = 'gn-205';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'data.js', 'schein.js', 'piles.js', 'builder.js', 'babyzeit.js', 'fruehstueck.js', 'sprint.js', 'flags.js', 'walks.js', 'office.js', 'content.js', 'cookbook.js', 'shop.js', 'naehr.js', 'plant.js', 'car.js', 'spiel.js', 'entspannen.js', 'entdecker.js', 'entdecker_tags.js', 'baby.js', 'geburtstag.js', 'hellonudel.js', 'hn_slides.js', 'manifest.json',
   'state.js', 'core.js', 'sync.js', 'rank.js', 'chores.js', 'heute.js', 'daheim.js', 'relax.js', 'schaetze.js', 'woche.js', 'settings.js', 'actions.js',
   'einkauf.js', 'kochbuch.js', 'recipes.js', 'termine.js', 'home.js', 'wochenplan.js', 'events.js', 'merge.js', 'faellig.js', 'flowers.js', 'snacks.js', 'plaetzchen.js', 'platz.js', 'kniffe.js', 'kniff.js', 'bon.js', 'budget.js', 'hund.js',
